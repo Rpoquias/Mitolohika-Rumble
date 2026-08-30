@@ -14,8 +14,9 @@ GameObject:
   - component: {fileID: 7251879043630186876}
   - component: {fileID: 4830244679312638644}
   - component: {fileID: 5346804513213949179}
+  - component: {fileID: 8123948571029384756}
   - component: {fileID: 1208568083327448213}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -103,7 +104,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 394773554417792030}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 6f7beb94fc62b7947b2dbe2496776a82, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -128,7 +129,7 @@ Rigidbody:
   m_GameObject: {fileID: 394773554417792030}
   serializedVersion: 5
   m_Mass: 1
-  m_LinearDamping: 0
+  m_LinearDamping: 5
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
@@ -158,18 +159,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a0da4e87a4616e4fba8492ecf883b8f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
-  moveSpeed: 7
-  acceleration: 20
-  deceleration: 25
-  rotationSpeed: 8
-  jumpAction: {fileID: -2099379676528639254, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  jumpForce: 10
-  groundCheck: {fileID: 6487710371806632542}
-  groundCheckRadius: 0.2
-  groundLayer:
+  _canMove: 1
+  _moveSpeed: 7
+  _acceleration: 20
+  _deceleration: 25
+  _rotationSpeed: 8
+  _jumpAction: {fileID: -2099379676528639254, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  _jumpForce: 25
+  _groundCheck: {fileID: 6487710371806632542}
+  _groundCheckRadius: 0.2
+  _groundLayer:
     serializedVersion: 2
     m_Bits: 8
-  cameraTransform: {fileID: 0}
+  _externalVelocityDamping: 10
+  _fallMultiplier: 4
+  _cameraTransform: {fileID: 0}
+--- !u!114 &8123948571029384756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394773554417792030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7e3c91b4d824f6a9c1e5b8d2f0a4c76, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerBumpAttack
+  _bumpAction: {fileID: 1120369429361536294, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  _startup: 0.1
+  _activeTime: 0.15
+  _recovery: 0.5
+  _cooldown: 2
+  _force: 5.5
+  _range: 1.1
+  _radius: 0.75
+  _minDot: 0.5
+  _playerLayer:
+    serializedVersion: 2
+    m_Bits: 64
 --- !u!114 &1208568083327448213
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -209,7 +237,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6487710371806632542}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: GroundCheck
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -242,7 +270,7 @@ GameObject:
   - component: {fileID: 2390122443752849538}
   - component: {fileID: 4782219178452520733}
   - component: {fileID: 1420198914753153607}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Face
   m_TagString: Untagged
   m_Icon: {fileID: 0}
