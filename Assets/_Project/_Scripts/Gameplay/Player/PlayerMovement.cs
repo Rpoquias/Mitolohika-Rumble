@@ -163,6 +163,16 @@ public class PlayerMovement : MonoBehaviour
 
         _rb.AddForce(Vector3.up * _jumpForce, ForceMode.Impulse);
     }
+    public void SetCanMove(bool canMove)
+{
+    _canMove = canMove;
+
+    if (!canMove)
+    {
+        _moveInput = Vector2.zero;
+        _currentMoveVelocity = Vector3.zero;
+    }
+}
 
     private void Rotate()
     {

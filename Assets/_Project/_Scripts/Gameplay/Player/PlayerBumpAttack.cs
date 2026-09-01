@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,6 +7,8 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(PlayerMovement))]
 public class PlayerBumpAttack : MonoBehaviour
 {
+public event Action<PlayerElimination, PlayerElimination> OnKnockbackApplied;
+
     [Header("Input")]
     [SerializeField] private InputActionReference _bumpAction;
 
@@ -99,7 +102,16 @@ public class PlayerBumpAttack : MonoBehaviour
                 continue;
 
             _hitPlayers.Add(otherPlayer);
+
             otherPlayer.AddExternalForce(knockbackDirection * _force);
+
+            PlayerElimination attacker = GetComponent<PlayerElimination>();
+            PlayerElimination victim = otherPlayer.GetComponent<PlayerElimination>();
+
+if (attacker != null && victim != null)
+{
+    OnKnockbackApplied?.Invoke(attacker, victim);
+}
         }
     }
 
