@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Fusion;
 using UnityEngine;
 
 public class MatiraMatibayScoreManager : MonoBehaviour
@@ -12,95 +13,237 @@ public class MatiraMatibayScoreManager : MonoBehaviour
 
         [HideInInspector]
         public float lastKnockbackTime = -Mathf.Infinity;
-        
 
         [HideInInspector]
         public PlayerElimination lastKnockbackSource;
     }
-    private float survivalTimer;
-
-    [Header("Players")]
-    [SerializeField] private List<PlayerScore> playerScores;
 
     [Header("Knockout Settings")]
     [SerializeField] private float knockoutAttributionWindow = 3f;
-    
+
     [Header("Round State")]
-[SerializeField] private RoundStateManager roundStateManager;
+    [SerializeField] private RoundStateManager roundStateManager;
 
+    private readonly List<PlayerScore> playerScores =
+        new List<PlayerScore>();
+
+    private PlayerRegistry playerRegistry;
+    private NetworkRunner runner;
+
+    private float survivalTimer;
     private bool scoringActive = false;
+    private bool initialized = false;
 
-
-private void OnEnable()
-{
-    if (roundStateManager != null)
+    private void OnEnable()
     {
-        roundStateManager.OnRoundStarted += StartScoring;
-        roundStateManager.OnRoundEnded += StopScoring;
-        roundStateManager.OnRoundReset += ResetScores;
+        if (roundStateManager != null)
+        {
+            roundStateManager.OnRoundStarted += StartScoring;
+            roundStateManager.OnRoundEnded += StopScoring;
+            roundStateManager.OnRoundReset += ResetScores;
+        }
     }
 
-    foreach (PlayerScore score in playerScores)
+    private void Update()
     {
+        if (!initialized)
+        {
+            TryInitialize();
+            return;
+        }
+
+        if (!scoringActive)
+            return;
+
+        survivalTimer += Time.deltaTime;
+
+        int currentSecond =
+            Mathf.FloorToInt(survivalTimer);
+
+        foreach (PlayerScore score in playerScores)
+        {
+            if (score.player == null)
+                continue;
+
+            if (!score.player.IsEliminated)
+            {
+                score.survivalScore = currentSecond;
+            }
+        }
+    }
+
+    private void TryInitialize()
+    {
+        runner =
+            NetworkRunner.GetRunnerForGameObject(gameObject);
+
+        if (runner == null || !runner.IsRunning)
+            return;
+
+        playerRegistry =
+            runner.GetComponentInChildren<PlayerRegistry>();
+
+        if (playerRegistry == null)
+            return;
+
+        Debug.Log(
+            $"[SCORE] Connected to registry for Runner " +
+            $"{runner.name}. Existing players: " +
+            $"{playerRegistry.Players.Count}"
+        );
+
+        playerRegistry.OnPlayerRegistered += RegisterPlayer;
+        playerRegistry.OnPlayerUnregistered += UnregisterPlayer;
+
+        // Register players that already exist.
+        foreach (NetworkObject playerObject in playerRegistry.Players)
+        {
+            RegisterPlayer(playerObject);
+        }
+
+        initialized = true;
+
+        Debug.Log(
+            $"[SCORE] Initialization complete. " +
+            $"Tracking {playerScores.Count} players."
+        );
+
+        // If the round already reached Playing before
+        // this manager initialized, start scoring now.
+        if (roundStateManager != null &&
+            roundStateManager.CurrentState ==
+            RoundStateManager.RoundState.Playing)
+        {
+            StartScoring();
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (playerRegistry != null)
+        {
+            playerRegistry.OnPlayerRegistered -= RegisterPlayer;
+            playerRegistry.OnPlayerUnregistered -= UnregisterPlayer;
+        }
+
+        if (roundStateManager != null)
+        {
+            roundStateManager.OnRoundStarted -= StartScoring;
+            roundStateManager.OnRoundEnded -= StopScoring;
+            roundStateManager.OnRoundReset -= ResetScores;
+        }
+
+        foreach (PlayerScore score in playerScores)
+        {
+            UnsubscribeFromPlayer(score.player);
+        }
+    }
+
+    private void RegisterPlayer(NetworkObject playerObject)
+    {
+        if (playerObject == null)
+            return;
+
+        PlayerElimination player =
+            playerObject.GetComponent<PlayerElimination>();
+
+        if (player == null)
+        {
+            Debug.LogWarning(
+                $"[SCORE] {playerObject.name} has no " +
+                "PlayerElimination component."
+            );
+
+            return;
+        }
+
+        // Prevent duplicate PlayerScore entries.
+        if (GetScore(player) != null)
+            return;
+
+        PlayerScore newScore = new PlayerScore
+        {
+            player = player,
+            survivalScore = 0,
+            knockoutCredit = 0,
+            lastKnockbackTime = -Mathf.Infinity,
+            lastKnockbackSource = null
+        };
+
+        playerScores.Add(newScore);
+
         PlayerBumpAttack bumpAttack =
-            score.player.GetComponent<PlayerBumpAttack>();
+            playerObject.GetComponent<PlayerBumpAttack>();
 
         if (bumpAttack != null)
         {
             bumpAttack.OnKnockbackApplied += RecordKnockback;
         }
 
-        score.player.OnPlayerEliminated += RecordElimination;
-    }
-}
+        player.OnPlayerEliminated += RecordElimination;
 
-private void OnDisable()
-{
-    if (roundStateManager != null)
-    {
-        roundStateManager.OnRoundStarted -= StartScoring;
-        roundStateManager.OnRoundEnded -= StopScoring;
-        roundStateManager.OnRoundReset -= ResetScores;
+        Debug.Log(
+            $"[SCORE] Tracking {playerObject.name}. " +
+            $"Total score records: {playerScores.Count}"
+        );
     }
 
-    foreach (PlayerScore score in playerScores)
+    private void UnregisterPlayer(NetworkObject playerObject)
     {
+        if (playerObject == null)
+            return;
+
+        PlayerElimination player =
+            playerObject.GetComponent<PlayerElimination>();
+
+        if (player == null)
+            return;
+
+        PlayerScore score = GetScore(player);
+
+        if (score == null)
+            return;
+
+        UnsubscribeFromPlayer(player);
+
+        playerScores.Remove(score);
+
+        Debug.Log(
+            $"[SCORE] Stopped tracking {playerObject.name}. " +
+            $"Total score records: {playerScores.Count}"
+        );
+    }
+
+    private void UnsubscribeFromPlayer(
+        PlayerElimination player)
+    {
+        if (player == null)
+            return;
+
         PlayerBumpAttack bumpAttack =
-            score.player.GetComponent<PlayerBumpAttack>();
+            player.GetComponent<PlayerBumpAttack>();
 
         if (bumpAttack != null)
         {
             bumpAttack.OnKnockbackApplied -= RecordKnockback;
         }
 
-        score.player.OnPlayerEliminated -= RecordElimination;
+        player.OnPlayerEliminated -= RecordElimination;
     }
-}
-private void Update()
-{
-    if (!scoringActive)
-        return;
 
-    survivalTimer += Time.deltaTime;
-
-    int currentSecond = Mathf.FloorToInt(survivalTimer);
-
-    foreach (PlayerScore score in playerScores)
+    public void StartScoring()
     {
-        if (!score.player.IsEliminated)
-        {
-            score.survivalScore = currentSecond;
-        }
+        ResetScores();
+        scoringActive = true;
+
+        Debug.Log("[SCORE] Scoring started.");
     }
-}public void StartScoring()
-{
-    ResetScores();
-    scoringActive = true;
-}
 
     public void StopScoring()
     {
         scoringActive = false;
+
+        Debug.Log("[SCORE] Scoring stopped.");
     }
 
     public void RecordKnockback(
@@ -110,7 +253,8 @@ private void Update()
         if (!scoringActive)
             return;
 
-        PlayerScore victimScore = GetScore(victim);
+        PlayerScore victimScore =
+            GetScore(victim);
 
         if (victimScore == null)
             return;
@@ -124,39 +268,52 @@ private void Update()
             victim.gameObject.name
         );
     }
-public void ResetScores()
-{
-    scoringActive = false;
-    survivalTimer = 0f;
 
-    foreach (PlayerScore score in playerScores)
+    public void ResetScores()
     {
-        score.survivalScore = 0;
-        score.knockoutCredit = 0;
-        score.lastKnockbackTime = -Mathf.Infinity;
-        score.lastKnockbackSource = null;
+        scoringActive = false;
+        survivalTimer = 0f;
+
+        foreach (PlayerScore score in playerScores)
+        {
+            score.survivalScore = 0;
+            score.knockoutCredit = 0;
+            score.lastKnockbackTime = -Mathf.Infinity;
+            score.lastKnockbackSource = null;
+        }
+
+        Debug.Log(
+            $"[SCORE] Scores reset for " +
+            $"{playerScores.Count} players."
+        );
     }
-}
-    public void RecordElimination(PlayerElimination eliminatedPlayer)
+
+    public void RecordElimination(
+        PlayerElimination eliminatedPlayer)
     {
         if (!scoringActive)
             return;
 
-        PlayerScore victimScore = GetScore(eliminatedPlayer);
+        PlayerScore victimScore =
+            GetScore(eliminatedPlayer);
 
         if (victimScore == null)
             return;
 
-        PlayerElimination attacker = victimScore.lastKnockbackSource;
+        PlayerElimination attacker =
+            victimScore.lastKnockbackSource;
 
         if (attacker != null)
         {
             float timeSinceKnockback =
-                Time.time - victimScore.lastKnockbackTime;
+                Time.time -
+                victimScore.lastKnockbackTime;
 
-            if (timeSinceKnockback <= knockoutAttributionWindow)
+            if (timeSinceKnockback <=
+                knockoutAttributionWindow)
             {
-                PlayerScore attackerScore = GetScore(attacker);
+                PlayerScore attackerScore =
+                    GetScore(attacker);
 
                 if (attackerScore != null)
                 {
@@ -170,27 +327,36 @@ public void ResetScores()
             }
         }
 
-        // Clear attribution after elimination
+        // Clear attribution after elimination.
         victimScore.lastKnockbackSource = null;
-        victimScore.lastKnockbackTime = -Mathf.Infinity;
+        victimScore.lastKnockbackTime =
+            -Mathf.Infinity;
     }
-    
 
-    public int GetSurvivalScore(PlayerElimination player)
+    public int GetSurvivalScore(
+        PlayerElimination player)
     {
-        PlayerScore score = GetScore(player);
+        PlayerScore score =
+            GetScore(player);
 
-        return score != null ? score.survivalScore : 0;
+        return score != null
+            ? score.survivalScore
+            : 0;
     }
 
-    public int GetKnockoutCredit(PlayerElimination player)
+    public int GetKnockoutCredit(
+        PlayerElimination player)
     {
-        PlayerScore score = GetScore(player);
+        PlayerScore score =
+            GetScore(player);
 
-        return score != null ? score.knockoutCredit : 0;
+        return score != null
+            ? score.knockoutCredit
+            : 0;
     }
 
-    private PlayerScore GetScore(PlayerElimination player)
+    private PlayerScore GetScore(
+        PlayerElimination player)
     {
         foreach (PlayerScore score in playerScores)
         {
@@ -200,8 +366,4 @@ public void ResetScores()
 
         return null;
     }
-    
-
-
-    
 }

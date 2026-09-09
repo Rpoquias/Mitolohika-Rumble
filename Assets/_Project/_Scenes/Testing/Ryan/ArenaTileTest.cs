@@ -8,7 +8,7 @@ public class ArenaTileTest : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.T))
         {
-            arenaShrinkController.ShrinkRandomSide();
+            arenaShrinkController.DebugShrink();
         }
     }
 }

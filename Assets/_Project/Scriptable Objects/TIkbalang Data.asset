@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c642520297f7c84eb288db6a9054c17, type: 3}
+  m_Name: TIkbalang Data
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterData
+  characterID: 0
+  characterName: Tikbalang
+  characterPrefab: {fileID: 5621868318684462083, guid: dfe5265ece2fbdb44861721142fd89a3, type: 3}
+  signatureAbility: Powerful Kick

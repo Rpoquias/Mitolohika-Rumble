@@ -1,19 +1,43 @@
 using System;
+using Fusion;
 using UnityEngine;
 
-public class PlayerElimination : MonoBehaviour
+public class PlayerElimination : NetworkBehaviour
 {
-    public bool IsEliminated { get; private set; }
+    [Networked, OnChangedRender(nameof(OnEliminatedChanged))]
+    public NetworkBool IsEliminated { get; private set; }
+
+    public PlayerRef PlayerRef => Object.InputAuthority;
+
+    public bool IsAlive => !IsEliminated;
 
     public event Action<PlayerElimination> OnPlayerEliminated;
 
     private Vector3 startingPosition;
     private Quaternion startingRotation;
+    private NetworkTransform networkTransform;
+    private Rigidbody rb;
 
-    private void Awake()
+    public override void Spawned()
     {
+        networkTransform = GetComponent<NetworkTransform>();
+        rb = GetComponent<Rigidbody>();
+
         startingPosition = transform.position;
         startingRotation = transform.rotation;
+
+        if (HasStateAuthority)
+        {
+            IsEliminated = false;
+        }
+
+        ApplyEliminationState();
+        EnableGameplay();
+
+        Debug.Log(
+            $"[ELIMINATION] Spawned {name} | " +
+            $"PlayerRef: {PlayerRef}"
+        );
     }
 
     public void Eliminate()
@@ -21,50 +45,148 @@ public class PlayerElimination : MonoBehaviour
         if (IsEliminated)
             return;
 
+        if (HasStateAuthority)
+        {
+            SetEliminated();
+        }
+        else
+        {
+            RPC_RequestElimination();
+        }
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    private void RPC_RequestElimination()
+    {
+        SetEliminated();
+    }
+
+    private void SetEliminated()
+    {
+        if (IsEliminated)
+            return;
+
         IsEliminated = true;
-
-        Debug.Log(gameObject.name + " has been eliminated!");
-
-        OnPlayerEliminated?.Invoke(this);
-
-        // Disable player gameplay
-        PlayerMovement movement = GetComponent<PlayerMovement>();
-
-        if (movement != null)
-            movement.enabled = false;
-
-        PlayerBumpAttack bumpAttack = GetComponent<PlayerBumpAttack>();
-
-        if (bumpAttack != null)
-            bumpAttack.enabled = false;
     }
 
     public void ResetPlayer()
     {
+        if (!HasStateAuthority)
+            return;
+
+        // Move out of the kill zone before colliders/visuals come back.
+        // Re-enabling while still overlapping the zone re-triggers
+        // OnTriggerEnter and eliminates the player again.
+        TeleportToSpawn();
+
         IsEliminated = false;
 
-        // Reset position and rotation
-        transform.position = startingPosition;
-        transform.rotation = startingRotation;
+        EnableGameplay();
+        ApplyEliminationState();
+    }
 
-        // Reset physics
-        Rigidbody rb = GetComponent<Rigidbody>();
-
+    private void TeleportToSpawn()
+    {
         if (rb != null)
         {
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
+            rb.position = startingPosition;
+            rb.rotation = startingRotation;
         }
 
-        // Re-enable gameplay
-        PlayerMovement movement = GetComponent<PlayerMovement>();
+        transform.SetPositionAndRotation(
+            startingPosition,
+            startingRotation
+        );
+
+        if (networkTransform != null)
+        {
+            networkTransform.Teleport(
+                startingPosition,
+                startingRotation
+            );
+        }
+    }
+
+    private void OnEliminatedChanged()
+    {
+        ApplyEliminationState();
+
+        if (IsEliminated)
+        {
+            HandleNetworkElimination();
+        }
+        else
+        {
+            EnableGameplay();
+        }
+    }
+
+    private void HandleNetworkElimination()
+    {
+        Debug.Log(
+            gameObject.name +
+            " has been eliminated!"
+        );
+
+        DisableGameplay();
+
+        OnPlayerEliminated?.Invoke(this);
+    }
+
+    private void ApplyEliminationState()
+    {
+        bool active = !IsEliminated;
+
+        foreach (Renderer renderer in
+                 GetComponentsInChildren<Renderer>())
+        {
+            renderer.enabled = active;
+        }
+
+        foreach (Collider collider in
+                 GetComponentsInChildren<Collider>())
+        {
+            collider.enabled = active;
+        }
+    }
+
+    private void DisableGameplay()
+    {
+        PlayerMovement movement =
+            GetComponent<PlayerMovement>();
 
         if (movement != null)
-            movement.enabled = true;
+        {
+            movement.enabled = false;
+        }
 
-        PlayerBumpAttack bumpAttack = GetComponent<PlayerBumpAttack>();
+        PlayerBumpAttack bumpAttack =
+            GetComponent<PlayerBumpAttack>();
 
         if (bumpAttack != null)
+        {
+            bumpAttack.enabled = false;
+        }
+    }
+
+    private void EnableGameplay()
+    {
+        PlayerMovement movement =
+            GetComponent<PlayerMovement>();
+
+        if (movement != null)
+        {
+            movement.enabled = true;
+        }
+
+        PlayerBumpAttack bumpAttack =
+            GetComponent<PlayerBumpAttack>();
+
+        if (bumpAttack != null)
+        {
             bumpAttack.enabled = true;
+        }
     }
 }
