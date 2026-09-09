@@ -6,7 +6,16 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Project/_Scenes/Testing/Ryan/NetworkTestScripts/Network test.unity
+    guid: 6c3307428003b604a99c4b28a2a758b3
+  - enabled: 1
+    path: Assets/_Project/_Scenes/Testing/Ryan/Matira Matib.unity
+    guid: dc2b34d111d35234d9f0498519749bf6
+  - enabled: 1
     path: Assets/_Project/_Scenes/Main/MainGame.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Photon/FusionDemos/Fusion-Intro-Shared/Scenes/FusionIntroShared.unity
+    guid: 00000000000000000000000000000000
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

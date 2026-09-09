@@ -3,15 +3,27 @@ using UnityEngine;
 public class EliminationZone : MonoBehaviour
 {
     [SerializeField] private WinnerDetector winnerDetector;
+    [SerializeField] private RoundStateManager roundStateManager;
 
     private void OnTriggerEnter(Collider other)
     {
-        PlayerElimination player = other.GetComponentInParent<PlayerElimination>();
-
-        if (player != null)
+        if (roundStateManager != null &&
+            roundStateManager.CurrentState !=
+            RoundStateManager.RoundState.Playing)
         {
-            player.Eliminate();
+            return;
+        }
 
+        PlayerElimination player =
+            other.GetComponentInParent<PlayerElimination>();
+
+        if (player == null || player.IsEliminated)
+            return;
+
+        player.Eliminate();
+
+        if (winnerDetector != null)
+        {
             winnerDetector.CheckForWinner();
         }
     }

@@ -1,16 +1,12 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
+using Fusion;
 
 [RequireComponent(typeof(PlayerMovement))]
-public class PlayerBumpAttack : MonoBehaviour
+public class PlayerBumpAttack : NetworkBehaviour
 {
-public event Action<PlayerElimination, PlayerElimination> OnKnockbackApplied;
-
-    [Header("Input")]
-    [SerializeField] private InputActionReference _bumpAction;
+    public event Action<PlayerElimination, PlayerElimination>
+        OnKnockbackApplied;
 
     [Header("Timing")]
     [SerializeField] private float _startup = 0.1f;
@@ -25,99 +21,249 @@ public event Action<PlayerElimination, PlayerElimination> OnKnockbackApplied;
     [SerializeField] private float _minDot = 0.5f;
     [SerializeField] private LayerMask _playerLayer;
 
-    private readonly List<PlayerMovement> _hitPlayers = new List<PlayerMovement>();
     private PlayerMovement _movement;
-    private bool _isBumping;
-    private bool _onCooldown;
 
-    private void Awake()
+    private readonly Collider[] _hitColliders =
+        new Collider[16];
+
+    [Networked]
+    private NetworkButtons PreviousButtons { get; set; }
+
+    private float _attackTimer;
+    private float _cooldownTimer;
+
+    private bool _isBumping;
+
+    private enum BumpState
+    {
+        None,
+        Startup,
+        Active,
+        Recovery
+    }
+
+    private BumpState _state = BumpState.None;
+
+    public override void Spawned()
     {
         _movement = GetComponent<PlayerMovement>();
     }
 
-    private void Update()
+    public override void FixedUpdateNetwork()
     {
-        if (!_movement.CanMove)
+        if (!HasStateAuthority)
             return;
 
-        if (_bumpAction.action.WasPressedThisFrame())
-            TryBump();
+        UpdateTimers();
+
+        if (GetInput(out NetworkInputData input))
+        {
+            bool bumpPressed =
+                input.Buttons.WasPressed(
+                    PreviousButtons,
+                    EInputButton.Bump
+                );
+
+            if (bumpPressed)
+            {
+                TryBump();
+            }
+
+            PreviousButtons = input.Buttons;
+        }
+        else
+        {
+            PreviousButtons = default;
+        }
+
+        UpdateBumpState();
+    }
+
+    private void UpdateTimers()
+    {
+        float deltaTime = Runner.DeltaTime;
+
+        if (_cooldownTimer > 0f)
+        {
+            _cooldownTimer -= deltaTime;
+
+            if (_cooldownTimer < 0f)
+                _cooldownTimer = 0f;
+        }
+
+        if (_attackTimer > 0f)
+        {
+            _attackTimer -= deltaTime;
+
+            if (_attackTimer < 0f)
+                _attackTimer = 0f;
+        }
     }
 
     private void TryBump()
     {
-        if (_isBumping || _onCooldown)
+        if (_movement == null)
+            return;
+
+        if (!_movement.CanMove)
+            return;
+
+        if (_movement.IsBusy)
             return;
 
         if (!_movement.IsGrounded)
             return;
 
-        StartCoroutine(BumpRoutine());
+        if (_isBumping)
+            return;
+
+        if (_cooldownTimer > 0f)
+            return;
+
+        StartBump();
     }
 
-    private IEnumerator BumpRoutine()
+    private void StartBump()
     {
         _isBumping = true;
+        _state = BumpState.Startup;
+
+        _attackTimer = _startup;
+
         _movement.SetBusy(true);
+    }
 
-        yield return new WaitForSeconds(_startup);
+    private void UpdateBumpState()
+    {
+        if (!_isBumping)
+            return;
 
-        PerformBump();
+        switch (_state)
+        {
+            case BumpState.Startup:
 
-        yield return new WaitForSeconds(_activeTime);
-        yield return new WaitForSeconds(_recovery);
+                if (_attackTimer <= 0f)
+                {
+                    _state = BumpState.Active;
+                    _attackTimer = _activeTime;
 
+                    PerformBump();
+                }
+
+                break;
+
+            case BumpState.Active:
+
+                if (_attackTimer <= 0f)
+                {
+                    _state = BumpState.Recovery;
+                    _attackTimer = _recovery;
+                }
+
+                break;
+
+            case BumpState.Recovery:
+
+                if (_attackTimer <= 0f)
+                {
+                    FinishBump();
+                }
+
+                break;
+        }
+    }
+
+    private void FinishBump()
+    {
         _isBumping = false;
+        _state = BumpState.None;
+
         _movement.SetBusy(false);
 
-        _onCooldown = true;
-        yield return new WaitForSeconds(_cooldown);
-        _onCooldown = false;
+        _cooldownTimer = _cooldown;
     }
 
     private void PerformBump()
     {
-        _hitPlayers.Clear();
+        int hitCount = Runner.GetPhysicsScene()
+            .OverlapSphere(
+                transform.position +
+                    transform.forward * _range,
+                _radius,
+                _hitColliders,
+                _playerLayer,
+                QueryTriggerInteraction.Ignore
+            );
 
-        Vector3 bumpPosition = transform.position + transform.forward * _range;
-        Collider[] hits = Physics.OverlapSphere(bumpPosition, _radius, _playerLayer);
-
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            PlayerMovement otherPlayer = hits[i].GetComponentInParent<PlayerMovement>();
-            if (otherPlayer == null || otherPlayer == _movement)
+            Collider hit = _hitColliders[i];
+
+            if (hit == null)
                 continue;
 
-            if (_hitPlayers.Contains(otherPlayer))
+            PlayerMovement otherPlayer =
+                hit.GetComponentInParent<PlayerMovement>();
+
+            if (otherPlayer == null)
                 continue;
 
-            Vector3 toTarget = otherPlayer.transform.position - transform.position;
+            if (otherPlayer == _movement)
+                continue;
+
+            Vector3 toTarget =
+                otherPlayer.transform.position -
+                transform.position;
+
             toTarget.y = 0f;
 
             if (toTarget.sqrMagnitude <= 0.0001f)
                 continue;
 
-            Vector3 knockbackDirection = toTarget.normalized;
-            if (Vector3.Dot(transform.forward, knockbackDirection) < _minDot)
+            Vector3 knockbackDirection =
+                toTarget.normalized;
+
+            float dot =
+                Vector3.Dot(
+                    transform.forward,
+                    knockbackDirection
+                );
+
+            if (dot < _minDot)
                 continue;
 
-            _hitPlayers.Add(otherPlayer);
+            otherPlayer.AddExternalForce(
+                knockbackDirection * _force
+            );
 
-            otherPlayer.AddExternalForce(knockbackDirection * _force);
+            PlayerElimination attacker =
+                GetComponent<PlayerElimination>();
 
-            PlayerElimination attacker = GetComponent<PlayerElimination>();
-            PlayerElimination victim = otherPlayer.GetComponent<PlayerElimination>();
+            PlayerElimination victim =
+                otherPlayer.GetComponent<PlayerElimination>();
 
-if (attacker != null && victim != null)
-{
-    OnKnockbackApplied?.Invoke(attacker, victim);
-}
+            if (attacker != null && victim != null)
+            {
+                OnKnockbackApplied?.Invoke(
+                    attacker,
+                    victim
+                );
+            }
+
+            Debug.Log(
+                $"[BUMP] {name} hit {otherPlayer.name}"
+            );
         }
     }
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position + transform.forward * _range, _radius);
+
+        Gizmos.DrawWireSphere(
+            transform.position +
+                transform.forward * _range,
+            _radius
+        );
     }
 }
