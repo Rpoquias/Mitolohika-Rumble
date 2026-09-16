@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 5822319257664240599}
   - component: {fileID: 266768278123664024}
   - component: {fileID: 4140746165335911940}
+  - component: {fileID: -843958846417892597}
   m_Layer: 6
   m_Name: PlayerTemplate
   m_TagString: Untagged
@@ -179,6 +180,7 @@ MonoBehaviour:
   - {fileID: 7943311670696920883}
   - {fileID: 5822319257664240599}
   - {fileID: 266768278123664024}
+  - {fileID: -843958846417892597}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &1837740232475234021
 MonoBehaviour:
@@ -260,6 +262,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterIdentity
   characterID: 2
+--- !u!114 &-843958846417892597
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394773554417792030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e62d332fd0a253f4499747a6dd1ed663, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetworkPlayerState
+  _SelectedCharacter: 0
+  _IsReady:
+    RawValue: 0
 --- !u!1 &1096132585349599618
 GameObject:
   m_ObjectHideFlags: 0

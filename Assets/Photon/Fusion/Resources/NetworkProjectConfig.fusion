@@ -2,7 +2,7 @@
     "Version": 1,
     "TypeId": "NetworkProjectConfig",
     "HubMode": 1,
-    "PeerMode": 1,
+    "PeerMode": 0,
     "LagCompensation": {
         "Enabled": false,
         "HitboxBufferLengthInMs": 200,
