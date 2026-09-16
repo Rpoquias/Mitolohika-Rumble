@@ -12,6 +12,14 @@ PrefabInstance:
       propertyPath: SortKey
       value: 1352126776
       objectReference: {fileID: 0}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: NetworkedBehaviours.Array.size
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[6]'
+      value: 
+      objectReference: {fileID: 2422298985820258010}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: m_Name
       value: WhiteLadyCharacter
@@ -64,6 +72,17 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 3992416396935922465}
   m_SourcePrefab: {fileID: 100100000, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+--- !u!114 &2422298985820258010 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: -843958846417892597, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 6184598912061175249}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5813759565420167631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e62d332fd0a253f4499747a6dd1ed663, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetworkPlayerState
 --- !u!1 &5813759565420167631 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}

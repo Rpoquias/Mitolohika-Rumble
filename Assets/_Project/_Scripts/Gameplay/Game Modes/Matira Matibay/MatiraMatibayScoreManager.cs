@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
 
-public class MatiraMatibayScoreManager : MonoBehaviour
+public class MatiraMatibayScoreManager : NetworkBehaviour
 {
     [System.Serializable]
     public class PlayerScore
@@ -44,80 +44,83 @@ public class MatiraMatibayScoreManager : MonoBehaviour
         }
     }
 
-    private void Update()
+private void Update()
+{
+    if (!initialized)
     {
-        if (!initialized)
-        {
-            TryInitialize();
-            return;
-        }
+        TryInitialize();
+    }
+}  private void TryInitialize()
+{
+    runner =
+        NetworkRunner.GetRunnerForGameObject(gameObject);
 
-        if (!scoringActive)
-            return;
+    if (runner == null || !runner.IsRunning)
+        return;
 
-        survivalTimer += Time.deltaTime;
+    playerRegistry =
+        runner.GetComponentInChildren<PlayerRegistry>();
 
-        int currentSecond =
-            Mathf.FloorToInt(survivalTimer);
+    if (playerRegistry == null)
+        return;
 
-        foreach (PlayerScore score in playerScores)
-        {
-            if (score.player == null)
-                continue;
+    if (roundStateManager == null)
+        return;
 
-            if (!score.player.IsEliminated)
-            {
-                score.survivalScore = currentSecond;
-            }
-        }
+    if (!roundStateManager.IsSpawned)
+        return;
+
+    Debug.Log(
+        $"[SCORE] Connected to registry for Runner " +
+        $"{runner.name}. Existing players: " +
+        $"{playerRegistry.Players.Count}"
+    );
+
+    playerRegistry.OnPlayerRegistered += RegisterPlayer;
+    playerRegistry.OnPlayerUnregistered += UnregisterPlayer;
+
+    foreach (NetworkObject playerObject in playerRegistry.Players)
+    {
+        RegisterPlayer(playerObject);
     }
 
-    private void TryInitialize()
+    initialized = true;
+
+    Debug.Log(
+        $"[SCORE] Initialization complete. " +
+        $"Tracking {playerScores.Count} players."
+    );
+
+    if (roundStateManager.CurrentState ==
+        RoundStateManager.RoundState.Playing)
     {
-        runner =
-            NetworkRunner.GetRunnerForGameObject(gameObject);
+        StartScoring();
+    }
+}
+public override void FixedUpdateNetwork()
+{
+    if (!HasStateAuthority)
+        return;
 
-        if (runner == null || !runner.IsRunning)
-            return;
+    if (!scoringActive)
+        return;
 
-        playerRegistry =
-            runner.GetComponentInChildren<PlayerRegistry>();
+    survivalTimer += Runner.DeltaTime;
 
-        if (playerRegistry == null)
-            return;
+    int currentSecond =
+        Mathf.FloorToInt(survivalTimer);
 
-        Debug.Log(
-            $"[SCORE] Connected to registry for Runner " +
-            $"{runner.name}. Existing players: " +
-            $"{playerRegistry.Players.Count}"
-        );
+    foreach (PlayerScore score in playerScores)
+    {
+        if (score.player == null)
+            continue;
 
-        playerRegistry.OnPlayerRegistered += RegisterPlayer;
-        playerRegistry.OnPlayerUnregistered += UnregisterPlayer;
-
-        // Register players that already exist.
-        foreach (NetworkObject playerObject in playerRegistry.Players)
+        if (!score.player.IsEliminated)
         {
-            RegisterPlayer(playerObject);
-        }
-
-        initialized = true;
-
-        Debug.Log(
-            $"[SCORE] Initialization complete. " +
-            $"Tracking {playerScores.Count} players."
-        );
-
-        // If the round already reached Playing before
-        // this manager initialized, start scoring now.
-        if (roundStateManager != null &&
-            roundStateManager.CurrentState ==
-            RoundStateManager.RoundState.Playing)
-        {
-            StartScoring();
+            score.survivalScore = currentSecond;
         }
     }
-
+}
     private void OnDestroy()
     {
         if (playerRegistry != null)
@@ -246,51 +249,60 @@ public class MatiraMatibayScoreManager : MonoBehaviour
         Debug.Log("[SCORE] Scoring stopped.");
     }
 
-    public void RecordKnockback(
-        PlayerElimination attacker,
-        PlayerElimination victim)
+  public void RecordKnockback(
+    PlayerElimination attacker,
+    PlayerElimination victim)
+{
+    if (!HasStateAuthority)
+        return;
+
+    if (!scoringActive)
+        return;
+
+    PlayerScore victimScore =
+        GetScore(victim);
+
+    if (victimScore == null)
+        return;
+
+    victimScore.lastKnockbackSource = attacker;
+    victimScore.lastKnockbackTime =
+        (float)Runner.SimulationTime;
+
+    Debug.Log(
+        attacker.gameObject.name +
+        " knocked back " +
+        victim.gameObject.name
+    );
+}
+   public void ResetScores()
+{
+    if (!HasStateAuthority)
+        return;
+
+    scoringActive = false;
+    survivalTimer = 0f;
+
+    foreach (PlayerScore score in playerScores)
     {
-        if (!scoringActive)
-            return;
-
-        PlayerScore victimScore =
-            GetScore(victim);
-
-        if (victimScore == null)
-            return;
-
-        victimScore.lastKnockbackSource = attacker;
-        victimScore.lastKnockbackTime = Time.time;
-
-        Debug.Log(
-            attacker.gameObject.name +
-            " knocked back " +
-            victim.gameObject.name
-        );
+        score.survivalScore = 0;
+        score.knockoutCredit = 0;
+        score.lastKnockbackTime =
+            -Mathf.Infinity;
+        score.lastKnockbackSource = null;
     }
 
-    public void ResetScores()
-    {
-        scoringActive = false;
-        survivalTimer = 0f;
-
-        foreach (PlayerScore score in playerScores)
-        {
-            score.survivalScore = 0;
-            score.knockoutCredit = 0;
-            score.lastKnockbackTime = -Mathf.Infinity;
-            score.lastKnockbackSource = null;
-        }
-
-        Debug.Log(
-            $"[SCORE] Scores reset for " +
-            $"{playerScores.Count} players."
-        );
-    }
+    Debug.Log(
+        $"[SCORE] Scores reset for " +
+        $"{playerScores.Count} players."
+    );
+}
 
     public void RecordElimination(
         PlayerElimination eliminatedPlayer)
     {
+          if (!HasStateAuthority)
+        return;
         if (!scoringActive)
             return;
 
@@ -305,9 +317,9 @@ public class MatiraMatibayScoreManager : MonoBehaviour
 
         if (attacker != null)
         {
-            float timeSinceKnockback =
-                Time.time -
-                victimScore.lastKnockbackTime;
+        float timeSinceKnockback =
+    (float)Runner.SimulationTime -
+    victimScore.lastKnockbackTime;
 
             if (timeSinceKnockback <=
                 knockoutAttributionWindow)

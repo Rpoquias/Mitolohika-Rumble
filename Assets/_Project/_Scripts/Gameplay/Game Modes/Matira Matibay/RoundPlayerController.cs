@@ -3,14 +3,12 @@ using UnityEngine;
 
 public class RoundPlayerController : MonoBehaviour
 {
-    [Header("Player Registry")]
-    [SerializeField] private PlayerRegistry playerRegistry;
-
     [Header("Round State")]
     [SerializeField] private RoundStateManager roundStateManager;
 
     private bool initialized = false;
     private NetworkRunner runner;
+    private PlayerRegistry playerRegistry;
 
     private void Update()
     {
@@ -20,7 +18,6 @@ public class RoundPlayerController : MonoBehaviour
             return;
         }
 
-        // Keep movement synchronized with the current round state.
         ApplyMovementState(
             roundStateManager.CurrentState
             == RoundStateManager.RoundState.Playing
@@ -35,16 +32,16 @@ public class RoundPlayerController : MonoBehaviour
         if (runner == null || !runner.IsRunning)
             return;
 
-        if (playerRegistry == null)
-        {
-            playerRegistry =
-                runner.GetComponentInChildren<PlayerRegistry>();
-        }
+        playerRegistry =
+            runner.GetComponentInChildren<PlayerRegistry>();
 
         if (playerRegistry == null)
             return;
 
         if (roundStateManager == null)
+            return;
+
+        if (!roundStateManager.IsSpawned)
             return;
 
         initialized = true;

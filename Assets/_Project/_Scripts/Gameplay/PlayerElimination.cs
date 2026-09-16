@@ -15,14 +15,9 @@ public class PlayerElimination : NetworkBehaviour
 
     private Vector3 startingPosition;
     private Quaternion startingRotation;
-    private NetworkTransform networkTransform;
-    private Rigidbody rb;
 
     public override void Spawned()
     {
-        networkTransform = GetComponent<NetworkTransform>();
-        rb = GetComponent<Rigidbody>();
-
         startingPosition = transform.position;
         startingRotation = transform.rotation;
 
@@ -32,7 +27,6 @@ public class PlayerElimination : NetworkBehaviour
         }
 
         ApplyEliminationState();
-        EnableGameplay();
 
         Debug.Log(
             $"[ELIMINATION] Spawned {name} | " +
@@ -74,39 +68,20 @@ public class PlayerElimination : NetworkBehaviour
         if (!HasStateAuthority)
             return;
 
-        // Move out of the kill zone before colliders/visuals come back.
-        // Re-enabling while still overlapping the zone re-triggers
-        // OnTriggerEnter and eliminates the player again.
-        TeleportToSpawn();
-
         IsEliminated = false;
 
-        EnableGameplay();
-        ApplyEliminationState();
-    }
+        transform.position = startingPosition;
+        transform.rotation = startingRotation;
 
-    private void TeleportToSpawn()
-    {
+        Rigidbody rb = GetComponent<Rigidbody>();
+
         if (rb != null)
         {
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-            rb.position = startingPosition;
-            rb.rotation = startingRotation;
         }
 
-        transform.SetPositionAndRotation(
-            startingPosition,
-            startingRotation
-        );
-
-        if (networkTransform != null)
-        {
-            networkTransform.Teleport(
-                startingPosition,
-                startingRotation
-            );
-        }
+        EnableGameplay();
     }
 
     private void OnEliminatedChanged()
@@ -116,10 +91,6 @@ public class PlayerElimination : NetworkBehaviour
         if (IsEliminated)
         {
             HandleNetworkElimination();
-        }
-        else
-        {
-            EnableGameplay();
         }
     }
 

@@ -26,6 +26,8 @@ public class RoundStateManager : NetworkBehaviour
     [Networked, OnChangedRender(nameof(OnNetworkCountdownChanged))]
     private int NetworkCountdown { get; set; }
 
+    
+
     [Networked]
     private TickTimer StateTimer { get; set; }
 
@@ -42,20 +44,25 @@ public class RoundStateManager : NetworkBehaviour
 
     // Used to detect RoundEnd -> Waiting locally.
     private RoundState lastRenderedState;
+    private bool isSpawned;
+
+public bool IsSpawned => isSpawned;
 
     private void Awake()
     {
         lastRenderedState = RoundState.Waiting;
     }
 
-    public override void Spawned()
-    {
-        lastRenderedState = NetworkState;
+   public override void Spawned()
+{
+    isSpawned = true;
 
-        Debug.Log(
-            $"[ROUND] Spawned | State: {NetworkState}"
-        );
-    }
+    lastRenderedState = NetworkState;
+
+    Debug.Log(
+        $"[ROUND] Spawned | State: {NetworkState}"
+    );
+}
 
     public override void FixedUpdateNetwork()
     {
