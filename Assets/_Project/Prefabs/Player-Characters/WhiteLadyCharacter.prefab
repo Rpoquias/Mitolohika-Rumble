@@ -17,9 +17,13 @@ PrefabInstance:
       value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
-      propertyPath: 'NetworkedBehaviours.Array.data[6]'
+      propertyPath: 'NetworkedBehaviours.Array.data[5]'
       value: 
       objectReference: {fileID: 2422298985820258010}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[6]'
+      value: 
+      objectReference: {fileID: 6866424852465502968}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: m_Name
       value: WhiteLadyCharacter
@@ -100,3 +104,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3c4370dd88ae9ce4498ee882d7d77b84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InvisibilityAbility
+--- !u!114 &6866424852465502968 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 765166597663014697, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 6184598912061175249}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5813759565420167631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd7dc8b3ff581b245b8076ae42222b42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NetworkPlayerInput

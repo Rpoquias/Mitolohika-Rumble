@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class PlayerRegistry : SimulationBehaviour
 {
+    public static PlayerRegistry Instance { get; private set; }
     private readonly List<NetworkObject> players =
         new List<NetworkObject>();
 
@@ -13,6 +14,16 @@ public class PlayerRegistry : SimulationBehaviour
     public event Action<NetworkObject> OnPlayerRegistered;
     public event Action<NetworkObject> OnPlayerUnregistered;
 
+private void Awake()
+{
+    if (Instance != null && Instance != this)
+    {
+        Destroy(gameObject);
+        return;
+    }
+
+    Instance = this;
+}
     public void RegisterPlayer(NetworkObject playerObject)
     {
         if (playerObject == null)

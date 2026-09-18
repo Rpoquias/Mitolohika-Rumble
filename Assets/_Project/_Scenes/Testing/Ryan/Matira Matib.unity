@@ -14680,6 +14680,7 @@ GameObject:
   - component: {fileID: 529843585}
   - component: {fileID: 529843586}
   - component: {fileID: 529843587}
+  - component: {fileID: 529843588}
   m_Layer: 0
   m_Name: RoundStateManager
   m_TagString: Untagged
@@ -14736,7 +14737,21 @@ MonoBehaviour:
   NestedObjects: []
   NetworkedBehaviours:
   - {fileID: 529843586}
+  - {fileID: 529843588}
   ForceRemoteRenderTimeframe: 0
+--- !u!114 &529843588
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 529843584}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98de677cdd175a14a977be0610dfcdbc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpawnPointManager
+  spawnPoints: []
 --- !u!4 &535876794 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4829569903020203368, guid: 8fb20d7e6b6715f4dacd67c861c39cc4, type: 3}
@@ -28779,6 +28794,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArenaShrinkController
   arenaLevel: {fileID: 1387361759}
+  useRandomSlash: 1
   startDelay: 10
   shrinkInterval: 3
 --- !u!114 &1008510354

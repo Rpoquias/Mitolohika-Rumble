@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterData
   characterID: 0
   characterName: Tikbalang
-  characterPrefab: {fileID: 5621868318684462083, guid: dfe5265ece2fbdb44861721142fd89a3, type: 3}
+  lobbyPrefab: {fileID: 1934590595147036527, guid: d14ba0e0c1ea6dc4bb852b6ad702b45b, type: 3}
+  gameplayPrefab: {fileID: 5621868318684462083, guid: dfe5265ece2fbdb44861721142fd89a3, type: 3}
   signatureAbility: Powerful Kick

@@ -1,5 +1,6 @@
 using Fusion;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -9,7 +10,7 @@ public class LobbyManager : MonoBehaviour
         NetworkManager.Instance != null &&
         NetworkManager.Instance.Runner != null &&
         NetworkManager.Instance.Runner.IsServer;
-
+private bool hasStartedGame = false;
     public bool AllPlayersReady
     {
         get
@@ -35,9 +36,15 @@ public class LobbyManager : MonoBehaviour
         Instance = this;
     }
 
-  public void StartGame()
+ public void StartGame()
 {
     Debug.Log("[LOBBY] START GAME BUTTON PRESSED");
+
+    if (hasStartedGame)
+    {
+        Debug.LogWarning("[LOBBY] Game has already started.");
+        return;
+    }
 
     if (NetworkManager.Instance == null)
     {
@@ -45,7 +52,8 @@ public class LobbyManager : MonoBehaviour
         return;
     }
 
-    NetworkRunner runner = NetworkManager.Instance.Runner;
+    NetworkRunner runner =
+        NetworkManager.Instance.Runner;
 
     if (runner == null)
     {
@@ -53,12 +61,11 @@ public class LobbyManager : MonoBehaviour
         return;
     }
 
-    Debug.Log($"[LOBBY] IsServer: {runner.IsServer}");
-    Debug.Log($"[LOBBY] IsConnectedToServer: {runner.IsConnectedToServer}");
-
     if (!runner.IsServer)
     {
-        Debug.LogWarning("[LOBBY] This player is not the Host.");
+        Debug.LogWarning(
+            "[LOBBY] Only the Host can start the game."
+        );
         return;
     }
 
@@ -87,10 +94,6 @@ public class LobbyManager : MonoBehaviour
             return;
         }
 
-        Debug.Log(
-            $"[LOBBY] Player {player} ready = {state.IsReady}"
-        );
-
         if (!state.IsReady)
         {
             Debug.LogWarning(
@@ -103,38 +106,47 @@ public class LobbyManager : MonoBehaviour
 
     const int gameplaySceneIndex = 3;
 
+    hasStartedGame = true;
+
     Debug.Log(
-        $"[LOBBY] Loading Gameplay scene index {gameplaySceneIndex}"
+        $"[LOBBY] Loading Gameplay scene additively: " +
+        $"{gameplaySceneIndex}"
     );
 
-    runner.LoadScene(
-        SceneRef.FromIndex(gameplaySceneIndex)
-    );
+runner.LoadScene(
+    SceneRef.FromIndex(gameplaySceneIndex),
+    LoadSceneMode.Single
+);
 }
-    private bool CheckAllPlayersReady(NetworkRunner runner)
+private bool CheckAllPlayersReady(NetworkRunner runner)
+{
+    bool hasPlayers = false;
+
+    foreach (PlayerRef player in runner.ActivePlayers)
     {
-        bool hasPlayers = false;
+        hasPlayers = true;
 
-        foreach (PlayerRef player in runner.ActivePlayers)
+        if (!runner.TryGetPlayerObject(
+                player,
+                out NetworkObject playerObject))
         {
-            hasPlayers = true;
-
-            if (!runner.TryGetPlayerObject(
-                    player,
-                    out NetworkObject playerObject))
-            {
-                return false;
-            }
-
-            NetworkPlayerState state =
-                playerObject.GetComponent<NetworkPlayerState>();
-
-            if (state == null || !state.IsReady)
-            {
-                return false;
-            }
+            return false;
         }
 
-        return hasPlayers;
+        NetworkPlayerState state =
+            playerObject.GetComponent<NetworkPlayerState>();
+
+        if (state == null)
+        {
+            return false;
+        }
+
+        if (!state.IsReady)
+        {
+            return false;
+        }
     }
+
+    return hasPlayers;
+}
 }

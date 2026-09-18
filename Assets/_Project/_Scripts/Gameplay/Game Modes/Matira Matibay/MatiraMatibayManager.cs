@@ -9,7 +9,8 @@ public class MatiraMatibayManager : MonoBehaviour
     [SerializeField] private WinnerDetector winnerDetector;
     [SerializeField] private MatiraMatibayPlacementManager placementManager;
     [SerializeField] private MatiraMatibayScoreManager scoreManager;
-
+[SerializeField] private SpawnPointManager spawnPointManager;
+[SerializeField] private MatiraMatibayResultState resultState;
     public MatiraMatibayRoundResult CurrentResult { get; private set; }
 
     private PlayerRegistry playerRegistry;
@@ -44,8 +45,7 @@ public class MatiraMatibayManager : MonoBehaviour
         if (runner == null || !runner.IsRunning)
             return;
 
-        playerRegistry =
-            runner.GetComponentInChildren<PlayerRegistry>();
+       playerRegistry = PlayerRegistry.Instance;
 
         if (playerRegistry == null)
             return;
@@ -93,102 +93,162 @@ public class MatiraMatibayManager : MonoBehaviour
         roundStateManager.RestartRound();
     }
 
-    private void HandleRoundReset()
+private void HandleRoundReset()
+{
+    Debug.Log("[MATIRA MANAGER] Resetting Matira Matibay!");
+
+    CurrentResult = null;
+
+    if (resultState != null)
     {
-        Debug.Log("Resetting Matira Matibibay!");
+        resultState.HideResult();
+    }
 
-        CurrentResult = null;
+    arenaShrinkController.ResetArena();
 
-        arenaShrinkController.ResetArena();
+    ResetAllPlayers();
+}private void ResetAllPlayers()
+{
+    if (runner == null || !runner.IsRunning)
+        return;
 
-        if (playerRegistry == null)
+    if (!runner.IsServer)
+        return;
+
+    if (spawnPointManager == null)
+    {
+        Debug.LogError(
+            "[MATIRA MANAGER] SpawnPointManager is NULL."
+        );
+
+        return;
+    }
+
+    foreach (PlayerRef player in runner.ActivePlayers)
+    {
+        if (!runner.TryGetPlayerObject(
+                player,
+                out NetworkObject playerObject))
         {
             Debug.LogWarning(
-                "[MATIRA MANAGER] Round reset skipped player " +
-                "respawn because PlayerRegistry is not ready."
+                $"[MATIRA MANAGER] No PlayerObject for {player}."
             );
-            return;
+
+            continue;
         }
 
-        foreach (NetworkObject playerObject in playerRegistry.Players)
+        PlayerElimination elimination =
+            playerObject.GetComponent<PlayerElimination>();
+
+        if (elimination == null)
         {
-            if (playerObject == null)
-                continue;
+            Debug.LogWarning(
+                $"[MATIRA MANAGER] {playerObject.name} has no " +
+                $"PlayerElimination."
+            );
 
-            PlayerElimination player =
-                playerObject.GetComponent<PlayerElimination>();
-
-            if (player != null)
-            {
-                player.ResetPlayer();
-            }
+            continue;
         }
-    }
 
-    public void EndRound(PlayerElimination winner)
+        Transform spawnPoint =
+            spawnPointManager.GetSpawnPoint(player);
+
+        if (spawnPoint == null)
+        {
+            Debug.LogWarning(
+                $"[MATIRA MANAGER] No spawn point for {player}."
+            );
+
+            continue;
+        }
+
+        elimination.ResetPlayer(
+            spawnPoint.position,
+            spawnPoint.rotation
+        );
+
+        Debug.Log(
+            $"[MATIRA MANAGER] Reset {player} → " +
+            $"{spawnPoint.name}"
+        );
+    }
+}
+ public void EndRound(PlayerElimination winner)
+{
+    if (roundEnded)
+        return;
+
+    roundEnded = true;
+
+scoreManager.StopScoring();
+arenaShrinkController.StopShrinking();
+
+scoreManager.AwardWinnerBonus(winner);
+
+placementManager.AssignFinalPlacements(winner);
+
+CurrentResult = CreateRoundResult();
+    if (resultState != null)
     {
-        if (roundEnded)
-            return;
-
-        roundEnded = true;
-
-        scoreManager.StopScoring();
-        arenaShrinkController.StopShrinking();
-
-        placementManager.AssignFinalPlacements(winner);
-
-        CurrentResult = CreateRoundResult();
-
-        roundStateManager.EndRound();
+        resultState.ShowResult(CurrentResult);
     }
 
+    roundStateManager.EndRound();
+}
     public MatiraMatibayRoundResult CreateRoundResult()
+{
+    MatiraMatibayRoundResult result =
+        new MatiraMatibayRoundResult();
+
+    if (playerRegistry == null)
     {
-        MatiraMatibayRoundResult result =
-            new MatiraMatibayRoundResult();
-
-        if (playerRegistry == null)
-        {
-            Debug.LogWarning(
-                "[MATIRA MANAGER] Cannot create result. " +
-                "PlayerRegistry is not initialized."
-            );
-
-            return result;
-        }
-
-        foreach (NetworkObject playerObject in playerRegistry.Players)
-        {
-            if (playerObject == null)
-                continue;
-
-            PlayerElimination player =
-                playerObject.GetComponent<PlayerElimination>();
-
-            if (player == null)
-                continue;
-
-            MatiraMatibayRoundResult.PlayerResult playerResult =
-                new MatiraMatibayRoundResult.PlayerResult();
-
-            playerResult.player = player;
-
-            playerResult.placement =
-                placementManager.GetPlacement(player);
-
-            playerResult.survivalScore =
-                scoreManager.GetSurvivalScore(player);
-
-            playerResult.knockoutCredit =
-                scoreManager.GetKnockoutCredit(player);
-
-            result.results.Add(playerResult);
-        }
-
-        result.results.Sort(
-            (a, b) => a.placement.CompareTo(b.placement)
+        Debug.LogWarning(
+            "[MATIRA MANAGER] Cannot create result. " +
+            "PlayerRegistry is not initialized."
         );
 
         return result;
     }
+
+    foreach (NetworkObject playerObject in playerRegistry.Players)
+    {
+        if (playerObject == null)
+            continue;
+
+        PlayerElimination player =
+            playerObject.GetComponent<PlayerElimination>();
+
+        if (player == null)
+            continue;
+
+        MatiraMatibayRoundResult.PlayerResult playerResult =
+            new MatiraMatibayRoundResult.PlayerResult();
+
+        playerResult.player = player;
+
+        playerResult.placement =
+            placementManager.GetPlacement(player);
+
+        playerResult.survivalScore =
+            scoreManager.GetSurvivalScore(player);
+
+        playerResult.knockoutCredit =
+            scoreManager.GetKnockoutCredit(player);
+
+        playerResult.winnerBonus =
+            scoreManager.GetWinnerBonus(player);
+
+        playerResult.overallScore =
+            scoreManager.GetOverallScore(player);
+
+        result.results.Add(playerResult);
+    }
+
+    result.results.Sort(
+        (a, b) =>
+            a.placement.CompareTo(b.placement)
+    );
+
+    return result;
+}
 }

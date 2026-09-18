@@ -1266,8 +1266,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68fb72a35956cb2489093fb64d148ea4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkManager
-  runner: {fileID: 2116841950}
-  playerSpawner: {fileID: 2116841954}
 --- !u!114 &2116841948
 MonoBehaviour:
   m_ObjectHideFlags: 0
