@@ -7,22 +7,13 @@ public class NetworkPlayerRegistration : NetworkBehaviour
 
     public override void Spawned()
     {
-        if (Runner == null)
-        {
-            Debug.LogError(
-                $"[PLAYER REGISTRATION] Runner is null for {name}."
-            );
-            return;
-        }
-
-        registry =
-            Runner.GetComponentInChildren<PlayerRegistry>();
+        registry = PlayerRegistry.Instance;
 
         if (registry == null)
         {
             Debug.LogError(
-                $"[PLAYER REGISTRATION] No PlayerRegistry found " +
-                $"for Runner {Runner.name}."
+                $"[PLAYER REGISTRATION] PlayerRegistry.Instance is NULL " +
+                $"for {name}."
             );
             return;
         }
@@ -30,12 +21,13 @@ public class NetworkPlayerRegistration : NetworkBehaviour
         registry.RegisterPlayer(Object);
 
         Debug.Log(
-            $"[PLAYER REGISTRATION] {name} registered " +
-            $"with Runner {Runner.name}."
+            $"[PLAYER REGISTRATION] {name} registered with PlayerRegistry."
         );
     }
 
-    public override void Despawned(NetworkRunner runner, bool hasState)
+    public override void Despawned(
+        NetworkRunner runner,
+        bool hasState)
     {
         if (registry == null)
             return;

@@ -6,11 +6,14 @@ public class ArenaShrinkController : NetworkBehaviour
 {
     [Header("Arena")]
     [SerializeField] private Transform arenaLevel;
-
+    [Header("Shrink Mode")]
+    [SerializeField] private bool useRandomSlash = false;
     [Header("Shrinking")]
     [SerializeField] private float startDelay = 10f;
     [SerializeField] private float shrinkInterval = 5f;
 
+    [Header("UI")]
+    [SerializeField] private MatiraMatibayUIState uiState;
     private readonly List<GameObject> arenaTiles =
         new List<GameObject>();
 
@@ -27,15 +30,33 @@ public class ArenaShrinkController : NetworkBehaviour
     [Networked, OnChangedRender(nameof(OnShrinkCommandChanged))]
     private int ShrinkCommand { get; set; }
 
-    // Encoded as:
-    // 0 = North
-    // 1 = South
-    // 2 = East
-    // 3 = West
     [Networked]
     private int ShrinkSide { get; set; }
+    [Networked]
+private float ShrinkLayer { get; set; }
+
 
     private int lastAppliedShrinkCommand;
+
+    private float minX;
+private float maxX;
+private float minZ;
+private float maxZ;
+
+private float tileSpacingX;
+private float tileSpacingZ;
+
+[Networked]
+private int NorthShrinkCount { get; set; }
+
+[Networked]
+private int SouthShrinkCount { get; set; }
+
+[Networked]
+private int EastShrinkCount { get; set; }
+
+[Networked]
+private int WestShrinkCount { get; set; }
 
     private void Start()
     {
@@ -53,47 +74,60 @@ public class ArenaShrinkController : NetworkBehaviour
         );
     }
 
-    public override void FixedUpdateNetwork()
-    {
-        if (!HasStateAuthority)
-            return;
+public override void FixedUpdateNetwork()
+{
+    if (!HasStateAuthority)
+        return;
 
-        if (!IsShrinking)
-            return;
+    if (!ShrinkTimer.IsRunning)
+        return;
 
-        if (!ShrinkTimer.Expired(Runner))
-            return;
+    if (!ShrinkTimer.Expired(Runner))
+        return;
 
-        ShrinkRandomSide();
+    // Timer expired → actually shrink
+    ShrinkRandomSide();
 
-        ShrinkTimer =
-            TickTimer.CreateFromSeconds(
-                Runner,
-                shrinkInterval
-            );
-    }
+    // Start countdown for next shrink
+    ShrinkTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        shrinkInterval
+    );
 
-    public void StartShrinking()
-    {
-        if (!HasStateAuthority)
-            return;
+    uiState?.ShowShrinkWarning(shrinkInterval);
+}
 
-        if (IsShrinking)
-            return;
+  public void StartShrinking()
+{
+    if (!HasStateAuthority)
+        return;
 
-        IsShrinking = true;
+    if (IsShrinking)
+        return;
 
-        ShrinkTimer =
-            TickTimer.CreateFromSeconds(
-                Runner,
-                startDelay
-            );
+    IsShrinking = true;
 
-        Debug.Log(
-            $"[ARENA] Shrinking started. " +
-            $"First shrink in {startDelay} seconds."
+    ShrinkTimer =
+        TickTimer.CreateFromSeconds(
+            Runner,
+            startDelay
         );
-    }
+
+if (uiState == null)
+{
+    Debug.LogError("[ARENA] UI State reference is NULL!");
+}
+else
+{
+    Debug.Log("[ARENA] Sending shrink warning to UI State.");
+    uiState.ShowShrinkWarning(startDelay);
+}
+
+    Debug.Log(
+        $"[ARENA] Shrinking started. " +
+        $"First shrink in {startDelay} seconds."
+    );
+}
 
     public void StopShrinking()
     {
@@ -106,212 +140,304 @@ public class ArenaShrinkController : NetworkBehaviour
         Debug.Log("[ARENA] Shrinking stopped.");
     }
 
-    private void CacheArenaTiles()
+ private void CacheArenaTiles()
+{
+    if (arenaLevel == null)
     {
-        if (arenaLevel == null)
-        {
-            Debug.LogError(
-                "[ARENA] Arena Level reference is missing."
-            );
+        Debug.LogError(
+            "[ARENA] Arena Level reference is missing."
+        );
 
-            return;
-        }
+        return;
+    }
 
-        arenaTiles.Clear();
-        originalTilePositions.Clear();
+    arenaTiles.Clear();
+    originalTilePositions.Clear();
 
-        foreach (Transform tile in arenaLevel)
-        {
-            GameObject tileObject = tile.gameObject;
+    MeshFilter[] meshTiles =
+        arenaLevel.GetComponentsInChildren<MeshFilter>(true);
 
-            arenaTiles.Add(tileObject);
-            originalTilePositions[tileObject] =
-                tile.position;
-        }
+    bool hasBounds = false;
+
+    minX = float.MaxValue;
+    maxX = float.MinValue;
+    minZ = float.MaxValue;
+    maxZ = float.MinValue;
+
+    foreach (MeshFilter meshTile in meshTiles)
+    {
+        GameObject tile = meshTile.gameObject;
+
+        MeshRenderer renderer =
+            tile.GetComponent<MeshRenderer>();
+
+        if (renderer == null)
+            continue;
+
+        arenaTiles.Add(tile);
+
+        Vector3 position = tile.transform.position;
+
+        originalTilePositions[tile] = position;
+
+        minX = Mathf.Min(minX, position.x);
+        maxX = Mathf.Max(maxX, position.x);
+        minZ = Mathf.Min(minZ, position.z);
+        maxZ = Mathf.Max(maxZ, position.z);
+
+        hasBounds = true;
+    }
+
+    if (hasBounds)
+    {
+        tileSpacingX = 2f;
+        tileSpacingZ = 2f;
 
         Debug.Log(
-            $"[ARENA] Tiles found: {arenaTiles.Count}"
+            $"[ARENA] Bounds: " +
+            $"X {minX} to {maxX}, " +
+            $"Z {minZ} to {maxZ}"
         );
     }
 
-    private void ShrinkRandomSide()
+    Debug.Log(
+        $"[ARENA] Mesh tiles found: {arenaTiles.Count}"
+    );
+}
+private void ShrinkRandomSide()
+{
+    if (arenaTiles.Count == 0)
+        return;
+
+    int side = Random.Range(0, 4);
+
+    ShrinkSide = side;
+    ShrinkCommand++;
+
+    IncrementShrinkCount(side);
+
+    Debug.Log(
+        $"[ARENA] State Authority selected side: " +
+        $"{GetSideName(side)}"
+    );
+
+if (useRandomSlash)
+{
+    ApplyRandomSlash(side);
+}
+else
+{
+    ApplyShrink(side);
+}
+
+    lastAppliedShrinkCommand = ShrinkCommand;
+}
+
+
+private void ApplyRandomSlash(int side)
+{
+    List<float> availableLayers = new List<float>();
+
+    bool useX = side == 2 || side == 3;
+
+    foreach (GameObject tile in arenaTiles)
     {
-        if (arenaTiles.Count == 0)
-            return;
+        if (tile == null || !tile.activeSelf)
+            continue;
 
-        float minX = float.MaxValue;
-        float maxX = float.MinValue;
-        float minZ = float.MaxValue;
-        float maxZ = float.MinValue;
+        Vector3 position = tile.transform.position;
 
-        foreach (GameObject tile in arenaTiles)
+        float layer = useX
+            ? position.x
+            : position.z;
+
+        bool alreadyAdded = false;
+
+        foreach (float existingLayer in availableLayers)
         {
-            if (tile == null || !tile.activeSelf)
-                continue;
-
-            Vector3 position = tile.transform.position;
-
-            minX = Mathf.Min(minX, position.x);
-            maxX = Mathf.Max(maxX, position.x);
-            minZ = Mathf.Min(minZ, position.z);
-            maxZ = Mathf.Max(maxZ, position.z);
+            if (Mathf.Abs(existingLayer - layer) <= 0.1f)
+            {
+                alreadyAdded = true;
+                break;
+            }
         }
 
-        if (minX == float.MaxValue)
-            return;
-
-        int side = Random.Range(0, 4);
-
-        ShrinkSide = side;
-
-        // Change the command number so every shrink is a new network event.
-        ShrinkCommand++;
-
-        Debug.Log(
-            $"[ARENA] State Authority selected side: " +
-            $"{GetSideName(side)}"
-        );
-
-        // Apply immediately on State Authority.
-        ApplyShrink(side);
-        lastAppliedShrinkCommand = ShrinkCommand;
+        if (!alreadyAdded)
+            availableLayers.Add(layer);
     }
 
-    private void OnShrinkCommandChanged()
+    if (availableLayers.Count == 0)
     {
-        // State Authority already applied this command.
-        if (ShrinkCommand == lastAppliedShrinkCommand)
-            return;
+        Debug.LogWarning(
+            $"[ARENA] No available layers for " +
+            $"{GetSideName(side)}."
+        );
 
+        return;
+    }
+
+    float targetLayer =
+        availableLayers[
+            Random.Range(0, availableLayers.Count)
+        ];
+    ShrinkLayer = targetLayer; 
+    RemoveSide(side, targetLayer);
+
+    Debug.Log(
+        $"[ARENA] Random Slash → " +
+        $"{GetSideName(side)} at " +
+        $"{(useX ? "X" : "Z")} = {targetLayer}"
+    );
+}
+private void IncrementShrinkCount(int side)
+{
+    switch (side)
+    {
+        case 0:
+            NorthShrinkCount++;
+            break;
+
+        case 1:
+            SouthShrinkCount++;
+            break;
+
+        case 2:
+            EastShrinkCount++;
+            break;
+
+        case 3:
+            WestShrinkCount++;
+            break;
+    }
+}
+
+   private void OnShrinkCommandChanged()
+{
+    if (ShrinkCommand == lastAppliedShrinkCommand)
+        return;
+
+    if (useRandomSlash)
+    {
+        RemoveSide(ShrinkSide, ShrinkLayer);
+    }
+    else
+    {
         ApplyShrink(ShrinkSide);
-
-        lastAppliedShrinkCommand = ShrinkCommand;
-
-        Debug.Log(
-            $"[ARENA] Received shrink command: " +
-            $"{GetSideName(ShrinkSide)}"
-        );
     }
 
-    private void ApplyShrink(int side)
+    lastAppliedShrinkCommand = ShrinkCommand;
+
+    Debug.Log(
+        $"[ARENA] Received shrink command: " +
+        $"{GetSideName(ShrinkSide)}"
+    );
+}
+private void ApplyShrink(int side)
+{
+    int shrinkCount = GetShrinkCount(side);
+
+    if (shrinkCount <= 0)
+        return;
+
+    float targetLayer = GetShrinkLayer(side, shrinkCount);
+
+    RemoveSide(side, targetLayer);
+}
+private float GetShrinkLayer(int side, int shrinkCount)
+{
+    switch (side)
     {
-        float boundary;
+        case 0: // North
+            return maxZ - ((shrinkCount - 1) * tileSpacingZ);
 
-        if (!TryGetBoundary(
-                side,
-                out boundary))
-        {
-            Debug.LogWarning(
-                "[ARENA] Could not determine shrink boundary."
-            );
+        case 1: // South
+            return minZ + ((shrinkCount - 1) * tileSpacingZ);
 
-            return;
-        }
+        case 2: // East
+            return maxX - ((shrinkCount - 1) * tileSpacingX);
 
-        RemoveSide(side, boundary);
+        case 3: // West
+            return minX + ((shrinkCount - 1) * tileSpacingX);
+
+        default:
+            return 0f;
     }
-
-    private bool TryGetBoundary(
-        int side,
-        out float boundary)
+}
+private int GetShrinkCount(int side)
+{
+    switch (side)
     {
-        boundary = 0f;
+        case 0:
+            return NorthShrinkCount;
 
-        float minX = float.MaxValue;
-        float maxX = float.MinValue;
-        float minZ = float.MaxValue;
-        float maxZ = float.MinValue;
+        case 1:
+            return SouthShrinkCount;
 
-        foreach (GameObject tile in arenaTiles)
-        {
-            if (tile == null || !tile.activeSelf)
-                continue;
+        case 2:
+            return EastShrinkCount;
 
-            Vector3 position = tile.transform.position;
+        case 3:
+            return WestShrinkCount;
 
-            minX = Mathf.Min(minX, position.x);
-            maxX = Mathf.Max(maxX, position.x);
-            minZ = Mathf.Min(minZ, position.z);
-            maxZ = Mathf.Max(maxZ, position.z);
-        }
+        default:
+            return 0;
+    }
+}
+   
+ private void RemoveSide(int side, float boundary)
+{
+    int removedCount = 0;
 
-        if (minX == float.MaxValue)
-            return false;
+    const float tileSpacing = 2f;
+    const float tolerance = 0.1f;
+
+    // Move one grid layer inward from the current boundary.
+    float targetLayer = boundary;
+
+    foreach (GameObject tile in arenaTiles)
+    {
+        if (tile == null || !tile.activeSelf)
+            continue;
+
+        Vector3 position = tile.transform.position;
+
+        bool shouldRemove = false;
 
         switch (side)
         {
             case 0: // North
-                boundary = maxZ;
+                shouldRemove =
+                    Mathf.Abs(position.z - targetLayer) <= tolerance;
                 break;
 
             case 1: // South
-                boundary = minZ;
+                shouldRemove =
+                    Mathf.Abs(position.z - targetLayer) <= tolerance;
                 break;
 
             case 2: // East
-                boundary = maxX;
+                shouldRemove =
+                    Mathf.Abs(position.x - targetLayer) <= tolerance;
                 break;
 
             case 3: // West
-                boundary = minX;
+                shouldRemove =
+                    Mathf.Abs(position.x - targetLayer) <= tolerance;
                 break;
-
-            default:
-                return false;
         }
 
-        return true;
-    }
-
-    private void RemoveSide(
-        int side,
-        float boundary)
-    {
-        int removedCount = 0;
-
-        foreach (GameObject tile in arenaTiles)
+        if (shouldRemove)
         {
-            if (tile == null || !tile.activeSelf)
-                continue;
-
-            Vector3 position = tile.transform.position;
-
-            bool shouldRemove = false;
-
-            switch (side)
-            {
-                case 0: // North
-                case 1: // South
-                    shouldRemove =
-                        Mathf.Approximately(
-                            position.z,
-                            boundary
-                        );
-                    break;
-
-                case 2: // East
-                case 3: // West
-                    shouldRemove =
-                        Mathf.Approximately(
-                            position.x,
-                            boundary
-                        );
-                    break;
-            }
-
-            if (shouldRemove)
-            {
-                tile.SetActive(false);
-                removedCount++;
-            }
+            tile.SetActive(false);
+            removedCount++;
         }
-
-        Debug.Log(
-            $"[ARENA] Removed {removedCount} tiles from " +
-            $"{GetSideName(side)}."
-        );
     }
 
+    Debug.Log(
+        $"[ARENA] Removed {removedCount} tiles from " +
+        $"{GetSideName(side)}."
+    );
+}
     private string GetSideName(int side)
     {
         switch (side)
@@ -332,39 +458,42 @@ public class ArenaShrinkController : NetworkBehaviour
                 return "Unknown";
         }
     }
-
-    public void ResetArena()
+public void ResetArena()
+{
+    foreach (GameObject tile in arenaTiles)
     {
-        foreach (GameObject tile in arenaTiles)
+        if (tile == null)
+            continue;
+
+        tile.SetActive(true);
+
+        if (originalTilePositions.TryGetValue(
+                tile,
+                out Vector3 originalPosition))
         {
-            if (tile == null)
-                continue;
-
-            tile.SetActive(true);
-
-            if (originalTilePositions.TryGetValue(
-                    tile,
-                    out Vector3 originalPosition))
-            {
-                tile.transform.position =
-                    originalPosition;
-            }
+            tile.transform.position =
+                originalPosition;
         }
-
-        lastAppliedShrinkCommand =
-            ShrinkCommand;
-
-        if (HasStateAuthority)
-        {
-            IsShrinking = false;
-            ShrinkTimer = TickTimer.None;
-        }
-
-        Debug.Log(
-            $"[ARENA] Arena reset. Restored " +
-            $"{arenaTiles.Count} tiles."
-        );
     }
+
+    lastAppliedShrinkCommand = ShrinkCommand;
+
+    if (HasStateAuthority)
+    {
+        IsShrinking = false;
+        ShrinkTimer = TickTimer.None;
+
+        NorthShrinkCount = 0;
+        SouthShrinkCount = 0;
+        EastShrinkCount = 0;
+        WestShrinkCount = 0;
+    }
+
+    Debug.Log(
+        $"[ARENA] Arena reset. Restored " +
+        $"{arenaTiles.Count} tiles."
+    );
+}
     public void DebugShrink()
 {
     if (!HasStateAuthority)

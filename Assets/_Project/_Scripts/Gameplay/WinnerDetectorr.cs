@@ -27,8 +27,7 @@ public class WinnerDetector : MonoBehaviour
         if (runner == null || !runner.IsRunning)
             return;
 
-        playerRegistry =
-            runner.GetComponentInChildren<PlayerRegistry>();
+      playerRegistry = PlayerRegistry.Instance;
 
         if (playerRegistry == null)
             return;

@@ -10,6 +10,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         public PlayerElimination player;
         public int survivalScore;
         public int knockoutCredit;
+        public int winnerBonus;
 
         [HideInInspector]
         public float lastKnockbackTime = -Mathf.Infinity;
@@ -18,11 +19,42 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         public PlayerElimination lastKnockbackSource;
     }
 
+    // ---------------------------------
+    // Network Score Data
+    // ---------------------------------
+
+    public struct NetworkPlayerScore : INetworkStruct
+    {
+        public PlayerRef player;
+        public int placement;
+        public int survivalScore;
+        public int knockoutCredit;
+        public int winnerBonus;
+        public int overallScore;
+    }
+
+    [Networked, Capacity(4)]
+    private NetworkArray<NetworkPlayerScore> NetworkScores => default;
+
+    // ---------------------------------
+    // Settings
+    // ---------------------------------
+
     [Header("Knockout Settings")]
     [SerializeField] private float knockoutAttributionWindow = 3f;
 
     [Header("Round State")]
     [SerializeField] private RoundStateManager roundStateManager;
+
+    [Header("Placement")]
+    [SerializeField] private MatiraMatibayPlacementManager placementManager;
+
+    [Header("Winner Bonus")]
+    [SerializeField] private int winnerBonus = 10;
+
+    // ---------------------------------
+    // Local Score Data
+    // ---------------------------------
 
     private readonly List<PlayerScore> playerScores =
         new List<PlayerScore>();
@@ -34,6 +66,16 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
     private bool scoringActive = false;
     private bool initialized = false;
 
+    // ---------------------------------
+    // Events
+    // ---------------------------------
+
+    public System.Action OnScoresChanged;
+
+    // ---------------------------------
+    // Unity
+    // ---------------------------------
+
     private void OnEnable()
     {
         if (roundStateManager != null)
@@ -44,83 +86,95 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         }
     }
 
-private void Update()
-{
-    if (!initialized)
+    private void Update()
     {
-        TryInitialize();
-    }
-}  private void TryInitialize()
-{
-    runner =
-        NetworkRunner.GetRunnerForGameObject(gameObject);
-
-    if (runner == null || !runner.IsRunning)
-        return;
-
-    playerRegistry =
-        runner.GetComponentInChildren<PlayerRegistry>();
-
-    if (playerRegistry == null)
-        return;
-
-    if (roundStateManager == null)
-        return;
-
-    if (!roundStateManager.IsSpawned)
-        return;
-
-    Debug.Log(
-        $"[SCORE] Connected to registry for Runner " +
-        $"{runner.name}. Existing players: " +
-        $"{playerRegistry.Players.Count}"
-    );
-
-    playerRegistry.OnPlayerRegistered += RegisterPlayer;
-    playerRegistry.OnPlayerUnregistered += UnregisterPlayer;
-
-    foreach (NetworkObject playerObject in playerRegistry.Players)
-    {
-        RegisterPlayer(playerObject);
-    }
-
-    initialized = true;
-
-    Debug.Log(
-        $"[SCORE] Initialization complete. " +
-        $"Tracking {playerScores.Count} players."
-    );
-
-    if (roundStateManager.CurrentState ==
-        RoundStateManager.RoundState.Playing)
-    {
-        StartScoring();
-    }
-}
-public override void FixedUpdateNetwork()
-{
-    if (!HasStateAuthority)
-        return;
-
-    if (!scoringActive)
-        return;
-
-    survivalTimer += Runner.DeltaTime;
-
-    int currentSecond =
-        Mathf.FloorToInt(survivalTimer);
-
-    foreach (PlayerScore score in playerScores)
-    {
-        if (score.player == null)
-            continue;
-
-        if (!score.player.IsEliminated)
+        if (!initialized)
         {
-            score.survivalScore = currentSecond;
+            TryInitialize();
         }
     }
-}
+
+    // ---------------------------------
+    // Initialization
+    // ---------------------------------
+
+    private void TryInitialize()
+    {
+        runner =
+            NetworkRunner.GetRunnerForGameObject(gameObject);
+
+        if (runner == null || !runner.IsRunning)
+            return;
+
+        playerRegistry = PlayerRegistry.Instance;
+
+        if (playerRegistry == null)
+            return;
+
+        if (roundStateManager == null)
+            return;
+
+        if (!roundStateManager.IsSpawned)
+            return;
+
+        playerRegistry.OnPlayerRegistered += RegisterPlayer;
+        playerRegistry.OnPlayerUnregistered += UnregisterPlayer;
+
+        foreach (NetworkObject playerObject in playerRegistry.Players)
+        {
+            RegisterPlayer(playerObject);
+        }
+
+        initialized = true;
+
+        Debug.Log(
+            $"[SCORE] Connected to registry for Runner " +
+            $"{runner.name}. Existing players: " +
+            $"{playerRegistry.Players.Count}"
+        );
+
+        if (roundStateManager.CurrentState ==
+            RoundStateManager.RoundState.Playing)
+        {
+            StartScoring();
+        }
+    }
+
+    // ---------------------------------
+    // Network Simulation
+    // ---------------------------------
+
+    public override void FixedUpdateNetwork()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        if (!scoringActive)
+            return;
+
+        survivalTimer += Runner.DeltaTime;
+
+        int currentSecond =
+            Mathf.FloorToInt(survivalTimer);
+
+        foreach (PlayerScore score in playerScores)
+        {
+            if (score.player == null)
+                continue;
+
+            if (!score.player.IsEliminated)
+            {
+                score.survivalScore = currentSecond;
+            }
+        }
+
+        SyncScores();
+    }
+
+    // ---------------------------------
+    // Cleanup
+    // ---------------------------------
+
     private void OnDestroy()
     {
         if (playerRegistry != null)
@@ -142,6 +196,10 @@ public override void FixedUpdateNetwork()
         }
     }
 
+    // ---------------------------------
+    // Player Registration
+    // ---------------------------------
+
     private void RegisterPlayer(NetworkObject playerObject)
     {
         if (playerObject == null)
@@ -160,18 +218,19 @@ public override void FixedUpdateNetwork()
             return;
         }
 
-        // Prevent duplicate PlayerScore entries.
         if (GetScore(player) != null)
             return;
 
-        PlayerScore newScore = new PlayerScore
-        {
-            player = player,
-            survivalScore = 0,
-            knockoutCredit = 0,
-            lastKnockbackTime = -Mathf.Infinity,
-            lastKnockbackSource = null
-        };
+        PlayerScore newScore =
+            new PlayerScore
+            {
+                player = player,
+                survivalScore = 0,
+                knockoutCredit = 0,
+                winnerBonus = 0,
+                lastKnockbackTime = -Mathf.Infinity,
+                lastKnockbackSource = null
+            };
 
         playerScores.Add(newScore);
 
@@ -189,6 +248,11 @@ public override void FixedUpdateNetwork()
             $"[SCORE] Tracking {playerObject.name}. " +
             $"Total score records: {playerScores.Count}"
         );
+
+        if (HasStateAuthority)
+        {
+            SyncScores();
+        }
     }
 
     private void UnregisterPlayer(NetworkObject playerObject)
@@ -210,6 +274,11 @@ public override void FixedUpdateNetwork()
         UnsubscribeFromPlayer(player);
 
         playerScores.Remove(score);
+
+        if (HasStateAuthority)
+        {
+            SyncScores();
+        }
 
         Debug.Log(
             $"[SCORE] Stopped tracking {playerObject.name}. " +
@@ -234,9 +303,17 @@ public override void FixedUpdateNetwork()
         player.OnPlayerEliminated -= RecordElimination;
     }
 
+    // ---------------------------------
+    // Scoring
+    // ---------------------------------
+
     public void StartScoring()
     {
+        if (!HasStateAuthority)
+            return;
+
         ResetScores();
+
         scoringActive = true;
 
         Debug.Log("[SCORE] Scoring started.");
@@ -244,65 +321,53 @@ public override void FixedUpdateNetwork()
 
     public void StopScoring()
     {
+        if (!HasStateAuthority)
+            return;
+
         scoringActive = false;
+
+        SyncScores();
 
         Debug.Log("[SCORE] Scoring stopped.");
     }
 
-  public void RecordKnockback(
-    PlayerElimination attacker,
-    PlayerElimination victim)
-{
-    if (!HasStateAuthority)
-        return;
+    // ---------------------------------
+    // Knockout Tracking
+    // ---------------------------------
 
-    if (!scoringActive)
-        return;
-
-    PlayerScore victimScore =
-        GetScore(victim);
-
-    if (victimScore == null)
-        return;
-
-    victimScore.lastKnockbackSource = attacker;
-    victimScore.lastKnockbackTime =
-        (float)Runner.SimulationTime;
-
-    Debug.Log(
-        attacker.gameObject.name +
-        " knocked back " +
-        victim.gameObject.name
-    );
-}
-   public void ResetScores()
-{
-    if (!HasStateAuthority)
-        return;
-
-    scoringActive = false;
-    survivalTimer = 0f;
-
-    foreach (PlayerScore score in playerScores)
+    public void RecordKnockback(
+        PlayerElimination attacker,
+        PlayerElimination victim)
     {
-        score.survivalScore = 0;
-        score.knockoutCredit = 0;
-        score.lastKnockbackTime =
-            -Mathf.Infinity;
-        score.lastKnockbackSource = null;
-    }
+        if (!HasStateAuthority)
+            return;
 
-    Debug.Log(
-        $"[SCORE] Scores reset for " +
-        $"{playerScores.Count} players."
-    );
-}
+        if (!scoringActive)
+            return;
+
+        PlayerScore victimScore =
+            GetScore(victim);
+
+        if (victimScore == null)
+            return;
+
+        victimScore.lastKnockbackSource = attacker;
+        victimScore.lastKnockbackTime =
+            (float)Runner.SimulationTime;
+
+        Debug.Log(
+            attacker.gameObject.name +
+            " knocked back " +
+            victim.gameObject.name
+        );
+    }
 
     public void RecordElimination(
         PlayerElimination eliminatedPlayer)
     {
-          if (!HasStateAuthority)
-        return;
+        if (!HasStateAuthority)
+            return;
+
         if (!scoringActive)
             return;
 
@@ -317,9 +382,9 @@ public override void FixedUpdateNetwork()
 
         if (attacker != null)
         {
-        float timeSinceKnockback =
-    (float)Runner.SimulationTime -
-    victimScore.lastKnockbackTime;
+            float timeSinceKnockback =
+                (float)Runner.SimulationTime -
+                victimScore.lastKnockbackTime;
 
             if (timeSinceKnockback <=
                 knockoutAttributionWindow)
@@ -339,10 +404,75 @@ public override void FixedUpdateNetwork()
             }
         }
 
-        // Clear attribution after elimination.
         victimScore.lastKnockbackSource = null;
         victimScore.lastKnockbackTime =
             -Mathf.Infinity;
+
+        SyncScores();
+    }
+
+    // ---------------------------------
+    // Reset
+    // ---------------------------------
+
+    public void ResetScores()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        scoringActive = false;
+        survivalTimer = 0f;
+
+        foreach (PlayerScore score in playerScores)
+        {
+            score.survivalScore = 0;
+            score.knockoutCredit = 0;
+            score.winnerBonus = 0;
+
+            score.lastKnockbackTime =
+                -Mathf.Infinity;
+
+            score.lastKnockbackSource = null;
+        }
+
+        ClearNetworkScores();
+
+        Debug.Log(
+            $"[SCORE] Scores reset for " +
+            $"{playerScores.Count} players."
+        );
+
+        OnScoresChanged?.Invoke();
+    }
+
+    // ---------------------------------
+    // Score Access
+    // ---------------------------------
+
+    public int GetOverallScore(
+        PlayerElimination player)
+    {
+        PlayerScore score =
+            GetScore(player);
+
+        if (score == null)
+            return 0;
+
+        // Knockout Credit is a statistic only.
+        return
+            score.survivalScore +
+            score.winnerBonus;
+    }
+
+    public int GetWinnerBonus(
+        PlayerElimination player)
+    {
+        PlayerScore score =
+            GetScore(player);
+
+        return score != null
+            ? score.winnerBonus
+            : 0;
     }
 
     public int GetSurvivalScore(
@@ -366,6 +496,223 @@ public override void FixedUpdateNetwork()
             ? score.knockoutCredit
             : 0;
     }
+
+    // ---------------------------------
+    // Live Placement
+    // ---------------------------------
+
+    public int GetLivePlacement(PlayerRef player)
+    {
+        if (player == PlayerRef.None)
+            return 0;
+
+        int playerScore = 0;
+        bool playerFound = false;
+
+        for (int i = 0; i < NetworkScores.Length; i++)
+        {
+            NetworkPlayerScore score =
+                NetworkScores[i];
+
+            if (score.player == player)
+            {
+                playerScore = score.overallScore;
+                playerFound = true;
+                break;
+            }
+        }
+
+        if (!playerFound)
+            return 0;
+
+        // Dense ranking:
+        // 20, 15, 15, 10
+        // becomes
+        // 1, 2, 2, 3
+
+        int rank = 1;
+
+        List<int> higherScores =
+            new List<int>();
+
+        for (int i = 0; i < NetworkScores.Length; i++)
+        {
+            NetworkPlayerScore score =
+                NetworkScores[i];
+
+            if (score.player == PlayerRef.None)
+                continue;
+
+            if (score.overallScore > playerScore &&
+                !higherScores.Contains(score.overallScore))
+            {
+                higherScores.Add(
+                    score.overallScore
+                );
+            }
+        }
+
+        rank += higherScores.Count;
+
+        return rank;
+    }
+
+    // ---------------------------------
+    // Winner Bonus
+    // ---------------------------------
+
+    public void AwardWinnerBonus(
+        PlayerElimination winner)
+    {
+        if (!HasStateAuthority)
+            return;
+
+        if (winner == null)
+            return;
+
+        PlayerScore score =
+            GetScore(winner);
+
+        if (score == null)
+            return;
+
+        score.winnerBonus = winnerBonus;
+
+        Debug.Log(
+            $"[SCORE] {winner.gameObject.name} earned " +
+            $"WINNER BONUS: +{winnerBonus}"
+        );
+
+        SyncScores();
+    }
+
+    // ---------------------------------
+    // Network Synchronization
+    // ---------------------------------
+
+    private void SyncScores()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        for (int i = 0; i < NetworkScores.Length; i++)
+        {
+            NetworkScores.Set(
+                i,
+                default
+            );
+        }
+
+        int count =
+            Mathf.Min(
+                playerScores.Count,
+                NetworkScores.Length
+            );
+
+        for (int i = 0; i < count; i++)
+        {
+            PlayerScore score =
+                playerScores[i];
+
+            if (score.player == null)
+                continue;
+
+            NetworkObject playerObject =
+                score.player.GetComponent<NetworkObject>();
+
+            if (playerObject == null)
+                continue;
+
+            NetworkPlayerScore networkScore =
+                new NetworkPlayerScore
+                {
+                    player =
+                        playerObject.InputAuthority,
+
+                    placement =
+                        placementManager != null
+                            ? placementManager.GetPlacement(
+                                score.player)
+                            : 0,
+
+                    survivalScore =
+                        score.survivalScore,
+
+                    knockoutCredit =
+                        score.knockoutCredit,
+
+                    winnerBonus =
+                        score.winnerBonus,
+
+                    // Knockout Credit is NOT part
+                    // of the overall score.
+                    overallScore =
+                        score.survivalScore +
+                        score.winnerBonus
+                };
+
+            NetworkScores.Set(
+                i,
+                networkScore
+            );
+        }
+
+        OnScoresChanged?.Invoke();
+    }
+
+    private void ClearNetworkScores()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        for (int i = 0; i < NetworkScores.Length; i++)
+        {
+            NetworkScores.Set(
+                i,
+                default
+            );
+        }
+    }
+
+    // ---------------------------------
+    // Network Data Access
+    // ---------------------------------
+
+    public int NetworkScoreCount
+    {
+        get
+        {
+            int count = 0;
+
+            for (int i = 0; i < NetworkScores.Length; i++)
+            {
+                if (NetworkScores[i].player != PlayerRef.None)
+                    count++;
+            }
+
+            return count;
+        }
+    }
+
+    public bool TryGetNetworkScore(
+        int index,
+        out NetworkPlayerScore score)
+    {
+        if (index < 0 ||
+            index >= NetworkScores.Length)
+        {
+            score = default;
+            return false;
+        }
+
+        score = NetworkScores[index];
+
+        return score.player != PlayerRef.None;
+    }
+
+    // ---------------------------------
+    // Internal Lookup
+    // ---------------------------------
 
     private PlayerScore GetScore(
         PlayerElimination player)

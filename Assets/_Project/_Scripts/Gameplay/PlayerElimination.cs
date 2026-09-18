@@ -8,31 +8,24 @@ public class PlayerElimination : NetworkBehaviour
     public NetworkBool IsEliminated { get; private set; }
 
     public PlayerRef PlayerRef => Object.InputAuthority;
-
     public bool IsAlive => !IsEliminated;
 
     public event Action<PlayerElimination> OnPlayerEliminated;
 
-    private Vector3 startingPosition;
-    private Quaternion startingRotation;
 
-    public override void Spawned()
-    {
-        startingPosition = transform.position;
-        startingRotation = transform.rotation;
+public override void Spawned()
+{
+    
+    if (HasStateAuthority)
+        IsEliminated = false;
 
-        if (HasStateAuthority)
-        {
-            IsEliminated = false;
-        }
+    ApplyEliminationState();
 
-        ApplyEliminationState();
-
-        Debug.Log(
-            $"[ELIMINATION] Spawned {name} | " +
-            $"PlayerRef: {PlayerRef}"
-        );
-    }
+    Debug.Log(
+        $"[ELIMINATION] Spawned {name} | " +
+        $"PlayerRef: {PlayerRef}"
+    );
+}
 
     public void Eliminate()
     {
@@ -40,13 +33,9 @@ public class PlayerElimination : NetworkBehaviour
             return;
 
         if (HasStateAuthority)
-        {
             SetEliminated();
-        }
         else
-        {
             RPC_RequestElimination();
-        }
     }
 
     [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
@@ -63,35 +52,59 @@ public class PlayerElimination : NetworkBehaviour
         IsEliminated = true;
     }
 
-    public void ResetPlayer()
+  public void ResetPlayer(
+    Vector3 spawnPosition,
+    Quaternion spawnRotation)
+{
+    if (!HasStateAuthority)
+        return;
+
+    Debug.Log(
+        $"[ELIMINATION] Resetting {name} to " +
+        $"{spawnPosition}"
+    );
+
+    IsEliminated = false;
+
+    NetworkTransform networkTransform =
+        GetComponent<NetworkTransform>();
+
+    if (networkTransform != null)
     {
-        if (!HasStateAuthority)
-            return;
-
-        IsEliminated = false;
-
-        transform.position = startingPosition;
-        transform.rotation = startingRotation;
-
-        Rigidbody rb = GetComponent<Rigidbody>();
-
-        if (rb != null)
-        {
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
-
-        EnableGameplay();
+        networkTransform.Teleport(
+            spawnPosition,
+            spawnRotation
+        );
     }
+    else
+    {
+        transform.SetPositionAndRotation(
+            spawnPosition,
+            spawnRotation
+        );
+    }
+
+    Rigidbody rb =
+        GetComponent<Rigidbody>();
+
+    if (rb != null)
+    {
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        rb.position = spawnPosition;
+        rb.rotation = spawnRotation;
+        rb.Sleep();
+    }
+
+    EnableGameplay();
+}
 
     private void OnEliminatedChanged()
     {
         ApplyEliminationState();
 
         if (IsEliminated)
-        {
             HandleNetworkElimination();
-        }
     }
 
     private void HandleNetworkElimination()
@@ -110,14 +123,14 @@ public class PlayerElimination : NetworkBehaviour
     {
         bool active = !IsEliminated;
 
-        foreach (Renderer renderer in
-                 GetComponentsInChildren<Renderer>())
+        foreach (Renderer renderer
+                 in GetComponentsInChildren<Renderer>())
         {
             renderer.enabled = active;
         }
 
-        foreach (Collider collider in
-                 GetComponentsInChildren<Collider>())
+        foreach (Collider collider
+                 in GetComponentsInChildren<Collider>())
         {
             collider.enabled = active;
         }
@@ -129,17 +142,13 @@ public class PlayerElimination : NetworkBehaviour
             GetComponent<PlayerMovement>();
 
         if (movement != null)
-        {
             movement.enabled = false;
-        }
 
         PlayerBumpAttack bumpAttack =
             GetComponent<PlayerBumpAttack>();
 
         if (bumpAttack != null)
-        {
             bumpAttack.enabled = false;
-        }
     }
 
     private void EnableGameplay()
@@ -148,16 +157,12 @@ public class PlayerElimination : NetworkBehaviour
             GetComponent<PlayerMovement>();
 
         if (movement != null)
-        {
             movement.enabled = true;
-        }
 
         PlayerBumpAttack bumpAttack =
             GetComponent<PlayerBumpAttack>();
 
         if (bumpAttack != null)
-        {
             bumpAttack.enabled = true;
-        }
     }
 }

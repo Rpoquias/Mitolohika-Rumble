@@ -1,99 +1,116 @@
 using Fusion;
 using UnityEngine;
 
-public class PlayerSpawner : SimulationBehaviour, IPlayerJoined, IPlayerLeft
+public class PlayerSpawner : MonoBehaviour
 {
     [SerializeField] private CharacterData[] characters;
 
-  public void PlayerJoined(PlayerRef player)
-{
-    if (!Runner.IsServer)
-        return;
-
-    CharacterData defaultCharacter = characters[0];
-
-    NetworkManager.Instance.SetPlayerSelection(
-        player,
-        defaultCharacter.characterID
-    );
-
-    SpawnCharacter(
-        player,
-        defaultCharacter,
-        GetSpawnPosition(player)
-    );
-}
-   public void ChangeCharacter(
-    PlayerRef player,
-    CharacterID characterID)
-{
-    if (!Runner.IsServer)
-        return;
-
-    CharacterData character =
-        GetCharacterData(characterID);
-
-    if (character == null)
+    private void Start()
     {
-        Debug.LogError(
-            $"[PLAYER SPAWNER] No CharacterData for {characterID}"
+        if (NetworkManager.Instance == null)
+        {
+            Debug.LogError(
+                "[PLAYER SPAWNER] NetworkManager.Instance is NULL."
+            );
+
+            return;
+        }
+
+        NetworkManager.Instance.OnPlayerJoinedEvent += HandlePlayerJoined;
+        NetworkManager.Instance.OnPlayerLeftEvent += HandlePlayerLeft;
+
+        Debug.Log(
+            "[PLAYER SPAWNER] Subscribed to NetworkManager events."
+        );
+    }
+
+    private void OnDestroy()
+    {
+        if (NetworkManager.Instance == null)
+            return;
+
+        NetworkManager.Instance.OnPlayerJoinedEvent -= HandlePlayerJoined;
+        NetworkManager.Instance.OnPlayerLeftEvent -= HandlePlayerLeft;
+    }
+
+    // --------------------------------------------------
+    // Player Joined
+    // --------------------------------------------------
+
+    private void HandlePlayerJoined(PlayerRef player)
+    {
+        NetworkRunner runner =
+            NetworkManager.Instance.Runner;
+
+        if (runner == null || !runner.IsServer)
+            return;
+
+        Debug.Log(
+            $"[PLAYER SPAWNER] Handling PlayerJoined: {player}"
         );
 
-        return;
-    }
-
-    NetworkManager.Instance.SetPlayerSelection(
-        player,
-        characterID
-    );
-
-    Vector3 spawnPosition =
-        GetSpawnPosition(player);
-
-    if (Runner.TryGetPlayerObject(
-        player,
-        out NetworkObject oldObject))
-    {
-        spawnPosition =
-            oldObject.transform.position;
-
-        Runner.Despawn(oldObject);
-    }
-
-    SpawnCharacter(
-        player,
-        character,
-        spawnPosition
-    );
-}
-public void RespawnPlayersForGameplay()
-{
-    if (!Runner.IsServer)
-        return;
-
-    foreach (PlayerRef player in Runner.ActivePlayers)
-    {
-        if (Runner.TryGetPlayerObject(
-            player,
-            out NetworkObject existingObject))
+        if (characters == null || characters.Length == 0)
         {
-            Debug.LogWarning(
-                $"[PLAYER SPAWNER] {player} already has a PlayerObject."
+            Debug.LogError(
+                "[PLAYER SPAWNER] No characters assigned."
             );
 
-            continue;
+            return;
         }
 
-        if (!NetworkManager.Instance.TryGetPlayerSelection(
+        CharacterData defaultCharacter = characters[0];
+
+        NetworkManager.Instance.SetPlayerSelection(
             player,
-            out CharacterID characterID))
+            defaultCharacter.characterID
+        );
+
+        SpawnCharacter(
+            runner,
+            player,
+            defaultCharacter,
+            GetSpawnPosition(player)
+        );
+    }
+
+    // --------------------------------------------------
+    // Player Left
+    // --------------------------------------------------
+
+    private void HandlePlayerLeft(PlayerRef player)
+    {
+        NetworkRunner runner =
+            NetworkManager.Instance.Runner;
+
+        if (runner == null || !runner.IsServer)
+            return;
+
+        if (runner.TryGetPlayerObject(
+            player,
+            out NetworkObject playerObject))
         {
-            Debug.LogWarning(
-                $"[PLAYER SPAWNER] No character selection for {player}."
+            Debug.Log(
+                $"[PLAYER SPAWNER] Despawning PlayerObject " +
+                $"{playerObject.name} for {player}"
             );
 
-            continue;
+            runner.Despawn(playerObject);
         }
+    }
+
+    // --------------------------------------------------
+    // Character Change
+    // --------------------------------------------------
+
+    public void ChangeCharacter(
+        PlayerRef player,
+        CharacterID characterID)
+    {
+        NetworkRunner runner =
+            NetworkManager.Instance.Runner;
+
+        if (runner == null || !runner.IsServer)
+            return;
 
         CharacterData character =
             GetCharacterData(characterID);
@@ -101,38 +118,82 @@ public void RespawnPlayersForGameplay()
         if (character == null)
         {
             Debug.LogError(
-                $"[PLAYER SPAWNER] No CharacterData for {characterID}."
+                $"[PLAYER SPAWNER] No CharacterData for {characterID}"
             );
 
-            continue;
+            return;
         }
+
+        NetworkManager.Instance.SetPlayerSelection(
+            player,
+            characterID
+        );
 
         Vector3 spawnPosition =
             GetSpawnPosition(player);
 
+        if (runner.TryGetPlayerObject(
+            player,
+            out NetworkObject oldObject))
+        {
+            spawnPosition =
+                oldObject.transform.position;
+
+            runner.Despawn(oldObject);
+        }
+
         SpawnCharacter(
+            runner,
             player,
             character,
             spawnPosition
         );
     }
-}
+
+    // --------------------------------------------------
+    // Spawn Character
+    // --------------------------------------------------
+
     private void SpawnCharacter(
+        NetworkRunner runner,
         PlayerRef player,
         CharacterData character,
         Vector3 spawnPosition)
     {
-        NetworkObject playerObject = Runner.Spawn(
-            character.characterPrefab,
-            spawnPosition,
-            Quaternion.identity,
-            player
-        );
+        NetworkObject playerObject =
+            runner.Spawn(
+                character.lobbyPrefab,
+                spawnPosition,
+                Quaternion.identity,
+                player
+            );
 
-        Runner.SetPlayerObject(
+        runner.SetPlayerObject(
             player,
             playerObject
         );
+
+        Debug.Log(
+            $"[PLAYER SPAWNER] Spawned PlayerObject for {player}: " +
+            $"{playerObject.name}"
+        );
+
+        if (runner.TryGetPlayerObject(
+            player,
+            out NetworkObject registeredObject))
+        {
+            Debug.Log(
+                $"[PLAYER SPAWNER] PlayerObject confirmed for {player}: " +
+                $"{registeredObject.name}"
+            );
+        }
+        else
+        {
+            Debug.LogError(
+                $"[PLAYER SPAWNER] PlayerObject was NOT registered " +
+                $"for {player}!"
+            );
+        }
 
         NetworkPlayerState state =
             playerObject.GetComponent<NetworkPlayerState>();
@@ -141,14 +202,17 @@ public void RespawnPlayersForGameplay()
         {
             state.SelectedCharacter =
                 character.characterID;
-
-            state.IsReady = false;
         }
 
         Debug.Log(
-            $"[PLAYER SPAWNER] {player} is now {character.characterName}"
+            $"[PLAYER SPAWNER] {player} is now " +
+            $"{character.characterName}"
         );
     }
+
+    // --------------------------------------------------
+    // Character Data
+    // --------------------------------------------------
 
     private CharacterData GetCharacterData(
         CharacterID characterID)
@@ -162,25 +226,17 @@ public void RespawnPlayersForGameplay()
         return null;
     }
 
-    private Vector3 GetSpawnPosition(PlayerRef player)
+    // --------------------------------------------------
+    // Spawn Position
+    // --------------------------------------------------
+
+    private Vector3 GetSpawnPosition(
+        PlayerRef player)
     {
         return new Vector3(
             player.PlayerId * 2f,
             1f,
             0f
         );
-    }
-
-    public void PlayerLeft(PlayerRef player)
-    {
-        if (!Runner.IsServer)
-            return;
-
-        if (Runner.TryGetPlayerObject(
-            player,
-            out NetworkObject playerObject))
-        {
-            Runner.Despawn(playerObject);
-        }
     }
 }

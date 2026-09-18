@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class MatiraMatibayPlacementManager : MonoBehaviour
 {
+    [Header("Score")]
+    [SerializeField] private MatiraMatibayScoreManager scoreManager;
+
     private PlayerRegistry playerRegistry;
     private NetworkRunner runner;
 
@@ -25,34 +28,33 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
 
     private void TryInitialize()
     {
-        // Find the Runner associated with this GameObject.
-        runner = NetworkRunner.GetRunnerForGameObject(gameObject);
+        runner =
+            NetworkRunner.GetRunnerForGameObject(gameObject);
 
         if (runner == null || !runner.IsRunning)
             return;
 
-        // Find the registry belonging to THIS Runner.
-        playerRegistry =
-            runner.GetComponentInChildren<PlayerRegistry>();
+        playerRegistry = PlayerRegistry.Instance;
 
         if (playerRegistry == null)
         {
             Debug.LogWarning(
-                $"[PLACEMENT] No PlayerRegistry found for Runner {runner.name}."
+                $"[PLACEMENT] No PlayerRegistry found for Runner " +
+                $"{runner.name}."
             );
 
             return;
         }
 
         Debug.Log(
-            $"[PLACEMENT] Connected to registry for Runner {runner.name}. " +
-            $"Existing players: {playerRegistry.Players.Count}"
+            $"[PLACEMENT] Connected to registry for Runner " +
+            $"{runner.name}. Existing players: " +
+            $"{playerRegistry.Players.Count}"
         );
 
         playerRegistry.OnPlayerRegistered += RegisterPlayer;
         playerRegistry.OnPlayerUnregistered += UnregisterPlayer;
 
-        // Register players that already exist.
         foreach (NetworkObject playerObject in playerRegistry.Players)
         {
             RegisterPlayer(playerObject);
@@ -70,7 +72,12 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
         playerRegistry.OnPlayerUnregistered -= UnregisterPlayer;
     }
 
-    private void RegisterPlayer(NetworkObject playerObject)
+    // ---------------------------------
+    // Player Registration
+    // ---------------------------------
+
+    private void RegisterPlayer(
+        NetworkObject playerObject)
     {
         if (playerObject == null)
             return;
@@ -81,7 +88,8 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
         if (player == null)
         {
             Debug.LogWarning(
-                $"[PLACEMENT] {playerObject.name} has no PlayerElimination."
+                $"[PLACEMENT] {playerObject.name} has no " +
+                "PlayerElimination."
             );
 
             return;
@@ -97,7 +105,8 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
         );
     }
 
-    private void UnregisterPlayer(NetworkObject playerObject)
+    private void UnregisterPlayer(
+        NetworkObject playerObject)
     {
         if (playerObject == null)
             return;
@@ -118,7 +127,8 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
         );
     }
 
-    private void RecordElimination(PlayerElimination player)
+    private void RecordElimination(
+        PlayerElimination player)
     {
         if (player == null)
             return;
@@ -135,38 +145,138 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
         );
     }
 
-    public void AssignFinalPlacements(PlayerElimination winner)
+    // ---------------------------------
+    // Final Placement
+    // ---------------------------------
+
+    public void AssignFinalPlacements(
+        PlayerElimination winner)
     {
         if (winner == null)
             return;
 
-        if (placements.ContainsKey(winner))
-            return;
+        if (scoreManager == null)
+        {
+            Debug.LogError(
+                "[PLACEMENT] ScoreManager is not assigned."
+            );
 
-        // Winner is always 1st.
+            return;
+        }
+
+        if (playerRegistry == null)
+        {
+            Debug.LogError(
+                "[PLACEMENT] PlayerRegistry is not initialized."
+            );
+
+            return;
+        }
+
+        placements.Clear();
+
+        // ---------------------------------
+        // Winner
+        // ---------------------------------
+
+        // The last survivor is ALWAYS 1st.
         placements[winner] = 1;
 
-        int placement = 2;
+        // ---------------------------------
+        // Remaining Players
+        // ---------------------------------
 
-        // Work backwards through elimination order.
-        for (int i = eliminationOrder.Count - 1; i >= 0; i--)
+        List<PlayerElimination> remainingPlayers =
+            new List<PlayerElimination>();
+
+        foreach (NetworkObject playerObject in playerRegistry.Players)
         {
-            PlayerElimination player = eliminationOrder[i];
+            if (playerObject == null)
+                continue;
+
+            PlayerElimination player =
+                playerObject.GetComponent<PlayerElimination>();
+
+            if (player == null)
+                continue;
 
             if (player == winner)
                 continue;
 
-            placements[player] = placement;
-            placement++;
+            remainingPlayers.Add(player);
+        }
+
+        // ---------------------------------
+        // Sort by Overall Score
+        // ---------------------------------
+
+        remainingPlayers.Sort(
+            (a, b) =>
+            {
+                int scoreA =
+                    scoreManager.GetOverallScore(a);
+
+                int scoreB =
+                    scoreManager.GetOverallScore(b);
+
+                return scoreB.CompareTo(scoreA);
+            }
+        );
+
+        // ---------------------------------
+        // Dense Ranking
+        // ---------------------------------
+
+        int currentPlacement = 2;
+
+        int? previousScore = null;
+
+        for (int i = 0; i < remainingPlayers.Count; i++)
+        {
+            PlayerElimination player =
+                remainingPlayers[i];
+
+            int playerScore =
+                scoreManager.GetOverallScore(player);
+
+            // If the score changes, move to
+            // the next placement.
+            //
+            // Example:
+            //
+            // 20 → 2nd
+            // 20 → 2nd
+            // 15 → 3rd
+            //
+            if (previousScore.HasValue &&
+                playerScore != previousScore.Value)
+            {
+                currentPlacement++;
+            }
+
+            placements[player] =
+                currentPlacement;
+
+            previousScore =
+                playerScore;
         }
 
         DebugPlacements();
     }
 
-    public int GetPlacement(PlayerElimination player)
+    // ---------------------------------
+    // Placement Access
+    // ---------------------------------
+
+    public int GetPlacement(
+        PlayerElimination player)
     {
-        if (placements.TryGetValue(player, out int placement))
+        if (placements.TryGetValue(
+                player,
+                out int placement))
+        {
             return placement;
+        }
 
         return 0;
     }
@@ -177,9 +287,15 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
         placements.Clear();
     }
 
+    // ---------------------------------
+    // Debug
+    // ---------------------------------
+
     private void DebugPlacements()
     {
-        foreach (KeyValuePair<PlayerElimination, int> entry in placements)
+        foreach (
+            KeyValuePair<PlayerElimination, int> entry
+            in placements)
         {
             Debug.Log(
                 entry.Key.gameObject.name +

@@ -1,6 +1,8 @@
 using System;
 using Fusion;
 using UnityEngine;
+using System.Linq;
+
 
 public class RoundStateManager : NetworkBehaviour
 {
@@ -13,7 +15,6 @@ public class RoundStateManager : NetworkBehaviour
     }
 
     [Header("Round Settings")]
-    [SerializeField] private float waitingDuration = 1f;
     [SerializeField] private float countdownDuration = 3f;
 
     [Header("Round Restart")]
@@ -22,19 +23,19 @@ public class RoundStateManager : NetworkBehaviour
     // Networked source of truth.
     [Networked, OnChangedRender(nameof(OnNetworkRoundStateChanged))]
     private RoundState NetworkState { get; set; }
+    [Networked]
+private int ExpectedPlayerCount { get; set; }
 
     [Networked, OnChangedRender(nameof(OnNetworkCountdownChanged))]
     private int NetworkCountdown { get; set; }
 
-    
-
     [Networked]
     private TickTimer StateTimer { get; set; }
 
-    // Keep the old public API so your other gameplay scripts
-    // don't need to know that the state is now networked.
+    // Public API
     public RoundState CurrentState => NetworkState;
-
+    public int CurrentCountdown => NetworkCountdown;
+public int CurrentExpectedPlayerCount => ExpectedPlayerCount;
     public event Action OnRoundStarted;
     public event Action OnRoundEnded;
     public event Action<int> OnCountdownTick;
@@ -46,27 +47,27 @@ public class RoundStateManager : NetworkBehaviour
     private RoundState lastRenderedState;
     private bool isSpawned;
 
-public bool IsSpawned => isSpawned;
+    public bool IsSpawned => isSpawned;
 
     private void Awake()
     {
         lastRenderedState = RoundState.Waiting;
     }
 
-   public override void Spawned()
-{
-    isSpawned = true;
+    public override void Spawned()
+    {
+        isSpawned = true;
 
-    lastRenderedState = NetworkState;
+        lastRenderedState = NetworkState;
 
-    Debug.Log(
-        $"[ROUND] Spawned | State: {NetworkState}"
-    );
-}
+        Debug.Log(
+            $"[ROUND] Spawned | State: {NetworkState}"
+        );
+    }
 
     public override void FixedUpdateNetwork()
     {
-        // Only the State Authority controls the round.
+        // Only State Authority controls the round.
         if (!HasStateAuthority)
             return;
 
@@ -99,14 +100,43 @@ public bool IsSpawned => isSpawned;
         }
     }
 
-    private void UpdateWaiting()
-    {
-        if (!StateTimer.Expired(Runner))
-            return;
+   private void UpdateWaiting()
+{
+    if (ExpectedPlayerCount <= 0)
+        return;
 
-        EnterCountdown();
+    int currentPlayerCount =
+        Runner.ActivePlayers.Count();
+
+    if (currentPlayerCount < ExpectedPlayerCount)
+        return;
+
+    if (!AllExpectedPlayersSpawned())
+        return;
+
+    EnterCountdown();
+}
+private bool AllExpectedPlayersSpawned()
+{
+    int spawnedPlayerCount = 0;
+
+    foreach (PlayerRef player in Runner.ActivePlayers)
+    {
+        if (!Runner.TryGetPlayerObject(
+                player,
+                out NetworkObject playerObject))
+        {
+            return false;
+        }
+
+        if (playerObject == null)
+            return false;
+
+        spawnedPlayerCount++;
     }
 
+    return spawnedPlayerCount >= ExpectedPlayerCount;
+}
     private void UpdateCountdown()
     {
         if (!StateTimer.Expired(Runner))
@@ -135,17 +165,29 @@ public bool IsSpawned => isSpawned;
         if (!StateTimer.Expired(Runner))
             return;
 
-        EnterWaiting();
-    }
-
-    public void StartRound()
-    {
-        if (!HasStateAuthority)
-            return;
+        OnRoundReset?.Invoke();
 
         EnterWaiting();
     }
 
+ public void StartRound()
+{
+    if (!HasStateAuthority)
+        return;
+
+    CaptureExpectedPlayers();
+
+    EnterWaiting();
+}
+private void CaptureExpectedPlayers()
+{
+    ExpectedPlayerCount = Runner.ActivePlayers.Count();
+
+    Debug.Log(
+        $"[ROUND] Expected players captured: " +
+        $"{ExpectedPlayerCount}"
+    );
+}
     public void EndRound()
     {
         if (!HasStateAuthority)
@@ -164,7 +206,6 @@ public bool IsSpawned => isSpawned;
 
     public void RestartRound()
     {
-        // Only State Authority controls the restart timer.
         if (!HasStateAuthority)
             return;
 
@@ -188,14 +229,11 @@ public bool IsSpawned => isSpawned;
         NetworkState = RoundState.Waiting;
         NetworkCountdown = 0;
 
-        StateTimer =
-            TickTimer.CreateFromSeconds(
-                Runner,
-                waitingDuration
-            );
+        // No timer here.
+        StateTimer = TickTimer.None;
 
         Debug.Log(
-            $"[ROUND] Waiting for {waitingDuration} seconds."
+            "[ROUND] Waiting for game to be ready."
         );
     }
 
@@ -237,11 +275,10 @@ public bool IsSpawned => isSpawned;
             $"[ROUND] Network state received: {newState}"
         );
 
-        // RoundEnd -> Waiting means a new round is being reset.
         if (lastRenderedState == RoundState.RoundEnd &&
             newState == RoundState.Waiting)
         {
-            OnRoundReset?.Invoke();
+            Debug.Log("[ROUND] New round started.");
         }
 
         if (newState == RoundState.Playing)
