@@ -120,7 +120,7 @@ Material:
     - _BOOLEAN_1: 0
     - _Bend: 0
     - _Bend_Range: 1
-    - _Bend_Strength: 0.7
+    - _Bend_Strength: 0.245
     - _BillboardKwToggle: 0
     - _BillboardShadowFade: 0.5
     - _Blend: 0
@@ -174,7 +174,7 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
-    - _Start_Bend_Range: 0.4
+    - _Start_Bend_Range: 0.508
     - _Start_To_Bend_Range: 1
     - _Start_to_bend_range: 1
     - _SubsurfaceIndirect: 0.25
@@ -184,7 +184,7 @@ Material:
     - _Value: 0.63
     - _WINDQUALITY: 4
     - _WIND_OVERLAY: 1
-    - _Wave_Scale: 0.5
+    - _Wave_Scale: 1
     - _WindDensity: 1
     - _WindMovement: 1
     - _WindQuality: 1
@@ -192,9 +192,9 @@ Material:
     - _WindSpeed2: 0
     - _WindStrength: 1
     - _Wind_Direction: 0
-    - _Wind_Speed: 0.14
-    - _Wind_Strength: 0.25
-    - _Wind_Variation: 1
+    - _Wind_Speed: 2.4
+    - _Wind_Strength: 0.2
+    - _Wind_Variation: 0
     - _WorkflowMode: 0
     - _ZTest: 4
     - _ZWrite: 1
