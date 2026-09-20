@@ -153,6 +153,14 @@ public class LobbyReadyUI : MonoBehaviour
 
         localPlayer.ToggleReady();
     }
+
+      public void LeaveLobby()
+    {
+        if (NetworkManager.Instance == null)
+            return;
+
+        NetworkManager.Instance.Disconnect();
+    }
     public void StopTracking()
     {
         enabled = false;

@@ -66,9 +66,19 @@ private void Update()
         }
     }
 
-    Vector2 rawInput =
-        moveAction.action.ReadValue<Vector2>();
+   Vector2 rawInput =
+    moveAction.action.ReadValue<Vector2>();
 
+if (MobileInputProvider.Instance != null)
+{
+    Vector2 mobileInput =
+        MobileInputProvider.Instance.MoveInput;
+
+    if (mobileInput.sqrMagnitude > 0.001f)
+    {
+        rawInput = mobileInput;
+    }
+}
     if (_cameraTransform != null)
     {
         Vector3 cameraForward =
@@ -100,22 +110,31 @@ private void Update()
         _input.MoveDirection = rawInput;
     }
 
-    // Latch the button.
-    if (jumpAction.action.WasPressedThisFrame())
-    {
-        _input.Buttons.Set(
-            EInputButton.Jump,
-            true
-        );
-    }
+  bool mobileJumpPressed =
+    MobileInputProvider.Instance != null &&
+    MobileInputProvider.Instance.ConsumeJumpPressed();
 
-    if (bumpAction.action.WasPressedThisFrame())
-    {
-        _input.Buttons.Set(
-            EInputButton.Bump,
-            true
-        );
-    }
+bool mobileBumpPressed =
+    MobileInputProvider.Instance != null &&
+    MobileInputProvider.Instance.ConsumeBumpPressed();
+
+if (jumpAction.action.WasPressedThisFrame() ||
+    mobileJumpPressed)
+{
+    _input.Buttons.Set(
+        EInputButton.Jump,
+        true
+    );
+}
+
+if (bumpAction.action.WasPressedThisFrame() ||
+    mobileBumpPressed)
+{
+    _input.Buttons.Set(
+        EInputButton.Bump,
+        true
+    );
+}
 }
 
 public void OnInput(

@@ -1138,6 +1138,8 @@ MonoBehaviour:
   winnerDetector: {fileID: 586814303}
   placementManager: {fileID: 586814304}
   scoreManager: {fileID: 1605724708}
+  spawnPointManager: {fileID: 0}
+  resultState: {fileID: 0}
 --- !u!4 &22457672
 Transform:
   m_ObjectHideFlags: 0
@@ -14715,7 +14717,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c92f14dd57b15a743b0ce64f221b9e0e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoundManager
-  waitingDuration: 1
   countdownDuration: 3
   restartDelay: 3
 --- !u!114 &529843587
@@ -14737,7 +14738,7 @@ MonoBehaviour:
   NestedObjects: []
   NetworkedBehaviours:
   - {fileID: 529843586}
-  - {fileID: 529843588}
+  - {fileID: 0}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &529843588
 MonoBehaviour:
@@ -16339,6 +16340,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 685cce879620d064ca84e2e705940ed2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MatiraMatibayPlacementManager
+  scoreManager: {fileID: 0}
 --- !u!1001 &586870199
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -28797,6 +28799,7 @@ MonoBehaviour:
   useRandomSlash: 1
   startDelay: 10
   shrinkInterval: 3
+  uiState: {fileID: 0}
 --- !u!114 &1008510354
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -45879,6 +45882,7 @@ MonoBehaviour:
   mouseSensitivity: 0.3
   minPitch: -10
   maxPitch: 20
+  mobileSensitivity: 0.15
 --- !u!114 &1599776468
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46085,6 +46089,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MatiraMatibayScoreManager
   knockoutAttributionWindow: 3
   roundStateManager: {fileID: 529843586}
+  placementManager: {fileID: 0}
+  winnerBonus: 10
 --- !u!114 &1605724709
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -10,6 +10,7 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
     private readonly Dictionary<PlayerRef, CharacterID> playerSelections = new();
     public static NetworkManager Instance { get; private set; }
+    public MainMenuMessage PendingMainMenuMessage { get; private set; }
 
   private NetworkRunner runner;
 public NetworkRunner Runner => runner;
@@ -21,6 +22,8 @@ private readonly List<PlayerRef> joinedPlayers = new();
 public IReadOnlyList<PlayerRef> Players => joinedPlayers;
 private NetworkSceneManagerDefault sceneManager;
 private bool intentionalShutdown;
+
+
   private void Awake()
 {
     if (Instance != null && Instance != this)
@@ -167,24 +170,23 @@ private NetworkSceneManagerDefault GetOrCreateSceneManager()
     return manager;
 }
 
-    private void ReturnToMainMenu()
+  private void ReturnToMainMenu()
 {
-    SceneManager.LoadScene("MainMenu 1");
-    
     SceneManager.sceneLoaded += OnMainMenuLoaded;
+    SceneManager.LoadScene("MainMenu 1");
 }
 
 private void OnMainMenuLoaded(
-    UnityEngine.SceneManagement.Scene scene,
+    Scene scene,
     LoadSceneMode mode)
 {
     SceneManager.sceneLoaded -= OnMainMenuLoaded;
 
-    if (scene.name != "MainMenu")
+    if (scene.name != "MainMenu 1")
         return;
 
-    MainMenuController mainMenu = 
-         FindAnyObjectByType<MainMenuController>();
+    MainMenuUI mainMenu =
+        FindAnyObjectByType<MainMenuUI>();
 
     if (mainMenu != null)
     {
@@ -228,6 +230,10 @@ private NetworkRunner GetOrCreateRunner()
 
     return runner;
 }
+public void ClearMainMenuMessage()
+{
+    PendingMainMenuMessage = MainMenuMessage.None;
+}
 
     // ----------------------------
     // Fusion callbacks
@@ -243,6 +249,7 @@ public void OnSessionListUpdated(
 
     OnSessionListUpdatedEvent?.Invoke(sessionList);
 }
+
 
 public void OnPlayerJoined(
     NetworkRunner runner,
@@ -295,8 +302,11 @@ public void OnShutdown(
 
     if (!intentionalShutdown)
     {
-        ReturnToMainMenu();
+        PendingMainMenuMessage =
+            MainMenuMessage.HostDisconnected;
     }
+
+    ReturnToMainMenu();
 
     intentionalShutdown = false;
 }
@@ -307,11 +317,14 @@ public void OnShutdown(
     }
 
 
-     public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
-    {
-        Debug.Log($"Disconnected from server: {reason}");
-    }
-
+public void OnDisconnectedFromServer(
+    NetworkRunner runner,
+    NetDisconnectReason reason)
+{
+    Debug.Log(
+        $"Disconnected from server: {reason}"
+    );
+}
     public void OnConnectRequest(
         NetworkRunner runner,
         NetworkRunnerCallbackArgs.ConnectRequest request,

@@ -19,11 +19,16 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private float minPitch = -20f;
     [SerializeField] private float maxPitch = 60f;
 
+   [Header("Mobile")]
+[SerializeField] private float mobileSensitivity = 0.15f;
+
+
     public NetworkRunner Runner => runner;
 
 
     private NetworkRunner runner;
     private Transform target;
+    private Vector2 mobileLook;
 
     private float yaw;
     private float pitch = 25f;
@@ -61,39 +66,62 @@ private void OnDestroy()
     }
 }
 
-    private void LateUpdate()
-    {
-        if (runner == null || !runner.IsRunning)
-            return;
+   private void LateUpdate()
+{
+    if (runner == null || !runner.IsRunning)
+        return;
 
-        if (target == null)
-            return;
+    if (target == null)
+        return;
 
-        Vector2 look = lookAction.action.ReadValue<Vector2>();
+ float sensitivityMultiplier = 1f;
 
-        yaw += look.x * mouseSensitivity;
-        pitch -= look.y * mouseSensitivity;
+if (MobileSettings.Instance != null)
+{
+    sensitivityMultiplier =
+        MobileSettings.Instance.LookSensitivity;
+}
 
-        pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+float finalMouseSensitivity =
+    mouseSensitivity * sensitivityMultiplier;
 
-        Quaternion rotation =
-            Quaternion.Euler(pitch, yaw, 0f);
+float finalMobileSensitivity =
+    mobileSensitivity * sensitivityMultiplier;
 
-        Vector3 desiredPosition =
-            target.position +
-            rotation * new Vector3(0f, 0f, -distance);
+Vector2 mouseLook =
+    lookAction.action.ReadValue<Vector2>();
 
-        desiredPosition.y += height;
+yaw += mouseLook.x * finalMouseSensitivity;
+pitch -= mouseLook.y * finalMouseSensitivity;
 
-        transform.position = Vector3.Lerp(
-            transform.position,
-            desiredPosition,
-            followSpeed * Time.deltaTime
-        );
+yaw += mobileLook.x * finalMobileSensitivity;
+pitch -= mobileLook.y * finalMobileSensitivity;
+    mobileLook = Vector2.zero;
 
-        transform.LookAt(target.position);
-    }
+    pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
+    Quaternion rotation =
+        Quaternion.Euler(pitch, yaw, 0f);
+
+    Vector3 desiredPosition =
+        target.position +
+        rotation * new Vector3(0f, 0f, -distance);
+
+    desiredPosition.y += height;
+
+    transform.position = Vector3.Lerp(
+        transform.position,
+        desiredPosition,
+        followSpeed * Time.deltaTime
+    );
+
+    transform.LookAt(target.position);
+}
+
+public void SetMobileLook(Vector2 look)
+{
+    mobileLook = look;
+}
 public static bool TryGetCamera(
     NetworkRunner runner,
     out ThirdPersonCamera camera)
