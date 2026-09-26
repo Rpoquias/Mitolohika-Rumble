@@ -18,6 +18,9 @@ public class SceneObjectReplacer : MonoBehaviour
     [Tooltip("Usually 'inner circle base'.")]
     public Transform objectsParent;
 
+    [Header("Random Y Rotation")]
+    public bool randomizeYRotation = true;
+
 #if UNITY_EDITOR
 
     public void ReplaceAllObjects()
@@ -70,11 +73,43 @@ public class SceneObjectReplacer : MonoBehaviour
             GameObject replacement =
                 Instantiate(newObject, parent);
 
-            // Give it the exact same world transform
+            // Preserve exact position
             replacement.transform.position = position;
-            replacement.transform.rotation = rotation;
 
-            // Convert world scale to local scale correctly
+            // Randomize Y rotation
+            if (randomizeYRotation)
+            {
+                int[] possibleRotations =
+                {
+                    0,
+                    90,
+                    180,
+                    270,
+                    360
+                };
+
+                int randomIndex =
+                    Random.Range(0, possibleRotations.Length);
+
+                float randomY =
+                    possibleRotations[randomIndex];
+
+                // Keep the new object's X and Z rotation
+                Vector3 newRotation =
+                    newObject.transform.eulerAngles;
+
+                newRotation.y = randomY;
+
+                replacement.transform.rotation =
+                    Quaternion.Euler(newRotation);
+            }
+            else
+            {
+                // Use the original replacement rotation
+                replacement.transform.rotation = rotation;
+            }
+
+            // Keep the new object's scale
             replacement.transform.localScale =
                 newObject.transform.localScale;
 
