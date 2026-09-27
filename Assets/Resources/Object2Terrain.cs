@@ -1,6 +1,8 @@
-using UnityEngine;
+#if UNITY_EDITOR
 using UnityEditor;
- 
+
+
+using UnityEngine;
 public class Object2Terrain : EditorWindow {
  
 	[MenuItem("Terrain/Object to Terrain", false, 2000)] static void OpenWindow () {
@@ -129,3 +131,6 @@ public class Object2Terrain : EditorWindow {
 		EditorUtility.DisplayProgressBar("Creating Terrain...", Mathf.RoundToInt(p * 100f)+ " %", p);
 	}
 }
+
+#endif
+ 

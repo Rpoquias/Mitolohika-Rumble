@@ -200,7 +200,7 @@ MonoBehaviour:
   _autoAOIOverride: 1
   ConfigFlags: 0
   PhysicsSettings:
-    ForecastEnabled: 0
+    ForecastEnabled: 1
     DebugPhysics: 0
     GravityForecast: 2
     MaxExtrapolationTime: 0.15

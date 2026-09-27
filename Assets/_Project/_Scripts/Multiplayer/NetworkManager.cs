@@ -7,10 +7,12 @@ using Fusion.Sockets;
 
 public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 {
-
+private const ushort LAN_PORT = 7777;
+private const string LAN_HOST_IP = "0.0.0.0";
     private readonly Dictionary<PlayerRef, CharacterID> playerSelections = new();
     public static NetworkManager Instance { get; private set; }
     public MainMenuMessage PendingMainMenuMessage { get; private set; }
+    
 
   private NetworkRunner runner;
 public NetworkRunner Runner => runner;
@@ -21,7 +23,11 @@ public event Action<PlayerRef> OnPlayerLeftEvent;
 private readonly List<PlayerRef> joinedPlayers = new();
 public IReadOnlyList<PlayerRef> Players => joinedPlayers;
 private NetworkSceneManagerDefault sceneManager;
+
 private bool intentionalShutdown;
+public string LANHostIP { get; private set; }
+public string LastNetworkError { get; private set; }
+
 
 
   private void Awake()
@@ -37,6 +43,8 @@ private bool intentionalShutdown;
 }
 public async void Host(string sessionName)
 {
+
+    LANHostIP = null;
     NetworkStateMachine.Instance.SetState(
         NetworkStateMachine.State.Connecting
     );
@@ -72,8 +80,139 @@ public async void Host(string sessionName)
         );
     }
 }
+public async void HostLAN(string sessionName)
+{
+    NetworkStateMachine.Instance.SetState(
+        NetworkStateMachine.State.Connecting);
 
+    runner = GetOrCreateRunner();
 
+    var result = await runner.StartGame(new StartGameArgs
+    {
+        GameMode = GameMode.Host,
+        SessionName = sessionName,
+
+        // Listen on all local network interfaces.
+        Address = NetAddress.Any(LAN_PORT),
+
+        Scene = SceneRef.FromIndex(2),
+        SceneManager = GetOrCreateSceneManager()
+    });
+
+if (result.Ok)
+{
+    LANHostIP = GetLocalIPAddress();
+
+    Debug.Log($"LAN Host started: {sessionName}");
+    Debug.Log($"LAN Host IP: {LANHostIP}");
+
+    NetworkStateMachine.Instance.SetState(
+        NetworkStateMachine.State.Connected
+    );
+}
+ else
+{
+    LastNetworkError =
+        $"Shutdown: {result.ShutdownReason}\n" +
+        $"Error: {result.ErrorMessage}";
+
+    Debug.LogError(
+        $"[LAN] Host failed: {LastNetworkError}");
+
+    NetworkStateMachine.Instance.SetState(
+        NetworkStateMachine.State.Disconnected);
+}
+}
+public async void JoinLAN(string ipAddress)
+{
+    NetworkStateMachine.Instance.SetState(
+        NetworkStateMachine.State.Connecting);
+
+    runner = GetOrCreateRunner();
+
+    Debug.Log($"[LAN] Joining {ipAddress}:{LAN_PORT}");
+
+    var result = await runner.StartGame(new StartGameArgs
+    {
+        GameMode = GameMode.Client,
+
+        // Connect directly to the LAN host.
+        Address = NetAddress.CreateFromIpPort(
+            ipAddress,
+            LAN_PORT
+        ),
+
+        SceneManager = GetOrCreateSceneManager()
+    });
+
+    if (result.Ok)
+    {
+        Debug.Log($"[LAN] Connected to {ipAddress}:{LAN_PORT}");
+
+        NetworkStateMachine.Instance.SetState(
+            NetworkStateMachine.State.Connected);
+    }
+    else
+    {
+        Debug.LogError(
+            $"[LAN] Join failed: {result.ShutdownReason}");
+
+        NetworkStateMachine.Instance.SetState(
+            NetworkStateMachine.State.Disconnected);
+    }
+}
+private string GetLocalIPAddress()
+{
+    foreach (var networkInterface in
+        System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+    {
+        if (networkInterface.OperationalStatus !=
+            System.Net.NetworkInformation.OperationalStatus.Up)
+        {
+            continue;
+        }
+
+        var properties = networkInterface.GetIPProperties();
+
+        foreach (var address in properties.UnicastAddresses)
+        {
+            if (address.Address.AddressFamily !=
+                System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                continue;
+            }
+
+            string ip = address.Address.ToString();
+
+            if (ip.StartsWith("10."))
+                return ip;
+
+            if (ip.StartsWith("192.168."))
+                return ip;
+
+            if (IsPrivate172(ip))
+                return ip;
+        }
+    }
+
+    return "127.0.0.1";
+}
+
+private bool IsPrivate172(string ip)
+{
+    string[] parts = ip.Split('.');
+
+    if (parts.Length != 4)
+        return false;
+
+    if (!int.TryParse(parts[0], out int first))
+        return false;
+
+    if (!int.TryParse(parts[1], out int second))
+        return false;
+
+    return first == 172 && second >= 16 && second <= 31;
+}
  public async void OpenPublicLobby()
 {
     NetworkStateMachine.Instance.SetState(
@@ -290,9 +429,9 @@ public void OnShutdown(
     NetworkRunner runner,
     ShutdownReason shutdownReason)
 {
-    Debug.Log(
-        $"Runner shutdown: {shutdownReason}"
-    );
+    LastNetworkError = $"Runner shutdown: {shutdownReason}";
+
+    Debug.Log(LastNetworkError);
 
     if (this.runner == runner)
     {

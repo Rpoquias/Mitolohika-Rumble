@@ -9,12 +9,27 @@ public class MainMenuUI : MonoBehaviour
 
     [Header("Join")]
     [SerializeField] private GameObject joinLobbyPanel;
+    [SerializeField] private TMP_InputField ipAddressInput;
+
 
     [Header("Status")]
     [SerializeField] private TMP_Text statusText;
     [SerializeField] private float statusDuration = 3f;
 
 private Coroutine statusCoroutine;
+
+private ConnectionMode connectionMode = ConnectionMode.Online;
+public void SelectOnline()
+{
+    connectionMode = ConnectionMode.Online;
+    Debug.Log("[MAIN MENU] Connection mode: Online");
+}
+
+public void SelectLAN()
+{
+    connectionMode = ConnectionMode.LAN;
+    Debug.Log("[MAIN MENU] Connection mode: LAN");
+}
 private void Start()
 {
     ShowPendingStatus();
@@ -36,9 +51,10 @@ private void Start()
 
     switch (message)
     {
-        case MainMenuMessage.HostDisconnected:
-            statusText.text = "HOST DISCONNECTED";
-            break;
+      case MainMenuMessage.HostDisconnected:
+    statusText.text =
+        $"HOST DISCONNECTED\n{NetworkManager.Instance.LastNetworkError}";
+    break;
 
         case MainMenuMessage.ConnectionFailed:
             statusText.text = "CONNECTION FAILED";
@@ -67,19 +83,65 @@ private IEnumerator HideStatusAfterDelay()
     statusCoroutine = null;
 }
 
-    public void HostGame()
+  public void HostGame()
+{
+    string roomName = roomNameInput.text.Trim();
+
+    if (string.IsNullOrEmpty(roomName))
     {
-        string roomName = roomNameInput.text.Trim();
+        statusText.text = "ROOM NAME EMPTY";
+        statusText.gameObject.SetActive(true);
+        return;
+    }
+    switch (connectionMode)
+    {
+        case ConnectionMode.Online:
 
-        if (string.IsNullOrEmpty(roomName))
-        {
-            Debug.LogWarning("Room name cannot be empty.");
-            return;
-        }
+            Debug.Log($"[ONLINE] Hosting room: {roomName}");
 
-        NetworkManager.Instance.Host(roomName);
+            NetworkManager.Instance.Host(roomName);
+
+            break;
+
+        case ConnectionMode.LAN:
+
+            Debug.Log($"[LAN] Hosting local room: {roomName}");
+
+            NetworkManager.Instance.HostLAN(roomName);
+
+            break;
+    }
+}
+
+public void JoinLANGame()
+{
+    string ipAddress = ipAddressInput.text.Trim();
+
+    if (string.IsNullOrEmpty(ipAddress))
+    {
+        Debug.LogWarning("[LAN] IP address cannot be empty.");
+        return;
     }
 
+    Debug.Log($"[LAN] Joining host at {ipAddress}");
+
+    NetworkManager.Instance.JoinLAN(ipAddress);
+}
+public void JoinGame()
+{
+    switch (connectionMode)
+    {
+        case ConnectionMode.Online:
+            Debug.Log("[ONLINE] Opening online join lobby.");
+            FindAnyObjectByType<MainMenu>().ShowJoinPanel();
+            break;
+
+        case ConnectionMode.LAN:
+            Debug.Log("[LAN] Opening local join lobby.");
+            FindAnyObjectByType<MainMenu>().ShowLocalJoinPanel();
+            break;
+    }
+}
     public void ShowJoinPanel()
     {
         joinLobbyPanel.SetActive(true);
@@ -91,9 +153,20 @@ private IEnumerator HideStatusAfterDelay()
 
         joinLobbyPanel.SetActive(false);
     }
-
-    public void OpenJoinLobby()
+public void OpenJoinLobby()
+{
+    switch (connectionMode)
     {
-        NetworkManager.Instance.OpenPublicLobby();
+        case ConnectionMode.Online:
+            Debug.Log("[ONLINE] Opening online join lobby.");
+            NetworkManager.Instance.OpenPublicLobby();
+            FindAnyObjectByType<MainMenu>().ShowJoinPanel();
+            break;
+
+        case ConnectionMode.LAN:
+            Debug.Log("[LAN] Opening local join lobby.");
+            FindAnyObjectByType<MainMenu>().ShowLocalJoinPanel();
+            break;
     }
+}
 }

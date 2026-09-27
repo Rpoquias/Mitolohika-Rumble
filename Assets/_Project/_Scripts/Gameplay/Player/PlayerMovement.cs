@@ -69,8 +69,7 @@ private NetworkButtons PreviousButtons { get; set; }
 
    public override void FixedUpdateNetwork()
 {
-    if (!HasStateAuthority)
-        return;
+
 
     // Ground state belongs to the simulation.
     
@@ -222,28 +221,30 @@ private void CheckGround()
         }
     }
 
-    private void Rotate()
-    {
-        if (!_canMove || IsBusy)
-            return;
+  private void Rotate()
+{
+    if (!_canMove || IsBusy)
+        return;
 
-        Vector3 movement = _currentMoveVelocity;
+    Vector3 movement = _currentMoveVelocity;
 
-        movement.y = 0f;
+    movement.y = 0f;
 
-        if (movement.sqrMagnitude < 0.01f)
-            return;
+    if (movement.sqrMagnitude < 0.01f)
+        return;
 
-        Quaternion targetRotation =
-            Quaternion.LookRotation(movement);
+    Quaternion targetRotation =
+        Quaternion.LookRotation(movement);
 
-        transform.rotation =
-            Quaternion.Slerp(
-                transform.rotation,
-                targetRotation,
-                _rotationSpeed * Runner.DeltaTime
-            );
-    }
+    Quaternion newRotation =
+        Quaternion.Slerp(
+            _rb.rotation,
+            targetRotation,
+            _rotationSpeed * Runner.DeltaTime
+        );
+
+    _rb.MoveRotation(newRotation);
+}
     private void OnDrawGizmosSelected()
 {
     if (_groundCheck == null)

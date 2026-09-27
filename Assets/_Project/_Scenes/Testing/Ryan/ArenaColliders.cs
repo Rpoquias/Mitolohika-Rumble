@@ -1,4 +1,6 @@
+#if UNITY_EDITOR
 using UnityEditor;
+
 using UnityEngine;
 
 public static class ArenaTileColliderTool
@@ -156,3 +158,7 @@ public static class ArenaTileColliderTool
         );
     }
 }
+
+
+#endif
+

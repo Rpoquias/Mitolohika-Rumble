@@ -49,35 +49,32 @@ public class PlayerBumpAttack : NetworkBehaviour
         _movement = GetComponent<PlayerMovement>();
     }
 
-    public override void FixedUpdateNetwork()
+public override void FixedUpdateNetwork()
+{
+    UpdateTimers();
+
+    if (GetInput(out NetworkInputData input))
     {
-        if (!HasStateAuthority)
-            return;
+        bool bumpPressed =
+            input.Buttons.WasPressed(
+                PreviousButtons,
+                EInputButton.Bump
+            );
 
-        UpdateTimers();
-
-        if (GetInput(out NetworkInputData input))
+        if (bumpPressed)
         {
-            bool bumpPressed =
-                input.Buttons.WasPressed(
-                    PreviousButtons,
-                    EInputButton.Bump
-                );
-
-            if (bumpPressed)
-            {
-                TryBump();
-            }
-
-            PreviousButtons = input.Buttons;
-        }
-        else
-        {
-            PreviousButtons = default;
+            TryBump();
         }
 
-        UpdateBumpState();
+        PreviousButtons = input.Buttons;
     }
+    else
+    {
+        PreviousButtons = default;
+    }
+
+    UpdateBumpState();
+}
 
     private void UpdateTimers()
     {
@@ -142,15 +139,18 @@ public class PlayerBumpAttack : NetworkBehaviour
         {
             case BumpState.Startup:
 
-                if (_attackTimer <= 0f)
-                {
-                    _state = BumpState.Active;
-                    _attackTimer = _activeTime;
+    if (_attackTimer <= 0f)
+    {
+        _state = BumpState.Active;
+        _attackTimer = _activeTime;
 
-                    PerformBump();
-                }
+        if (HasStateAuthority)
+        {
+            PerformBump();
+        }
+    }
 
-                break;
+    break;
 
             case BumpState.Active:
 

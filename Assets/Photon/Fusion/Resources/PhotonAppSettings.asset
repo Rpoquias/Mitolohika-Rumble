@@ -20,7 +20,7 @@ MonoBehaviour:
     AppIdVoice: 
     AppVersion: 
     UseNameServer: 1
-    FixedRegion: 
+    FixedRegion: Asia
     Server: 
     Port: 0
     ProxyServer: 

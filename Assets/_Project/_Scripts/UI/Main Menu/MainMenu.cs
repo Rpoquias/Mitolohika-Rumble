@@ -8,8 +8,8 @@ public class MainMenu : MonoBehaviour
     [SerializeField] private GameObject lobbyPanel;
     [SerializeField] private GameObject hostPanel;
     [SerializeField] private GameObject joinPanel;
+    [SerializeField] private GameObject localJoinPanel;
     [SerializeField] private GameObject settingsPanel;
-    [SerializeField] private GameObject characterSelectionPanel;
 
 
     private void Start()
@@ -41,28 +41,27 @@ public class MainMenu : MonoBehaviour
             hostPanel.SetActive(true);
     }
 
-    public void ShowJoinPanel()
-    {
-        HideAllPanels();
+public void ShowJoinPanel()
+{
+    HideAllPanels();
 
-        if (joinPanel != null)
-            joinPanel.SetActive(true);
-    }
+    if (joinPanel != null)
+        joinPanel.SetActive(true);
+}
 
+   public void ShowLocalJoinPanel()
+{
+    HideAllPanels();
+
+    if (localJoinPanel != null)
+        localJoinPanel.SetActive(true);
+}
     public void ShowSettings()
     {
         HideAllPanels();
 
         if (settingsPanel != null)
             settingsPanel.SetActive(true);
-    }
-
-    public void ShowCharacterSelection()
-    {
-        HideAllPanels();
-
-        if (characterSelectionPanel != null)
-            characterSelectionPanel.SetActive(true);
     }
 
     private void HideAllPanels()
@@ -79,18 +78,17 @@ public class MainMenu : MonoBehaviour
         if (joinPanel != null)
             joinPanel.SetActive(false);
 
+        if (localJoinPanel != null)
+            localJoinPanel.SetActive(false);
+
         if (settingsPanel != null)
             settingsPanel.SetActive(false);
-
-        if (characterSelectionPanel != null)
-            characterSelectionPanel.SetActive(false);
     }
 
     public void LoadScene(int sceneIndex)
     {
         SceneManager.LoadScene(sceneIndex);
     }
-
 
     public void QuitApplication()
     {
