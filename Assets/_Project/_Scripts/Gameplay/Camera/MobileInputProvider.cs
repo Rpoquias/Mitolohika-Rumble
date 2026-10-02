@@ -4,21 +4,24 @@ public class MobileInputProvider : MonoBehaviour
 {
     public static MobileInputProvider Instance { get; private set; }
 
-   [SerializeField] private FixedJoystick movementJoystick;
-   
+    [Header("Movement")]
+    [SerializeField] private FixedJoystick movementJoystick;
 
-   [Header("Action Buttons")]
-[SerializeField] private RectTransform jumpButton;
-[SerializeField] private RectTransform bumpButton;
+    [Header("Action Buttons")]
+    [SerializeField] private RectTransform jumpButton;
+    [SerializeField] private RectTransform bumpButton;
+    [SerializeField] private RectTransform abilityButton;
 
-private Vector3 _defaultJumpButtonScale;
-private Vector3 _defaultBumpButtonScale;
+    private Vector3 _defaultJumpButtonScale;
+    private Vector3 _defaultBumpButtonScale;
+    private Vector3 _defaultAbilityButtonScale;
 
-private RectTransform _joystickTransform;
-private Vector3 _defaultJoystickScale;
+    private RectTransform _joystickTransform;
+    private Vector3 _defaultJoystickScale;
 
     private bool _jumpPressed;
     private bool _bumpPressed;
+    private bool _abilityPressed;
 
     public Vector2 MoveInput =>
         new Vector2(
@@ -26,49 +29,60 @@ private Vector3 _defaultJoystickScale;
             movementJoystick.Vertical
         );
 
-private void Awake()
-{
-    Instance = this;
-
-    _joystickTransform =
-        movementJoystick.GetComponent<RectTransform>();
-
-    _defaultJoystickScale =
-        _joystickTransform.localScale;
-
-    _defaultJumpButtonScale =
-        jumpButton.localScale;
-
-    _defaultBumpButtonScale =
-        bumpButton.localScale;
-}
-public void ApplyButtonScale(float scale)
-{
-    if (jumpButton != null)
+    private void Awake()
     {
-        jumpButton.localScale =
-            _defaultJumpButtonScale * scale;
-    }
+        Instance = this;
 
-    if (bumpButton != null)
-    {
-        bumpButton.localScale =
-            _defaultBumpButtonScale * scale;
+        if (movementJoystick != null)
+        {
+            _joystickTransform =
+                movementJoystick.GetComponent<RectTransform>();
+
+            _defaultJoystickScale =
+                _joystickTransform.localScale;
+        }
+
+        if (jumpButton != null)
+        {
+            _defaultJumpButtonScale =
+                jumpButton.localScale;
+        }
+
+        if (bumpButton != null)
+        {
+            _defaultBumpButtonScale =
+                bumpButton.localScale;
+        }
+
+        if (abilityButton != null)
+        {
+            _defaultAbilityButtonScale =
+                abilityButton.localScale;
+        }
     }
-}
-public void ApplyJoystickScale(float scale)
+private void Update()
 {
-    if (_joystickTransform == null)
+    if (MobileInputProvider.Instance == null)
+    {
         return;
+    }
 
-    _joystickTransform.localScale =
-        _defaultJoystickScale * scale;
+    if (movementJoystick == null)
+    {
+        return;
+    }
+
+ 
 }
     private void OnDestroy()
     {
         if (Instance == this)
             Instance = null;
     }
+
+    // --------------------------------------------------------------------
+    // Button presses
+    // --------------------------------------------------------------------
 
     public void PressJump()
     {
@@ -79,6 +93,15 @@ public void ApplyJoystickScale(float scale)
     {
         _bumpPressed = true;
     }
+
+    public void PressAbility()
+    {
+        _abilityPressed = true;
+    }
+
+    // --------------------------------------------------------------------
+    // Button consumption
+    // --------------------------------------------------------------------
 
     public bool ConsumeJumpPressed()
     {
@@ -96,5 +119,48 @@ public void ApplyJoystickScale(float scale)
 
         _bumpPressed = false;
         return true;
+    }
+
+    public bool ConsumeAbilityPressed()
+    {
+        if (!_abilityPressed)
+            return false;
+
+        _abilityPressed = false;
+        return true;
+    }
+
+    // --------------------------------------------------------------------
+    // UI scaling
+    // --------------------------------------------------------------------
+
+    public void ApplyButtonScale(float scale)
+    {
+        if (jumpButton != null)
+        {
+            jumpButton.localScale =
+                _defaultJumpButtonScale * scale;
+        }
+
+        if (bumpButton != null)
+        {
+            bumpButton.localScale =
+                _defaultBumpButtonScale * scale;
+        }
+
+        if (abilityButton != null)
+        {
+            abilityButton.localScale =
+                _defaultAbilityButtonScale * scale;
+        }
+    }
+
+    public void ApplyJoystickScale(float scale)
+    {
+        if (_joystickTransform == null)
+            return;
+
+        _joystickTransform.localScale =
+            _defaultJoystickScale * scale;
     }
 }

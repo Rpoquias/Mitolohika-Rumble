@@ -1,9 +1,9 @@
 using Fusion;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class LobbyManager : MonoBehaviour
 {
+
     public static LobbyManager Instance { get; private set; }
 
     public bool IsHost =>
@@ -36,19 +36,25 @@ private bool hasStartedGame = false;
         Instance = this;
     }
 
- public void StartGame()
+public void StartGame()
 {
     Debug.Log("[LOBBY] START GAME BUTTON PRESSED");
 
     if (hasStartedGame)
     {
-        Debug.LogWarning("[LOBBY] Game has already started.");
+        Debug.LogWarning(
+            "[LOBBY] Game has already started."
+        );
+
         return;
     }
 
     if (NetworkManager.Instance == null)
     {
-        Debug.LogError("[LOBBY] NetworkManager.Instance is NULL.");
+        Debug.LogError(
+            "[LOBBY] NetworkManager.Instance is NULL."
+        );
+
         return;
     }
 
@@ -57,7 +63,10 @@ private bool hasStartedGame = false;
 
     if (runner == null)
     {
-        Debug.LogError("[LOBBY] NetworkRunner is NULL.");
+        Debug.LogError(
+            "[LOBBY] NetworkRunner is NULL."
+        );
+
         return;
     }
 
@@ -66,6 +75,7 @@ private bool hasStartedGame = false;
         Debug.LogWarning(
             "[LOBBY] Only the Host can start the game."
         );
+
         return;
     }
 
@@ -104,19 +114,95 @@ private bool hasStartedGame = false;
         }
     }
 
-    const int gameplaySceneIndex = 3;
+    MatchSession matchSession =
+        NetworkManager.Instance.CurrentMatchSession;
+
+    if (matchSession == null)
+    {
+        Debug.LogError(
+            "[LOBBY] Cannot start game. MatchSession is missing."
+        );
+
+        return;
+    }
+
+    if (MatchFlowManager.Instance == null)
+    {
+        Debug.LogError(
+            "[LOBBY] MatchFlowManager is missing."
+        );
+
+        return;
+    }
+
+    Debug.Log(
+        $"[LOBBY] Starting match with " +
+        $"{matchSession.TotalRounds} rounds."
+    );
 
     hasStartedGame = true;
 
-    Debug.Log(
-        $"[LOBBY] Loading Gameplay scene additively: " +
-        $"{gameplaySceneIndex}"
-    );
+    MatchFlowManager.Instance.StartMatch();
+}
+public int TotalRounds
+{
+    get
+    {
+        NetworkManager networkManager =
+            NetworkManager.Instance;
 
-runner.LoadScene(
-    SceneRef.FromIndex(gameplaySceneIndex),
-    LoadSceneMode.Single
-);
+        if (networkManager == null)
+        {
+            return 3;
+        }
+
+        MatchSession matchSession =
+            networkManager.CurrentMatchSession;
+
+        if (matchSession == null)
+        {
+            return 3;
+        }
+
+        return matchSession.TotalRounds;
+    }
+}
+public void SetRoundCount(int roundCount)
+{
+    if (!IsHost)
+    {
+        Debug.LogWarning(
+            "[LOBBY] Only the Host can change the number of rounds."
+        );
+
+        return;
+    }
+
+    NetworkManager networkManager =
+        NetworkManager.Instance;
+
+    if (networkManager == null)
+    {
+        Debug.LogError(
+            "[LOBBY] NetworkManager does not exist."
+        );
+
+        return;
+    }
+
+    MatchSession matchSession =
+        networkManager.CurrentMatchSession;
+
+    if (matchSession == null)
+    {
+        Debug.LogError(
+            "[LOBBY] MatchSession does not exist yet."
+        );
+
+        return;
+    }
+
+    matchSession.SetTotalRounds(roundCount);
 }
 private bool CheckAllPlayersReady(NetworkRunner runner)
 {

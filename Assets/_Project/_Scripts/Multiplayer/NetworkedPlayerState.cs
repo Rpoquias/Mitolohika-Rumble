@@ -63,7 +63,7 @@ public class NetworkPlayerState : NetworkBehaviour
         if (SelectedCharacter == characterID)
             return;
 
-        PlayerSpawner spawner = FindAnyObjectByType<PlayerSpawner>();
+        LobbyPlayerSpawner spawner = FindAnyObjectByType<LobbyPlayerSpawner>();
 
         if (spawner == null)
             return;

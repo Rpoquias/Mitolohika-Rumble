@@ -1,16 +1,23 @@
 using UnityEngine;
 
-public class StunAbility : MonoBehaviour
+public class StunAbility : CharacterAbility
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    [Header("Stun")]
+    [SerializeField] private float stunDuration = 1.5f;
 
-    // Update is called once per frame
-    void Update()
+    public override void Activate()
     {
-        
+        if (!CanActivate())
+            return;
+
+        PlayerMovement target =
+            FindBestTarget();
+
+        if (target == null)
+            return;
+
+        target.ApplyStun(stunDuration);
+
+        StartCooldown();
     }
 }

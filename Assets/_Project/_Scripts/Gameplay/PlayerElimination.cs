@@ -109,11 +109,14 @@ public override void Spawned()
 
     private void HandleNetworkElimination()
     {
+        
         Debug.Log(
             gameObject.name +
             " has been eliminated!"
         );
-
+    Debug.Log(
+        $"[ELIMINATION] Invoking OnPlayerEliminated for {name}"
+    );
         DisableGameplay();
 
         OnPlayerEliminated?.Invoke(this);

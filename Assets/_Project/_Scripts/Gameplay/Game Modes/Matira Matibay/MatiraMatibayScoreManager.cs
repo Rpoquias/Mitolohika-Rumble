@@ -33,7 +33,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         public int overallScore;
     }
 
-    [Networked, Capacity(4)]
+    [Networked, Capacity(4), OnChangedRender(nameof(OnScoresNetworkChanged))]
     private NetworkArray<NetworkPlayerScore> NetworkScores => default;
 
     // ---------------------------------
@@ -56,8 +56,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
     // Local Score Data
     // ---------------------------------
 
-    private readonly List<PlayerScore> playerScores =
-        new List<PlayerScore>();
+    private readonly List<PlayerScore> playerScores = new List<PlayerScore>();
 
     private PlayerRegistry playerRegistry;
     private NetworkRunner runner;
@@ -65,12 +64,22 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
     private float survivalTimer;
     private bool scoringActive = false;
     private bool initialized = false;
+    private int lastSyncedSecond = -1;
 
     // ---------------------------------
     // Events
     // ---------------------------------
 
     public System.Action OnScoresChanged;
+
+    // ---------------------------------
+    // Network Callbacks
+    // ---------------------------------
+
+    private void OnScoresNetworkChanged()
+    {
+        OnScoresChanged?.Invoke();
+    }
 
     // ---------------------------------
     // Unity
@@ -83,15 +92,16 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
             roundStateManager.OnRoundStarted += StartScoring;
             roundStateManager.OnRoundEnded += StopScoring;
             roundStateManager.OnRoundReset += ResetScores;
+            roundStateManager.OnStateChanged += HandleStateChanged;
         }
-    }
+    }   
 
-    private void Update()
+    private void HandleStateChanged(RoundStateManager.RoundState state)
     {
-        if (!initialized)
-        {
-            TryInitialize();
-        }
+        if (initialized)
+            return;
+
+        TryInitialize();
     }
 
     // ---------------------------------
@@ -100,8 +110,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
 
     private void TryInitialize()
     {
-        runner =
-            NetworkRunner.GetRunnerForGameObject(gameObject);
+        runner = NetworkRunner.GetRunnerForGameObject(gameObject);
 
         if (runner == null || !runner.IsRunning)
             return;
@@ -111,10 +120,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         if (playerRegistry == null)
             return;
 
-        if (roundStateManager == null)
-            return;
-
-        if (!roundStateManager.IsSpawned)
+        if (roundStateManager == null || !roundStateManager.IsSpawned)
             return;
 
         playerRegistry.OnPlayerRegistered += RegisterPlayer;
@@ -127,14 +133,10 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
 
         initialized = true;
 
-        Debug.Log(
-            $"[SCORE] Connected to registry for Runner " +
-            $"{runner.name}. Existing players: " +
-            $"{playerRegistry.Players.Count}"
-        );
+        // Visual confirmation log
+        Debug.Log("<color=red>[MatiraMatibayScoreManager] Script initialized and running successfully!</color>");
 
-        if (roundStateManager.CurrentState ==
-            RoundStateManager.RoundState.Playing)
+        if (roundStateManager.CurrentState == RoundStateManager.RoundState.Playing)
         {
             StartScoring();
         }
@@ -146,16 +148,16 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
 
     public override void FixedUpdateNetwork()
     {
-        if (!HasStateAuthority)
-            return;
-
-        if (!scoringActive)
+        if (!HasStateAuthority || !scoringActive)
             return;
 
         survivalTimer += Runner.DeltaTime;
+        int currentSecond = Mathf.FloorToInt(survivalTimer);
 
-        int currentSecond =
-            Mathf.FloorToInt(survivalTimer);
+        if (currentSecond == lastSyncedSecond)
+            return;
+
+        lastSyncedSecond = currentSecond;
 
         foreach (PlayerScore score in playerScores)
         {
@@ -188,6 +190,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
             roundStateManager.OnRoundStarted -= StartScoring;
             roundStateManager.OnRoundEnded -= StopScoring;
             roundStateManager.OnRoundReset -= ResetScores;
+            roundStateManager.OnStateChanged -= HandleStateChanged;
         }
 
         foreach (PlayerScore score in playerScores)
@@ -205,49 +208,33 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         if (playerObject == null)
             return;
 
-        PlayerElimination player =
-            playerObject.GetComponent<PlayerElimination>();
+        PlayerElimination player = playerObject.GetComponent<PlayerElimination>();
 
         if (player == null)
-        {
-            Debug.LogWarning(
-                $"[SCORE] {playerObject.name} has no " +
-                "PlayerElimination component."
-            );
-
             return;
-        }
 
         if (GetScore(player) != null)
             return;
 
-        PlayerScore newScore =
-            new PlayerScore
-            {
-                player = player,
-                survivalScore = 0,
-                knockoutCredit = 0,
-                winnerBonus = 0,
-                lastKnockbackTime = -Mathf.Infinity,
-                lastKnockbackSource = null
-            };
+        PlayerScore newScore = new PlayerScore
+        {
+            player = player,
+            survivalScore = 0,
+            knockoutCredit = 0,
+            winnerBonus = 0,
+            lastKnockbackTime = -Mathf.Infinity,
+            lastKnockbackSource = null
+        };
 
         playerScores.Add(newScore);
 
-        PlayerBumpAttack bumpAttack =
-            playerObject.GetComponent<PlayerBumpAttack>();
-
+        PlayerBumpAttack bumpAttack = playerObject.GetComponent<PlayerBumpAttack>();
         if (bumpAttack != null)
         {
             bumpAttack.OnKnockbackApplied += RecordKnockback;
         }
 
         player.OnPlayerEliminated += RecordElimination;
-
-        Debug.Log(
-            $"[SCORE] Tracking {playerObject.name}. " +
-            $"Total score records: {playerScores.Count}"
-        );
 
         if (HasStateAuthority)
         {
@@ -260,41 +247,29 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         if (playerObject == null)
             return;
 
-        PlayerElimination player =
-            playerObject.GetComponent<PlayerElimination>();
-
+        PlayerElimination player = playerObject.GetComponent<PlayerElimination>();
         if (player == null)
             return;
 
         PlayerScore score = GetScore(player);
-
         if (score == null)
             return;
 
         UnsubscribeFromPlayer(player);
-
         playerScores.Remove(score);
 
         if (HasStateAuthority)
         {
             SyncScores();
         }
-
-        Debug.Log(
-            $"[SCORE] Stopped tracking {playerObject.name}. " +
-            $"Total score records: {playerScores.Count}"
-        );
     }
 
-    private void UnsubscribeFromPlayer(
-        PlayerElimination player)
+    private void UnsubscribeFromPlayer(PlayerElimination player)
     {
         if (player == null)
             return;
 
-        PlayerBumpAttack bumpAttack =
-            player.GetComponent<PlayerBumpAttack>();
-
+        PlayerBumpAttack bumpAttack = player.GetComponent<PlayerBumpAttack>();
         if (bumpAttack != null)
         {
             bumpAttack.OnKnockbackApplied -= RecordKnockback;
@@ -313,10 +288,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
             return;
 
         ResetScores();
-
         scoringActive = true;
-
-        Debug.Log("[SCORE] Scoring started.");
     }
 
     public void StopScoring()
@@ -325,88 +297,52 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
             return;
 
         scoringActive = false;
-
         SyncScores();
-
-        Debug.Log("[SCORE] Scoring stopped.");
     }
 
     // ---------------------------------
     // Knockout Tracking
     // ---------------------------------
 
-    public void RecordKnockback(
-        PlayerElimination attacker,
-        PlayerElimination victim)
+    public void RecordKnockback(PlayerElimination attacker, PlayerElimination victim)
     {
-        if (!HasStateAuthority)
+        if (!HasStateAuthority || !scoringActive)
             return;
 
-        if (!scoringActive)
-            return;
-
-        PlayerScore victimScore =
-            GetScore(victim);
-
+        PlayerScore victimScore = GetScore(victim);
         if (victimScore == null)
             return;
 
         victimScore.lastKnockbackSource = attacker;
-        victimScore.lastKnockbackTime =
-            (float)Runner.SimulationTime;
-
-        Debug.Log(
-            attacker.gameObject.name +
-            " knocked back " +
-            victim.gameObject.name
-        );
+        victimScore.lastKnockbackTime = (float)Runner.SimulationTime;
     }
 
-    public void RecordElimination(
-        PlayerElimination eliminatedPlayer)
+    public void RecordElimination(PlayerElimination eliminatedPlayer)
     {
-        if (!HasStateAuthority)
+        if (!HasStateAuthority || !scoringActive)
             return;
 
-        if (!scoringActive)
-            return;
-
-        PlayerScore victimScore =
-            GetScore(eliminatedPlayer);
-
+        PlayerScore victimScore = GetScore(eliminatedPlayer);
         if (victimScore == null)
             return;
 
-        PlayerElimination attacker =
-            victimScore.lastKnockbackSource;
-
+        PlayerElimination attacker = victimScore.lastKnockbackSource;
         if (attacker != null)
         {
-            float timeSinceKnockback =
-                (float)Runner.SimulationTime -
-                victimScore.lastKnockbackTime;
+            float timeSinceKnockback = (float)Runner.SimulationTime - victimScore.lastKnockbackTime;
 
-            if (timeSinceKnockback <=
-                knockoutAttributionWindow)
+            if (timeSinceKnockback <= knockoutAttributionWindow)
             {
-                PlayerScore attackerScore =
-                    GetScore(attacker);
-
+                PlayerScore attackerScore = GetScore(attacker);
                 if (attackerScore != null)
                 {
                     attackerScore.knockoutCredit++;
-
-                    Debug.Log(
-                        attacker.gameObject.name +
-                        " earned Knockout Credit!"
-                    );
                 }
             }
         }
 
         victimScore.lastKnockbackSource = null;
-        victimScore.lastKnockbackTime =
-            -Mathf.Infinity;
+        victimScore.lastKnockbackTime = -Mathf.Infinity;
 
         SyncScores();
     }
@@ -422,79 +358,46 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
 
         scoringActive = false;
         survivalTimer = 0f;
+        lastSyncedSecond = -1;
 
         foreach (PlayerScore score in playerScores)
         {
             score.survivalScore = 0;
             score.knockoutCredit = 0;
             score.winnerBonus = 0;
-
-            score.lastKnockbackTime =
-                -Mathf.Infinity;
-
+            score.lastKnockbackTime = -Mathf.Infinity;
             score.lastKnockbackSource = null;
         }
 
         ClearNetworkScores();
-
-        Debug.Log(
-            $"[SCORE] Scores reset for " +
-            $"{playerScores.Count} players."
-        );
-
-        OnScoresChanged?.Invoke();
     }
 
     // ---------------------------------
     // Score Access
     // ---------------------------------
 
-    public int GetOverallScore(
-        PlayerElimination player)
+    public int GetOverallScore(PlayerElimination player)
     {
-        PlayerScore score =
-            GetScore(player);
-
-        if (score == null)
-            return 0;
-
-        // Knockout Credit is a statistic only.
-        return
-            score.survivalScore +
-            score.winnerBonus;
+        PlayerScore score = GetScore(player);
+        return score != null ? score.survivalScore + score.winnerBonus : 0;
     }
 
-    public int GetWinnerBonus(
-        PlayerElimination player)
+    public int GetWinnerBonus(PlayerElimination player)
     {
-        PlayerScore score =
-            GetScore(player);
-
-        return score != null
-            ? score.winnerBonus
-            : 0;
+        PlayerScore score = GetScore(player);
+        return score != null ? score.winnerBonus : 0;
     }
 
-    public int GetSurvivalScore(
-        PlayerElimination player)
+    public int GetSurvivalScore(PlayerElimination player)
     {
-        PlayerScore score =
-            GetScore(player);
-
-        return score != null
-            ? score.survivalScore
-            : 0;
+        PlayerScore score = GetScore(player);
+        return score != null ? score.survivalScore : 0;
     }
 
-    public int GetKnockoutCredit(
-        PlayerElimination player)
+    public int GetKnockoutCredit(PlayerElimination player)
     {
-        PlayerScore score =
-            GetScore(player);
-
-        return score != null
-            ? score.knockoutCredit
-            : 0;
+        PlayerScore score = GetScore(player);
+        return score != null ? score.knockoutCredit : 0;
     }
 
     // ---------------------------------
@@ -511,9 +414,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
 
         for (int i = 0; i < NetworkScores.Length; i++)
         {
-            NetworkPlayerScore score =
-                NetworkScores[i];
-
+            NetworkPlayerScore score = NetworkScores[i];
             if (score.player == player)
             {
                 playerScore = score.overallScore;
@@ -525,35 +426,22 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         if (!playerFound)
             return 0;
 
-        // Dense ranking:
-        // 20, 15, 15, 10
-        // becomes
-        // 1, 2, 2, 3
-
         int rank = 1;
-
-        List<int> higherScores =
-            new List<int>();
+        List<int> higherScores = new List<int>();
 
         for (int i = 0; i < NetworkScores.Length; i++)
         {
-            NetworkPlayerScore score =
-                NetworkScores[i];
-
+            NetworkPlayerScore score = NetworkScores[i];
             if (score.player == PlayerRef.None)
                 continue;
 
-            if (score.overallScore > playerScore &&
-                !higherScores.Contains(score.overallScore))
+            if (score.overallScore > playerScore && !higherScores.Contains(score.overallScore))
             {
-                higherScores.Add(
-                    score.overallScore
-                );
+                higherScores.Add(score.overallScore);
             }
         }
 
         rank += higherScores.Count;
-
         return rank;
     }
 
@@ -561,27 +449,16 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
     // Winner Bonus
     // ---------------------------------
 
-    public void AwardWinnerBonus(
-        PlayerElimination winner)
+    public void AwardWinnerBonus(PlayerElimination winner)
     {
-        if (!HasStateAuthority)
+        if (!HasStateAuthority || winner == null)
             return;
 
-        if (winner == null)
-            return;
-
-        PlayerScore score =
-            GetScore(winner);
-
+        PlayerScore score = GetScore(winner);
         if (score == null)
             return;
 
         score.winnerBonus = winnerBonus;
-
-        Debug.Log(
-            $"[SCORE] {winner.gameObject.name} earned " +
-            $"WINNER BONUS: +{winnerBonus}"
-        );
 
         SyncScores();
     }
@@ -597,67 +474,33 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
 
         for (int i = 0; i < NetworkScores.Length; i++)
         {
-            NetworkScores.Set(
-                i,
-                default
-            );
+            NetworkScores.Set(i, default);
         }
 
-        int count =
-            Mathf.Min(
-                playerScores.Count,
-                NetworkScores.Length
-            );
+        int count = Mathf.Min(playerScores.Count, NetworkScores.Length);
 
         for (int i = 0; i < count; i++)
         {
-            PlayerScore score =
-                playerScores[i];
-
+            PlayerScore score = playerScores[i];
             if (score.player == null)
                 continue;
 
-            NetworkObject playerObject =
-                score.player.GetComponent<NetworkObject>();
-
+            NetworkObject playerObject = score.player.GetComponent<NetworkObject>();
             if (playerObject == null)
                 continue;
 
-            NetworkPlayerScore networkScore =
-                new NetworkPlayerScore
-                {
-                    player =
-                        playerObject.InputAuthority,
+            NetworkPlayerScore networkScore = new NetworkPlayerScore
+            {
+                player = playerObject.InputAuthority,
+                placement = placementManager != null ? placementManager.GetPlacement(score.player) : 0,
+                survivalScore = score.survivalScore,
+                knockoutCredit = score.knockoutCredit,
+                winnerBonus = score.winnerBonus,
+                overallScore = score.survivalScore + score.winnerBonus
+            };
 
-                    placement =
-                        placementManager != null
-                            ? placementManager.GetPlacement(
-                                score.player)
-                            : 0,
-
-                    survivalScore =
-                        score.survivalScore,
-
-                    knockoutCredit =
-                        score.knockoutCredit,
-
-                    winnerBonus =
-                        score.winnerBonus,
-
-                    // Knockout Credit is NOT part
-                    // of the overall score.
-                    overallScore =
-                        score.survivalScore +
-                        score.winnerBonus
-                };
-
-            NetworkScores.Set(
-                i,
-                networkScore
-            );
+            NetworkScores.Set(i, networkScore);
         }
-
-        OnScoresChanged?.Invoke();
     }
 
     private void ClearNetworkScores()
@@ -667,10 +510,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
 
         for (int i = 0; i < NetworkScores.Length; i++)
         {
-            NetworkScores.Set(
-                i,
-                default
-            );
+            NetworkScores.Set(i, default);
         }
     }
 
@@ -683,30 +523,24 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
         get
         {
             int count = 0;
-
             for (int i = 0; i < NetworkScores.Length; i++)
             {
                 if (NetworkScores[i].player != PlayerRef.None)
                     count++;
             }
-
             return count;
         }
     }
 
-    public bool TryGetNetworkScore(
-        int index,
-        out NetworkPlayerScore score)
+    public bool TryGetNetworkScore(int index, out NetworkPlayerScore score)
     {
-        if (index < 0 ||
-            index >= NetworkScores.Length)
+        if (index < 0 || index >= NetworkScores.Length)
         {
             score = default;
             return false;
         }
 
         score = NetworkScores[index];
-
         return score.player != PlayerRef.None;
     }
 
@@ -714,8 +548,7 @@ public class MatiraMatibayScoreManager : NetworkBehaviour
     // Internal Lookup
     // ---------------------------------
 
-    private PlayerScore GetScore(
-        PlayerElimination player)
+    private PlayerScore GetScore(PlayerElimination player)
     {
         foreach (PlayerScore score in playerScores)
         {

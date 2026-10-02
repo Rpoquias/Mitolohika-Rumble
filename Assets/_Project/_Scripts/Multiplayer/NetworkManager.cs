@@ -7,8 +7,16 @@ using Fusion.Sockets;
 
 public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 {
-private const ushort LAN_PORT = 7777;
+    
+    private const ushort LAN_PORT = 7777;
 private const string LAN_HOST_IP = "0.0.0.0";
+
+[SerializeField]
+private int lobbySceneBuildIndex;
+[SerializeField]
+private NetworkObject matchSessionPrefab;
+
+public MatchSession CurrentMatchSession { get; private set; }
     private readonly Dictionary<PlayerRef, CharacterID> playerSelections = new();
     public static NetworkManager Instance { get; private set; }
     public MainMenuMessage PendingMainMenuMessage { get; private set; }
@@ -20,17 +28,16 @@ public NetworkRunner Runner => runner;
     public event Action<List<SessionInfo>> OnSessionListUpdatedEvent;
     public event Action<PlayerRef> OnPlayerJoinedEvent;
 public event Action<PlayerRef> OnPlayerLeftEvent;
-private readonly List<PlayerRef> joinedPlayers = new();
-public IReadOnlyList<PlayerRef> Players => joinedPlayers;
-private NetworkSceneManagerDefault sceneManager;
+public event Action<Scene> OnNetworkSceneLoadDoneEvent;
 
 private bool intentionalShutdown;
 public string LANHostIP { get; private set; }
 public string LastNetworkError { get; private set; }
 
+public int LobbySceneBuildIndex =>
+    lobbySceneBuildIndex;
 
-
-  private void Awake()
+private void Awake()
 {
     if (Instance != null && Instance != this)
     {
@@ -40,14 +47,12 @@ public string LastNetworkError { get; private set; }
 
     Instance = this;
     DontDestroyOnLoad(gameObject);
+
+    Application.runInBackground = true;
 }
 public async void Host(string sessionName)
 {
-
     LANHostIP = null;
-    NetworkStateMachine.Instance.SetState(
-        NetworkStateMachine.State.Connecting
-    );
 
     runner = GetOrCreateRunner();
 
@@ -57,34 +62,22 @@ public async void Host(string sessionName)
         SessionName = sessionName,
         IsVisible = true,
         IsOpen = true,
-        Scene = SceneRef.FromIndex(2),
+        Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
         SceneManager = GetOrCreateSceneManager()
     });
 
     if (result.Ok)
-    {
-        Debug.Log($"Host started: {sessionName}");
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Connected
-        );
-    }
+{
+    Debug.Log($"Host started: {sessionName}");
+}
     else
     {
         Debug.LogError(
             $"Host failed: {result.ShutdownReason}"
         );
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Disconnected
-        );
     }
-}
-public async void HostLAN(string sessionName)
+}public async void HostLAN(string sessionName)
 {
-    NetworkStateMachine.Instance.SetState(
-        NetworkStateMachine.State.Connecting);
-
     runner = GetOrCreateRunner();
 
     var result = await runner.StartGame(new StartGameArgs
@@ -95,39 +88,29 @@ public async void HostLAN(string sessionName)
         // Listen on all local network interfaces.
         Address = NetAddress.Any(LAN_PORT),
 
-        Scene = SceneRef.FromIndex(2),
+        Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
         SceneManager = GetOrCreateSceneManager()
     });
-
 if (result.Ok)
 {
     LANHostIP = GetLocalIPAddress();
 
     Debug.Log($"LAN Host started: {sessionName}");
     Debug.Log($"LAN Host IP: {LANHostIP}");
-
-    NetworkStateMachine.Instance.SetState(
-        NetworkStateMachine.State.Connected
-    );
 }
- else
-{
-    LastNetworkError =
-        $"Shutdown: {result.ShutdownReason}\n" +
-        $"Error: {result.ErrorMessage}";
+    else
+    {
+        LastNetworkError =
+            $"Shutdown: {result.ShutdownReason}\n" +
+            $"Error: {result.ErrorMessage}";
 
-    Debug.LogError(
-        $"[LAN] Host failed: {LastNetworkError}");
-
-    NetworkStateMachine.Instance.SetState(
-        NetworkStateMachine.State.Disconnected);
-}
+        Debug.LogError(
+            $"[LAN] Host failed: {LastNetworkError}"
+        );
+    }
 }
 public async void JoinLAN(string ipAddress)
 {
-    NetworkStateMachine.Instance.SetState(
-        NetworkStateMachine.State.Connecting);
-
     runner = GetOrCreateRunner();
 
     Debug.Log($"[LAN] Joining {ipAddress}:{LAN_PORT}");
@@ -135,6 +118,8 @@ public async void JoinLAN(string ipAddress)
     var result = await runner.StartGame(new StartGameArgs
     {
         GameMode = GameMode.Client,
+
+        Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
 
         // Connect directly to the LAN host.
         Address = NetAddress.CreateFromIpPort(
@@ -147,18 +132,15 @@ public async void JoinLAN(string ipAddress)
 
     if (result.Ok)
     {
-        Debug.Log($"[LAN] Connected to {ipAddress}:{LAN_PORT}");
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Connected);
+        Debug.Log(
+            $"[LAN] Connected to {ipAddress}:{LAN_PORT}"
+        );
     }
     else
     {
         Debug.LogError(
-            $"[LAN] Join failed: {result.ShutdownReason}");
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Disconnected);
+            $"[LAN] Join failed: {result.ShutdownReason}"
+        );
     }
 }
 private string GetLocalIPAddress()
@@ -213,12 +195,8 @@ private bool IsPrivate172(string ip)
 
     return first == 172 && second >= 16 && second <= 31;
 }
- public async void OpenPublicLobby()
+public async void OpenPublicLobby()
 {
-    NetworkStateMachine.Instance.SetState(
-        NetworkStateMachine.State.Connecting
-    );
-
     runner = GetOrCreateRunner();
 
     var result = await runner.JoinSessionLobby(
@@ -228,29 +206,17 @@ private bool IsPrivate172(string ip)
     if (result.Ok)
     {
         Debug.Log("Joined public session lobby.");
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Connected
-        );
     }
     else
     {
         Debug.LogError(
-            $"Failed to join public session lobby: {result.ShutdownReason}"
-        );
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Disconnected
+            $"Failed to join public session lobby: " +
+            $"{result.ShutdownReason}"
         );
     }
 }
-
 public async void JoinSession(SessionInfo session)
 {
-    NetworkStateMachine.Instance.SetState(
-        NetworkStateMachine.State.Connecting
-    );
-
     Debug.Log($"Joining session: {session.Name}");
 
     runner = GetOrCreateRunner();
@@ -259,25 +225,18 @@ public async void JoinSession(SessionInfo session)
     {
         GameMode = GameMode.Client,
         SessionName = session.Name,
+        Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
         SceneManager = GetOrCreateSceneManager()
     });
 
     if (result.Ok)
     {
         Debug.Log($"Joined session: {session.Name}");
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Connected
-        );
     }
     else
     {
         Debug.LogError(
             $"Join failed: {result.ShutdownReason}"
-        );
-
-        NetworkStateMachine.Instance.SetState(
-            NetworkStateMachine.State.Disconnected
         );
     }
 }
@@ -348,6 +307,67 @@ public void SetPlayerSelection(
     );
 }
 
+private void SpawnMatchSession()
+{
+    if (runner == null)
+    {
+        Debug.LogError(
+            "[MATCH] Cannot spawn MatchSession. Runner is NULL."
+        );
+
+        return;
+    }
+
+    if (!runner.IsServer)
+    {
+        return;
+    }
+
+    if (CurrentMatchSession != null)
+    {
+        Debug.LogWarning(
+            "[MATCH] MatchSession already exists."
+        );
+
+        return;
+    }
+
+    if (matchSessionPrefab == null)
+    {
+        Debug.LogError(
+            "[MATCH] MatchSession prefab is not assigned."
+        );
+
+        return;
+    }
+NetworkObject spawnedObject =
+    runner.Spawn(
+        matchSessionPrefab,
+        position: null,
+        rotation: null,
+        inputAuthority: null,
+        onBeforeSpawned: null,
+        flags: NetworkSpawnFlags.DontDestroyOnLoad
+    );
+
+    CurrentMatchSession =
+        spawnedObject.GetComponent<MatchSession>();
+
+    if (CurrentMatchSession == null)
+    {
+        Debug.LogError(
+            "[MATCH] Spawned MatchSession prefab " +
+            "does not contain MatchSession component."
+        );
+
+        return;
+    }
+
+    Debug.Log(
+        $"[MATCH] MatchSession spawned. " +
+        $"Total Rounds = {CurrentMatchSession.TotalRounds}"
+    );
+}
 private NetworkRunner CreateRunner()
 {
     GameObject runnerObject =
@@ -356,6 +376,8 @@ private NetworkRunner CreateRunner()
     NetworkRunner newRunner =
         runnerObject.AddComponent<NetworkRunner>();
 
+    // Gameplay input is enabled by RoundStateManager only when the round starts.
+     newRunner.ProvideInput = true;
     newRunner.AddCallbacks(this);
 
     return newRunner;
@@ -394,21 +416,17 @@ public void OnPlayerJoined(
     NetworkRunner runner,
     PlayerRef player)
 {
-    if (!joinedPlayers.Contains(player))
-        joinedPlayers.Add(player);
-
     Debug.Log($"[NETWORK] Player joined: {player}");
 
     OnPlayerJoinedEvent?.Invoke(player);
 }
-
 public void OnPlayerLeft(
     NetworkRunner runner,
     PlayerRef player)
 {
-    joinedPlayers.Remove(player);
-
     Debug.Log($"[NETWORK] Player left: {player}");
+
+    playerSelections.Remove(player);
 
     OnPlayerLeftEvent?.Invoke(player);
 }
@@ -433,10 +451,11 @@ public void OnShutdown(
 
     Debug.Log(LastNetworkError);
 
+    playerSelections.Clear();
+
     if (this.runner == runner)
     {
         this.runner = null;
-        sceneManager = null;
     }
 
     if (!intentionalShutdown)
@@ -517,6 +536,42 @@ public void OnSceneLoadDone(NetworkRunner runner)
     Debug.Log(
         $"[NETWORK] Scene load done: {scene.name} " +
         $"(Build Index: {scene.buildIndex})"
+    );
+
+    OnNetworkSceneLoadDoneEvent?.Invoke(scene);
+
+    if (!runner.IsServer)
+    {
+        return;
+    }
+
+    if (scene.buildIndex != lobbySceneBuildIndex)
+    {
+        return;
+    }
+
+    if (CurrentMatchSession != null)
+    {
+        return;
+    }
+
+    Debug.Log(
+        "[MATCH] Lobby loaded. Spawning MatchSession."
+    );
+
+    SpawnMatchSession();
+}
+public void RegisterMatchSession(MatchSession matchSession)
+{
+    if (matchSession == null)
+        return;
+
+    CurrentMatchSession = matchSession;
+
+    Debug.Log(
+        $"[MATCH] NetworkManager registered MatchSession. " +
+        $"Round {matchSession.CurrentRound}/" +
+        $"{matchSession.TotalRounds}"
     );
 }
 public void OnSceneLoadStart(NetworkRunner runner)

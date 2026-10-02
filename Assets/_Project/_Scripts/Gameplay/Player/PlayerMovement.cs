@@ -3,12 +3,11 @@ using UnityEngine;
 using UnityEngine.Serialization;
 
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(PlayerInputHandler))]
 public class PlayerMovement : NetworkBehaviour
 {
-
     [Header("Control")]
-    [Tooltip("Can this player currently move?")]
-    [SerializeField] private bool _canMove = true;
+    [SerializeField] private bool _initialCanMove = true;
 
     [Header("Movement")]
     [FormerlySerializedAs("moveSpeed")]
@@ -43,96 +42,158 @@ public class PlayerMovement : NetworkBehaviour
     [FormerlySerializedAs("fallMultiplier")]
     [SerializeField] private float _fallMultiplier = 2.5f;
 
+    [Networked]
+    private TickTimer StunTimer { get; set; }
 
-[Networked]
-private NetworkButtons PreviousButtons { get; set; }
+    [Networked]
+    private Vector3 CurrentMoveVelocity { get; set; }
+
+    [Networked]
+    private Vector3 ExternalVelocity { get; set; }
+
+    [Networked]
+    public NetworkBool IsBusy { get; private set; }
+
+    [Networked]
+    public NetworkBool CanMove { get; private set; }
+
     private Rigidbody _rb;
+    private PlayerInputHandler _inputHandler;
 
-    // Camera-relative movement converted to world-space.
     private Vector3 _moveDirection;
-
     private bool _isGrounded;
 
-    private Vector3 _externalVelocity;
-    private Vector3 _currentMoveVelocity;
-    private readonly Collider[] _groundHits = new Collider[8];
+    private readonly Collider[] _groundHits =
+        new Collider[8];
 
-    public bool CanMove => _canMove;
     public bool IsGrounded => _isGrounded;
-    public bool IsBusy { get; private set; }
+
+    public bool IsStunned =>
+        !StunTimer.ExpiredOrNotRunning(Runner);
 
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
     }
 
-
-   public override void FixedUpdateNetwork()
-{
-
-
-    // Ground state belongs to the simulation.
-    
-    CheckGround();
-
-    if (GetInput(out NetworkInputData input))
+    public override void Spawned()
     {
-        _moveDirection = new Vector3(
-            input.MoveDirection.x,
-            0f,
-            input.MoveDirection.y
-        );
+        _inputHandler =
+            GetComponent<PlayerInputHandler>();
 
-        // Detect a new jump press.
-        if (input.Buttons.WasPressed(
-                PreviousButtons,
-                EInputButton.Jump) &&
-            _isGrounded)
+        if (_inputHandler == null)
         {
-            Jump();
+            Debug.LogError(
+                $"[{nameof(PlayerMovement)}] " +
+                $"{name} requires a {nameof(PlayerInputHandler)}."
+            );
         }
 
-        PreviousButtons = input.Buttons;
+        if (HasStateAuthority)
+        {
+            CanMove = _initialCanMove;
+            IsBusy = false;
+        }
     }
-    else
+
+    public override void FixedUpdateNetwork()
     {
-        _moveDirection = Vector3.zero;
+        CheckGround();
+
+        bool gotInput =
+            GetInput(out NetworkInputData input);
+
+        if (gotInput)
+        {
+            _moveDirection =
+                new Vector3(
+                    input.MoveDirection.x,
+                    0f,
+                    input.MoveDirection.y
+                );
+
+            if (_inputHandler != null &&
+                _inputHandler.JumpPressed &&
+                _isGrounded &&
+                !IsStunned)
+            {
+                Jump();
+            }
+        }
+        else
+        {
+            _moveDirection = Vector3.zero;
+        }
+
+        Move();
+        Rotate();
+        ApplyBetterGravity();
+
+        ExternalVelocity =
+            Vector3.MoveTowards(
+                ExternalVelocity,
+                Vector3.zero,
+                _externalVelocityDamping *
+                Runner.DeltaTime
+            );
     }
-
-    Move();
-    Rotate();
-    ApplyBetterGravity();
-
-    _externalVelocity = Vector3.MoveTowards(
-        _externalVelocity,
-        Vector3.zero,
-        _externalVelocityDamping * Runner.DeltaTime
-    );
-}   
 
     public void SetBusy(bool busy)
     {
         IsBusy = busy;
 
         if (busy)
-            _currentMoveVelocity = Vector3.zero;
+        {
+            CurrentMoveVelocity = Vector3.zero;
+        }
     }
 
     public void AddExternalForce(Vector3 force)
     {
-        _externalVelocity += force;
+        ExternalVelocity += force;
+    }
+
+    public void ApplyStun(float duration)
+    {
+        if (!HasStateAuthority)
+            return;
+
+        StunTimer =
+            TickTimer.CreateFromSeconds(
+                Runner,
+                duration
+            );
+
+        _moveDirection = Vector3.zero;
+        CurrentMoveVelocity = Vector3.zero;
+    }
+
+    public void SetCanMove(bool canMove)
+    {
+        CanMove = canMove;
+
+        if (!canMove)
+        {
+            _moveDirection = Vector3.zero;
+            CurrentMoveVelocity = Vector3.zero;
+        }
     }
 
     private void Move()
     {
-        if (IsBusy || !_canMove)
+        if (IsBusy ||
+            IsStunned ||
+            !CanMove)
         {
-            _currentMoveVelocity = Vector3.zero;
+            CurrentMoveVelocity = Vector3.zero;
         }
         else
         {
             Vector3 movement =
-                Vector3.ClampMagnitude(_moveDirection, 1f);
+                Vector3.ClampMagnitude(
+                    _moveDirection,
+                    1f
+                );
 
             Vector3 targetVelocity =
                 movement * _moveSpeed;
@@ -142,20 +203,71 @@ private NetworkButtons PreviousButtons { get; set; }
                     ? _acceleration
                     : _deceleration;
 
-            _currentMoveVelocity =
+            CurrentMoveVelocity =
                 Vector3.MoveTowards(
-                    _currentMoveVelocity,
+                    CurrentMoveVelocity,
                     targetVelocity,
-                    speedChange * Runner.DeltaTime
+                    speedChange *
+                    Runner.DeltaTime
                 );
         }
 
         Vector3 finalVelocity =
-            _currentMoveVelocity + _externalVelocity;
+            CurrentMoveVelocity +
+            ExternalVelocity;
 
-        finalVelocity.y = _rb.linearVelocity.y;
+        finalVelocity.y =
+            _rb.linearVelocity.y;
 
-        _rb.linearVelocity = finalVelocity;
+        _rb.linearVelocity =
+            finalVelocity;
+    }
+
+    private void Rotate()
+    {
+        if (!CanMove ||
+            IsBusy ||
+            IsStunned)
+        {
+            return;
+        }
+
+        Vector3 movement =
+            CurrentMoveVelocity;
+
+        movement.y = 0f;
+
+        if (movement.sqrMagnitude < 0.01f)
+            return;
+
+        Quaternion targetRotation =
+            Quaternion.LookRotation(movement);
+
+        Quaternion newRotation =
+            Quaternion.Slerp(
+                _rb.rotation,
+                targetRotation,
+                _rotationSpeed *
+                Runner.DeltaTime
+            );
+
+        _rb.MoveRotation(newRotation);
+    }
+
+    private void Jump()
+    {
+        Vector3 velocity =
+            _rb.linearVelocity;
+
+        velocity.y = 0f;
+
+        _rb.linearVelocity =
+            velocity;
+
+        _rb.AddForce(
+            Vector3.up * _jumpForce,
+            ForceMode.Impulse
+        );
     }
 
     private void ApplyBetterGravity()
@@ -170,91 +282,51 @@ private NetworkButtons PreviousButtons { get; set; }
         }
     }
 
-private void CheckGround()
-{
-    if (_groundCheck == null)
+    private void CheckGround()
     {
-        _isGrounded = false;
-        return;
-    }
-
-    if (Runner == null || !Runner.IsRunning)
-    {
-        _isGrounded = false;
-        return;
-    }
-
-    var physicsScene = Runner.GetPhysicsScene();
-
-    int hitCount = physicsScene.OverlapSphere(
-        _groundCheck.position,
-        _groundCheckRadius,
-        _groundHits,
-        _groundLayer,
-        QueryTriggerInteraction.Ignore
-    );
-
-    _isGrounded = hitCount > 0;
-}
-    private void Jump()
-    {
-        Vector3 velocity = _rb.linearVelocity;
-
-        velocity.y = 0f;
-
-        _rb.linearVelocity = velocity;
-
-        _rb.AddForce(
-            Vector3.up * _jumpForce,
-            ForceMode.Impulse
-        );
-    }
-
-    public void SetCanMove(bool canMove)
-    {
-        _canMove = canMove;
-
-        if (!canMove)
+        if (_groundCheck == null)
         {
-            _moveDirection = Vector3.zero;
-            _currentMoveVelocity = Vector3.zero;
+            _isGrounded = false;
+            return;
         }
+
+        if (Runner == null ||
+            !Runner.IsRunning)
+        {
+            _isGrounded = false;
+            return;
+        }
+
+        var physicsScene =
+            Runner.GetPhysicsScene();
+
+        int hitCount =
+            physicsScene.OverlapSphere(
+                _groundCheck.position,
+                _groundCheckRadius,
+                _groundHits,
+                _groundLayer,
+                QueryTriggerInteraction.Ignore
+            );
+
+        _isGrounded =
+            hitCount > 0;
     }
 
-  private void Rotate()
-{
-    if (!_canMove || IsBusy)
-        return;
+#if UNITY_EDITOR
 
-    Vector3 movement = _currentMoveVelocity;
-
-    movement.y = 0f;
-
-    if (movement.sqrMagnitude < 0.01f)
-        return;
-
-    Quaternion targetRotation =
-        Quaternion.LookRotation(movement);
-
-    Quaternion newRotation =
-        Quaternion.Slerp(
-            _rb.rotation,
-            targetRotation,
-            _rotationSpeed * Runner.DeltaTime
-        );
-
-    _rb.MoveRotation(newRotation);
-}
     private void OnDrawGizmosSelected()
-{
-    if (_groundCheck == null)
-        return;
+    {
+        if (_groundCheck == null)
+            return;
 
-    Gizmos.color = Color.yellow;
+        Gizmos.color = Color.yellow;
 
-    Gizmos.DrawWireSphere(
-        _groundCheck.position,
-        _groundCheckRadius
-    );
-}
+        Gizmos.DrawWireSphere(
+            _groundCheck.position,
+            _groundCheckRadius
+        );
+    }
+
+#endif
 }

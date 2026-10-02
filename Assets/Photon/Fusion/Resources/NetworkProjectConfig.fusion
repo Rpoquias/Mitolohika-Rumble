@@ -4,7 +4,7 @@
     "HubMode": 1,
     "PeerMode": 0,
     "LagCompensation": {
-        "Enabled": false,
+        "Enabled": true,
         "HitboxBufferLengthInMs": 200,
         "HitboxDefaultCapacity": 512,
         "CachedStaticCollidersSize": 64
@@ -33,13 +33,13 @@
         "SimulationUpdateTimeMode": 0,
         "PlayerCount": 10,
         "TickRateSelection": {
-            "Client": 0,
-            "ClientSendInterval": 0,
-            "ServerTickInterval": 0,
-            "ServerSendInterval": 0,
-            "ClientSendIndex": 0,
-            "ServerIndex": 0,
-            "ServerSendIndex": 0
+            "Client": 64,
+            "ClientSendInterval": 2,
+            "ServerTickInterval": 1,
+            "ServerSendInterval": 2,
+            "ClientSendIndex": 2,
+            "ServerIndex": 1,
+            "ServerSendIndex": 2
         }
     },
     "TimeSync": {

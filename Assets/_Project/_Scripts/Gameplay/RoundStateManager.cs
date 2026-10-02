@@ -3,7 +3,6 @@ using Fusion;
 using UnityEngine;
 using System.Linq;
 
-
 public class RoundStateManager : NetworkBehaviour
 {
     public enum RoundState
@@ -23,11 +22,15 @@ public class RoundStateManager : NetworkBehaviour
     // Networked source of truth.
     [Networked, OnChangedRender(nameof(OnNetworkRoundStateChanged))]
     private RoundState NetworkState { get; set; }
+
     [Networked]
-private int ExpectedPlayerCount { get; set; }
+    private int ExpectedPlayerCount { get; set; }
 
     [Networked, OnChangedRender(nameof(OnNetworkCountdownChanged))]
     private int NetworkCountdown { get; set; }
+
+    [Networked, OnChangedRender(nameof(OnRoundResetSequenceChanged))]
+    private int RoundResetSequence { get; set; }
 
     [Networked]
     private TickTimer StateTimer { get; set; }
@@ -35,34 +38,27 @@ private int ExpectedPlayerCount { get; set; }
     // Public API
     public RoundState CurrentState => NetworkState;
     public int CurrentCountdown => NetworkCountdown;
-public int CurrentExpectedPlayerCount => ExpectedPlayerCount;
+    public int CurrentExpectedPlayerCount => ExpectedPlayerCount;
+
     public event Action OnRoundStarted;
     public event Action OnRoundEnded;
     public event Action<int> OnCountdownTick;
     public event Action OnRoundReset;
+    public event Action<RoundState> OnStateChanged;
 
     private bool authorityInitialized = false;
-
-    // Used to detect RoundEnd -> Waiting locally.
-    private RoundState lastRenderedState;
+    private int lastAppliedResetSequence;
     private bool isSpawned;
 
     public bool IsSpawned => isSpawned;
 
-    private void Awake()
-    {
-        lastRenderedState = RoundState.Waiting;
-    }
-
     public override void Spawned()
     {
         isSpawned = true;
+        lastAppliedResetSequence = RoundResetSequence;
 
-        lastRenderedState = NetworkState;
-
-        Debug.Log(
-            $"[ROUND] Spawned | State: {NetworkState}"
-        );
+        // Visual confirmation log
+        Debug.Log("<color=red>[RoundStateManager] Script spawned and running successfully!</color>");
     }
 
     public override void FixedUpdateNetwork()
@@ -75,7 +71,6 @@ public int CurrentExpectedPlayerCount => ExpectedPlayerCount;
         if (!authorityInitialized)
         {
             authorityInitialized = true;
-
             StartRound();
             return;
         }
@@ -100,95 +95,23 @@ public int CurrentExpectedPlayerCount => ExpectedPlayerCount;
         }
     }
 
-   private void UpdateWaiting()
-{
-    if (ExpectedPlayerCount <= 0)
-        return;
-
-    int currentPlayerCount =
-        Runner.ActivePlayers.Count();
-
-    if (currentPlayerCount < ExpectedPlayerCount)
-        return;
-
-    if (!AllExpectedPlayersSpawned())
-        return;
-
-    EnterCountdown();
-}
-private bool AllExpectedPlayersSpawned()
-{
-    int spawnedPlayerCount = 0;
-
-    foreach (PlayerRef player in Runner.ActivePlayers)
+    private void UpdateWaiting()
     {
-        if (!Runner.TryGetPlayerObject(
-                player,
-                out NetworkObject playerObject))
-        {
-            return false;
-        }
-
-        if (playerObject == null)
-            return false;
-
-        spawnedPlayerCount++;
-    }
-
-    return spawnedPlayerCount >= ExpectedPlayerCount;
-}
-    private void UpdateCountdown()
-    {
-        if (!StateTimer.Expired(Runner))
+        if (ExpectedPlayerCount <= 0)
             return;
 
-        if (NetworkCountdown > 1)
-        {
-            NetworkCountdown--;
+        int currentPlayerCount = Runner.ActivePlayers.Count();
 
-            StateTimer =
-                TickTimer.CreateFromSeconds(
-                    Runner,
-                    1f
-                );
-        }
-        else
-        {
-            NetworkCountdown = 0;
-
-            EnterPlaying();
-        }
-    }
-
-    private void UpdateRoundEnd()
-    {
-        if (!StateTimer.Expired(Runner))
+        if (currentPlayerCount < ExpectedPlayerCount)
             return;
 
-        OnRoundReset?.Invoke();
+        if (!AllExpectedPlayersSpawned())
+            return;
 
-        EnterWaiting();
+        EnterCountdown();
     }
 
- public void StartRound()
-{
-    if (!HasStateAuthority)
-        return;
-
-    CaptureExpectedPlayers();
-
-    EnterWaiting();
-}
-private void CaptureExpectedPlayers()
-{
-    ExpectedPlayerCount = Runner.ActivePlayers.Count();
-
-    Debug.Log(
-        $"[ROUND] Expected players captured: " +
-        $"{ExpectedPlayerCount}"
-    );
-}
-    public void EndRound()
+    public void TriggerRoundEndSequence()
     {
         if (!HasStateAuthority)
             return;
@@ -199,9 +122,84 @@ private void CaptureExpectedPlayers()
         NetworkState = RoundState.RoundEnd;
         NetworkCountdown = 0;
 
-        Debug.Log(
-            "[ROUND] State changed to RoundEnd."
-        );
+        // Start the delay timer before resetting
+        StateTimer = TickTimer.CreateFromSeconds(Runner, restartDelay);
+    }
+
+    private bool AllExpectedPlayersSpawned()
+    {
+        int spawnedPlayerCount = 0;
+
+        foreach (PlayerRef player in Runner.ActivePlayers)
+        {
+            if (!Runner.TryGetPlayerObject(player, out NetworkObject playerObject))
+            {
+                return false;
+            }
+
+            if (playerObject == null)
+                return false;
+
+            spawnedPlayerCount++;
+        }
+
+        return spawnedPlayerCount >= ExpectedPlayerCount;
+    }
+
+    private void UpdateCountdown()
+    {
+        if (!StateTimer.Expired(Runner))
+            return;
+
+        if (NetworkCountdown > 1)
+        {
+            NetworkCountdown--;
+
+            StateTimer = TickTimer.CreateFromSeconds(Runner, 1f);
+        }
+        else
+        {
+            NetworkCountdown = 0;
+            EnterPlaying();
+        }
+    }
+
+    private void UpdateRoundEnd()
+    {
+        if (!StateTimer.Expired(Runner))
+            return;
+
+        RoundResetSequence++;
+        lastAppliedResetSequence = RoundResetSequence;
+        OnRoundReset?.Invoke();
+
+        EnterWaiting();
+    }
+
+    public void StartRound()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        CaptureExpectedPlayers();
+        EnterWaiting();
+    }
+
+    private void CaptureExpectedPlayers()
+    {
+        ExpectedPlayerCount = Runner.ActivePlayers.Count();
+    }
+
+    public void EndRound()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        if (NetworkState != RoundState.Playing)
+            return;
+
+        NetworkState = RoundState.RoundEnd;
+        NetworkCountdown = 0;
     }
 
     public void RestartRound()
@@ -212,48 +210,21 @@ private void CaptureExpectedPlayers()
         if (NetworkState != RoundState.RoundEnd)
             return;
 
-        StateTimer =
-            TickTimer.CreateFromSeconds(
-                Runner,
-                restartDelay
-            );
-
-        Debug.Log(
-            $"[ROUND] Restart timer started: " +
-            $"{restartDelay} seconds"
-        );
+        StateTimer = TickTimer.CreateFromSeconds(Runner, restartDelay);
     }
 
     private void EnterWaiting()
     {
         NetworkState = RoundState.Waiting;
         NetworkCountdown = 0;
-
-        // No timer here.
         StateTimer = TickTimer.None;
-
-        Debug.Log(
-            "[ROUND] Waiting for game to be ready."
-        );
     }
 
     private void EnterCountdown()
     {
         NetworkState = RoundState.Countdown;
-
-        NetworkCountdown =
-            Mathf.CeilToInt(countdownDuration);
-
-        StateTimer =
-            TickTimer.CreateFromSeconds(
-                Runner,
-                1f
-            );
-
-        Debug.Log(
-            $"[ROUND] Countdown started: " +
-            $"{NetworkCountdown}"
-        );
+        NetworkCountdown = Mathf.CeilToInt(countdownDuration);
+        StateTimer = TickTimer.CreateFromSeconds(Runner, 1f);
     }
 
     private void EnterPlaying()
@@ -261,25 +232,16 @@ private void CaptureExpectedPlayers()
         NetworkState = RoundState.Playing;
         NetworkCountdown = 0;
         StateTimer = TickTimer.None;
-
-        Debug.Log(
-            "[ROUND] State changed to Playing."
-        );
     }
 
     private void OnNetworkRoundStateChanged()
     {
         RoundState newState = NetworkState;
 
-        Debug.Log(
-            $"[ROUND] Network state received: {newState}"
-        );
+        // Green debug log for round state changes
+        Debug.Log($"<color=green>[ROUND] State changed to: {newState}</color>");
 
-        if (lastRenderedState == RoundState.RoundEnd &&
-            newState == RoundState.Waiting)
-        {
-            Debug.Log("[ROUND] New round started.");
-        }
+        OnStateChanged?.Invoke(newState);
 
         if (newState == RoundState.Playing)
         {
@@ -289,18 +251,25 @@ private void CaptureExpectedPlayers()
         {
             OnRoundEnded?.Invoke();
         }
+    }
 
-        lastRenderedState = newState;
+    private void OnRoundResetSequenceChanged()
+    {
+        if (RoundResetSequence == lastAppliedResetSequence)
+            return;
+
+        lastAppliedResetSequence = RoundResetSequence;
+
+        if (HasStateAuthority)
+            return;
+
+        OnRoundReset?.Invoke();
     }
 
     private void OnNetworkCountdownChanged()
     {
         if (NetworkCountdown <= 0)
             return;
-
-        Debug.Log(
-            $"[ROUND] Countdown: {NetworkCountdown}"
-        );
 
         OnCountdownTick?.Invoke(NetworkCountdown);
     }

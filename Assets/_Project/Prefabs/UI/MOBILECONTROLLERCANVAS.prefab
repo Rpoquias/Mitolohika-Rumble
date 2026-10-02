@@ -177,7 +177,7 @@ GameObject:
   - component: {fileID: 5919094981937110485}
   - component: {fileID: 5403267895105354340}
   m_Layer: 0
-  m_Name: Button (2)
+  m_Name: Ability
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -283,7 +283,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 5919094981937110485}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 5454758095178106067}
+        m_TargetAssemblyTypeName: MobileInputProvider, Assembly-CSharp
+        m_MethodName: PressAbility
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!1 &5614772316584298737
 GameObject:
   m_ObjectHideFlags: 0
@@ -429,7 +441,7 @@ GameObject:
   - component: {fileID: 5118667198140684275}
   - component: {fileID: 1359170795470845482}
   m_Layer: 0
-  m_Name: Button (1)
+  m_Name: Bump
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -672,6 +684,7 @@ MonoBehaviour:
   movementJoystick: {fileID: 3223674346825931104}
   jumpButton: {fileID: 5418384850097700798}
   bumpButton: {fileID: 4413105189547739955}
+  abilityButton: {fileID: 4413105189547739955}
 --- !u!1001 &295550733896476831
 PrefabInstance:
   m_ObjectHideFlags: 0

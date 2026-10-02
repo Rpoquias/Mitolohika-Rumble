@@ -12,6 +12,14 @@ PrefabInstance:
       propertyPath: SortKey
       value: 4257035252
       objectReference: {fileID: 0}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: NetworkedBehaviours.Array.size
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[8]'
+      value: 
+      objectReference: {fileID: -5419109316831359203}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: m_Name
       value: AswangCharacter
@@ -85,3 +93,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 175ec46409821ba4fbc91c29e77d7d2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StunAbility
+  cooldown: 5
+  targetRange: 2.9
+  maxVerticalDifference: 1.5
+  targetAngle: 29.6
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  stunDuration: 5

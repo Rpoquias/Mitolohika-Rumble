@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Fusion;
 using Fusion.Sockets;
 using UnityEngine;
@@ -10,11 +11,11 @@ public class NetworkPlayerInput : NetworkBehaviour, INetworkRunnerCallbacks
     [SerializeField] private InputActionReference moveAction;
     [SerializeField] private InputActionReference jumpAction;
     [SerializeField] private InputActionReference bumpAction;
+    [SerializeField] private InputActionReference abilityAction;
 
-private NetworkInputData _input;
-private bool _resetButtons;
-private Transform _cameraTransform;
-
+    private NetworkInputData _input;
+    private bool _resetButtons;
+    private Transform _cameraTransform;
 
     public override void Spawned()
     {
@@ -24,6 +25,7 @@ private Transform _cameraTransform;
         moveAction.action.Enable();
         jumpAction.action.Enable();
         bumpAction.action.Enable();
+        abilityAction.action.Enable();
 
         Runner.AddCallbacks(this);
     }
@@ -38,26 +40,40 @@ private Transform _cameraTransform;
         moveAction.action.Disable();
         jumpAction.action.Disable();
         bumpAction.action.Disable();
+        abilityAction.action.Disable();
 
         runner.RemoveCallbacks(this);
     }
 
-private void Update()
-{
-    if (!HasInputAuthority)
-        return;
-
-    // Reset one-frame buttons only after Fusion has consumed them.
-    if (_resetButtons)
+    private void Update()
     {
+        if (!HasInputAuthority)
+            return;
+
+        ResetButtons();
+
+        UpdateCameraReference();
+        UpdateMovementInput();
+        UpdateActionInput();
+    }
+
+    private void ResetButtons()
+    {
+        if (!_resetButtons)
+            return;
+
         _input.Buttons.Set(EInputButton.Jump, false);
         _input.Buttons.Set(EInputButton.Bump, false);
+        _input.Buttons.Set(EInputButton.Ability, false);
 
         _resetButtons = false;
     }
 
-    if (_cameraTransform == null)
+    private void UpdateCameraReference()
     {
+        if (_cameraTransform != null)
+            return;
+
         if (ThirdPersonCamera.TryGetCamera(
                 Runner,
                 out ThirdPersonCamera camera))
@@ -66,21 +82,30 @@ private void Update()
         }
     }
 
-   Vector2 rawInput =
-    moveAction.action.ReadValue<Vector2>();
-
-if (MobileInputProvider.Instance != null)
-{
-    Vector2 mobileInput =
-        MobileInputProvider.Instance.MoveInput;
-
-    if (mobileInput.sqrMagnitude > 0.001f)
+    private void UpdateMovementInput()
     {
-        rawInput = mobileInput;
-    }
-}
-    if (_cameraTransform != null)
-    {
+        Vector2 rawInput =
+            moveAction.action.ReadValue<Vector2>();
+
+        // Mobile joystick overrides the normal movement input
+        // whenever the joystick is actually being used.
+        if (MobileInputProvider.Instance != null)
+        {
+            Vector2 mobileInput =
+                MobileInputProvider.Instance.MoveInput;
+
+            if (mobileInput.sqrMagnitude > 0.001f)
+            {
+                rawInput = mobileInput;
+            }
+        }
+
+        if (_cameraTransform == null)
+        {
+            _input.MoveDirection = rawInput;
+            return;
+        }
+
         Vector3 cameraForward =
             _cameraTransform.forward;
 
@@ -98,55 +123,72 @@ if (MobileInputProvider.Instance != null)
             cameraRight * rawInput.x;
 
         movement =
-            Vector3.ClampMagnitude(movement, 1f);
+            Vector3.ClampMagnitude(
+                movement,
+                1f
+            );
 
-        _input.MoveDirection = new Vector2(
-            movement.x,
-            movement.z
-        );
+        _input.MoveDirection =
+            new Vector2(
+                movement.x,
+                movement.z
+            );
     }
-    else
+
+    private void UpdateActionInput()
     {
-        _input.MoveDirection = rawInput;
+        bool mobileJumpPressed =
+            MobileInputProvider.Instance != null &&
+            MobileInputProvider.Instance.ConsumeJumpPressed();
+
+        bool mobileBumpPressed =
+            MobileInputProvider.Instance != null &&
+            MobileInputProvider.Instance.ConsumeBumpPressed();
+
+        bool mobileAbilityPressed =
+            MobileInputProvider.Instance != null &&
+            MobileInputProvider.Instance.ConsumeAbilityPressed();
+
+        if (jumpAction.action.WasPressedThisFrame() ||
+            mobileJumpPressed)
+        {
+            _input.Buttons.Set(
+                EInputButton.Jump,
+                true
+            );
+        }
+
+        if (bumpAction.action.WasPressedThisFrame() ||
+            mobileBumpPressed)
+        {
+            _input.Buttons.Set(
+                EInputButton.Bump,
+                true
+            );
+        }
+
+        if (abilityAction.action.WasPressedThisFrame() ||
+            mobileAbilityPressed)
+        {
+            _input.Buttons.Set(
+                EInputButton.Ability,
+                true
+            );
+        }
     }
 
-  bool mobileJumpPressed =
-    MobileInputProvider.Instance != null &&
-    MobileInputProvider.Instance.ConsumeJumpPressed();
+    public void OnInput(
+        NetworkRunner runner,
+        NetworkInput input)
+    {
+        input.Set(_input);
 
-bool mobileBumpPressed =
-    MobileInputProvider.Instance != null &&
-    MobileInputProvider.Instance.ConsumeBumpPressed();
+        _resetButtons = true;
+    }
 
-if (jumpAction.action.WasPressedThisFrame() ||
-    mobileJumpPressed)
-{
-    _input.Buttons.Set(
-        EInputButton.Jump,
-        true
-    );
-}
-
-if (bumpAction.action.WasPressedThisFrame() ||
-    mobileBumpPressed)
-{
-    _input.Buttons.Set(
-        EInputButton.Bump,
-        true
-    );
-}
-}
-
-public void OnInput(
-    NetworkRunner runner,
-    NetworkInput input)
-{
-    input.Set(_input);
-
-    _resetButtons = true;
-}
-
+    // --------------------------------------------------------------------
     // Required callbacks
+    // --------------------------------------------------------------------
 
     public void OnPlayerJoined(
         NetworkRunner runner,
@@ -188,11 +230,11 @@ public void OnInput(
 
     public void OnSessionListUpdated(
         NetworkRunner runner,
-        System.Collections.Generic.List<SessionInfo> sessionList) { }
+        List<SessionInfo> sessionList) { }
 
     public void OnCustomAuthenticationResponse(
         NetworkRunner runner,
-        System.Collections.Generic.Dictionary<string, object> data) { }
+        Dictionary<string, object> data) { }
 
     public void OnHostMigration(
         NetworkRunner runner,

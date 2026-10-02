@@ -4,21 +4,27 @@ using UnityEngine;
 public class WinnerDetector : MonoBehaviour
 {
     [SerializeField] private MatiraMatibayManager matiraMatibayManager;
-
+[SerializeField] private RoundStateManager roundStateManager;
     private PlayerRegistry playerRegistry;
     private NetworkRunner runner;
 
     private bool initialized = false;
     private bool winnerFound = false;
+private void OnEnable()
+{
+    if (roundStateManager == null)
+        return;
 
-    private void Update()
-    {
-        if (initialized)
-            return;
+    roundStateManager.OnStateChanged += HandleStateChanged;
+    roundStateManager.OnRoundReset += ResetWinnerDetector;
+}private void HandleStateChanged(
+    RoundStateManager.RoundState state)
+{
+    if (initialized)
+        return;
 
-        TryInitialize();
-    }
-
+    TryInitialize();
+}
     private void TryInitialize()
     {
         runner =
@@ -49,19 +55,25 @@ public class WinnerDetector : MonoBehaviour
         );
     }
 
-    private void OnDestroy()
+private void OnDestroy()
+{
+    if (roundStateManager != null)
     {
-        if (playerRegistry == null)
-            return;
-
-        playerRegistry.OnPlayerRegistered -= HandlePlayerRegistered;
-        playerRegistry.OnPlayerUnregistered -= HandlePlayerUnregistered;
-
-        foreach (NetworkObject playerObject in playerRegistry.Players)
-        {
-            HandlePlayerUnregistered(playerObject);
-        }
+        roundStateManager.OnStateChanged -= HandleStateChanged;
+        roundStateManager.OnRoundReset -= ResetWinnerDetector;
     }
+
+    if (playerRegistry == null)
+        return;
+
+    playerRegistry.OnPlayerRegistered -= HandlePlayerRegistered;
+    playerRegistry.OnPlayerUnregistered -= HandlePlayerUnregistered;
+
+    foreach (NetworkObject playerObject in playerRegistry.Players)
+    {
+        HandlePlayerUnregistered(playerObject);
+    }
+}
 
     private void HandlePlayerRegistered(NetworkObject playerObject)
     {
@@ -92,18 +104,36 @@ public class WinnerDetector : MonoBehaviour
         player.OnPlayerEliminated -= HandlePlayerEliminated;
     }
 
-    private void HandlePlayerEliminated(PlayerElimination player)
-    {
-        CheckForWinner();
-    }
+private void HandlePlayerEliminated(
+    PlayerElimination player)
+{
+    Debug.Log(
+        $"[WINNER DETECTOR] Elimination event received from " +
+        $"{player.gameObject.name}"
+    );
 
+    Debug.Log(
+        $"[WINNER DETECTOR] Runner: {runner} | " +
+        $"IsServer: {(runner != null && runner.IsServer)} | " +
+        $"Initialized: {initialized}"
+    );
+
+    if (runner == null || !runner.IsServer)
+        return;
+
+    CheckForWinner();
+}
     public void CheckForWinner()
     {
-        if (winnerFound)
-            return;
+            Debug.Log("[WINNER DETECTOR] CheckForWinner() called.");
+       if (runner == null || !runner.IsServer)
+        return;
 
-        if (!initialized || playerRegistry == null)
-            return;
+    if (winnerFound)
+        return;
+
+    if (!initialized || playerRegistry == null)
+        return;
 
         int aliveCount = 0;
         PlayerElimination lastAlivePlayer = null;

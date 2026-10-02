@@ -4,9 +4,9 @@ using UnityEngine;
 public enum EInputButton
 {
     Jump,
-    Bump
+    Bump,
+    Ability
 }
-
 public struct NetworkInputData : INetworkInput
 {
     public Vector2 MoveDirection;

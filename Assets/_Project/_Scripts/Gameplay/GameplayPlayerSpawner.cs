@@ -4,6 +4,9 @@ using UnityEngine.SceneManagement;
 
 public class GameplayPlayerSpawner : MonoBehaviour
 {
+    private const string GAMEPLAY_SCENE_PATH =
+        "Assets/_Project/_Scenes/Testing/Ryan/MatiraMatibay.unity";
+
     [Header("Characters")]
     [SerializeField] private CharacterData[] characters;
 
@@ -12,18 +15,16 @@ public class GameplayPlayerSpawner : MonoBehaviour
 private bool spawningPlayers;
     private bool spawnedPlayers;
 
-    private void Start()
+
+private async void Start()
+{
+    while (NetworkManager.Instance == null || NetworkManager.Instance.Runner == null || !NetworkManager.Instance.Runner.IsRunning)
     {
-        TrySpawnPlayers();
+        await Awaitable.NextFrameAsync();
     }
 
-    private void Update()
-    {
-        if (spawnedPlayers)
-            return;
-
-        TrySpawnPlayers();
-    }
+    TrySpawnPlayers();
+}
 
     private void TrySpawnPlayers()
     {
@@ -35,7 +36,7 @@ private bool spawningPlayers;
     if (spawnedPlayers)
         return;
         // This script must only work in the gameplay scene.
-        if (SceneManager.GetActiveScene().buildIndex != 3)
+        if (SceneManager.GetActiveScene().path != GAMEPLAY_SCENE_PATH)
             return;
 
         if (NetworkManager.Instance == null)
@@ -166,13 +167,32 @@ private async void SpawnPlayers(NetworkRunner runner)
                 character.gameplayPrefab,
                 spawnPoint.position,
                 spawnPoint.rotation,
-                player
+                player,
+                (runner, spawnedObject) =>
+                {
+                    NetworkPlayerState state =
+                        spawnedObject.GetComponent<NetworkPlayerState>();
+
+                    if (state != null)
+                    {
+                        state.SelectedCharacter =
+                            character.characterID;
+                    }
+                    else
+                    {
+                        Debug.LogError(
+                            "[GAMEPLAY SPAWNER] " +
+                            "Spawned player has no NetworkPlayerState."
+                        );
+                    }
+                }
             );
 
         if (gameplayPlayer == null)
         {
             Debug.LogError(
-                $"[GAMEPLAY SPAWNER] Failed to spawn gameplay player for {player}."
+                $"[GAMEPLAY SPAWNER] Failed to spawn gameplay player " +
+                $"for {player}."
             );
 
             continue;

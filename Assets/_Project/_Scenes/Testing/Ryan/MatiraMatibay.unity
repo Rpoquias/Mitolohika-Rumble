@@ -374158,6 +374158,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MatiraMatibayPlacementManager
   scoreManager: {fileID: 1198559363}
+  roundStateManager: {fileID: 1198559364}
 --- !u!114 &2078748454
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -374171,6 +374172,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WinnerDetector
   matiraMatibayManager: {fileID: 2078748456}
+  roundStateManager: {fileID: 1198559364}
 --- !u!114 &2078748455
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -381849,6 +381851,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 664724034}
     m_Modifications:
+    - target: {fileID: 641957599125478182, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -53.026794
+      objectReference: {fileID: 0}
     - target: {fileID: 757803176020646246, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
       propertyPath: m_AnchorMax.y
       value: 1
@@ -381919,7 +381925,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 990408231078869115, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0.00018310547
+      value: 0.00024414062
       objectReference: {fileID: 0}
     - target: {fileID: 990408231078869115, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
       propertyPath: m_AnchoredPosition.y

@@ -14,8 +14,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: NetworkedBehaviours.Array.size
-      value: 7
+      value: 9
       objectReference: {fileID: 0}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[8]'
+      value: 
+      objectReference: {fileID: -9162745311825536487}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: m_Name
       value: TikbalangCharacter
@@ -89,3 +93,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fd12d09cf5d84e1458d4cae7221b4749, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PowerfulKickAbility
+  cooldown: 5
+  targetRange: 4
+  maxVerticalDifference: 1.5
+  targetAngle: 25.7
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  knockbackForce: 15

@@ -1,8 +1,9 @@
 using System;
-using UnityEngine;
 using Fusion;
+using UnityEngine;
 
 [RequireComponent(typeof(PlayerMovement))]
+[RequireComponent(typeof(PlayerInputHandler))]
 public class PlayerBumpAttack : NetworkBehaviour
 {
     public event Action<PlayerElimination, PlayerElimination>
@@ -22,19 +23,13 @@ public class PlayerBumpAttack : NetworkBehaviour
     [SerializeField] private LayerMask _playerLayer;
 
     private PlayerMovement _movement;
-
+    private PlayerInputHandler _inputHandler;
+    private PlayerElimination _elimination;
+    private bool _canBump;
     private readonly Collider[] _hitColliders =
         new Collider[16];
 
-    [Networked]
-    private NetworkButtons PreviousButtons { get; set; }
-
-    private float _attackTimer;
-    private float _cooldownTimer;
-
-    private bool _isBumping;
-
-    private enum BumpState
+    private enum BumpState : byte
     {
         None,
         Startup,
@@ -42,162 +37,137 @@ public class PlayerBumpAttack : NetworkBehaviour
         Recovery
     }
 
-    private BumpState _state = BumpState.None;
+    [Networked]
+    private BumpState State { get; set; }
 
-    public override void Spawned()
-    {
-        _movement = GetComponent<PlayerMovement>();
-    }
+    [Networked]
+    private TickTimer AttackTimer { get; set; }
 
-public override void FixedUpdateNetwork()
+    [Networked]
+    private TickTimer CooldownTimer { get; set; }
+
+ public override void Spawned()
 {
-    UpdateTimers();
+    _movement = GetComponent<PlayerMovement>();
+    _inputHandler = GetComponent<PlayerInputHandler>();
+    _elimination = GetComponent<PlayerElimination>();
+}
 
-    if (GetInput(out NetworkInputData input))
+    public override void FixedUpdateNetwork()
     {
-        bool bumpPressed =
-            input.Buttons.WasPressed(
-                PreviousButtons,
-                EInputButton.Bump
-            );
+        if (!HasStateAuthority)
+            return;
 
-        if (bumpPressed)
+        if (_inputHandler.BumpPressed)
         {
             TryBump();
         }
 
-        PreviousButtons = input.Buttons;
-    }
-    else
-    {
-        PreviousButtons = default;
+        UpdateBumpState();
     }
 
-    UpdateBumpState();
+public void SetCanBump(bool canBump)
+{
+    _canBump = canBump;
+Debug.Log(
+        $"[BUMP] {name} CanBump = {_canBump}"
+    );
+    if (!canBump)
+    {
+        State = BumpState.None;
+        AttackTimer = TickTimer.None;
+        _movement.SetBusy(false);
+    }
 }
+ private void TryBump()
+{
 
-    private void UpdateTimers()
+    // Validate all requirements before initiating the bump action
+    if (!_canBump || 
+        !_movement.CanMove || 
+        _movement.IsBusy || 
+        _movement.IsStunned || 
+        !_movement.IsGrounded || 
+        State != BumpState.None || 
+        !CooldownTimer.ExpiredOrNotRunning(Runner))
     {
-        float deltaTime = Runner.DeltaTime;
-
-        if (_cooldownTimer > 0f)
-        {
-            _cooldownTimer -= deltaTime;
-
-            if (_cooldownTimer < 0f)
-                _cooldownTimer = 0f;
-        }
-
-        if (_attackTimer > 0f)
-        {
-            _attackTimer -= deltaTime;
-
-            if (_attackTimer < 0f)
-                _attackTimer = 0f;
-        }
+        return;
     }
 
-    private void TryBump()
+    State = BumpState.Startup;
+    AttackTimer = TickTimer.CreateFromSeconds(Runner, _startup);
+    _movement.SetBusy(true);
+}    private void UpdateBumpState()
     {
-        if (_movement == null)
+        if (State == BumpState.None)
             return;
 
-        if (!_movement.CanMove)
+        if (!AttackTimer.Expired(Runner))
             return;
 
-        if (_movement.IsBusy)
-            return;
-
-        if (!_movement.IsGrounded)
-            return;
-
-        if (_isBumping)
-            return;
-
-        if (_cooldownTimer > 0f)
-            return;
-
-        StartBump();
-    }
-
-    private void StartBump()
-    {
-        _isBumping = true;
-        _state = BumpState.Startup;
-
-        _attackTimer = _startup;
-
-        _movement.SetBusy(true);
-    }
-
-    private void UpdateBumpState()
-    {
-        if (!_isBumping)
-            return;
-
-        switch (_state)
+        switch (State)
         {
             case BumpState.Startup:
 
-    if (_attackTimer <= 0f)
-    {
-        _state = BumpState.Active;
-        _attackTimer = _activeTime;
+                State = BumpState.Active;
 
-        if (HasStateAuthority)
-        {
-            PerformBump();
-        }
-    }
+                AttackTimer =
+                    TickTimer.CreateFromSeconds(
+                        Runner,
+                        _activeTime
+                    );
 
-    break;
+                PerformBump();
+
+                break;
 
             case BumpState.Active:
 
-                if (_attackTimer <= 0f)
-                {
-                    _state = BumpState.Recovery;
-                    _attackTimer = _recovery;
-                }
+                State = BumpState.Recovery;
+
+                AttackTimer =
+                    TickTimer.CreateFromSeconds(
+                        Runner,
+                        _recovery
+                    );
 
                 break;
 
             case BumpState.Recovery:
 
-                if (_attackTimer <= 0f)
-                {
-                    FinishBump();
-                }
+                State = BumpState.None;
+
+                AttackTimer = TickTimer.None;
+
+                CooldownTimer =
+                    TickTimer.CreateFromSeconds(
+                        Runner,
+                        _cooldown
+                    );
+
+                _movement.SetBusy(false);
 
                 break;
         }
     }
 
-    private void FinishBump()
-    {
-        _isBumping = false;
-        _state = BumpState.None;
-
-        _movement.SetBusy(false);
-
-        _cooldownTimer = _cooldown;
-    }
-
     private void PerformBump()
     {
-        int hitCount = Runner.GetPhysicsScene()
-            .OverlapSphere(
-                transform.position +
+        int hitCount =
+            Runner.GetPhysicsScene()
+                .OverlapSphere(
+                    transform.position +
                     transform.forward * _range,
-                _radius,
-                _hitColliders,
-                _playerLayer,
-                QueryTriggerInteraction.Ignore
-            );
+                    _radius,
+                    _hitColliders,
+                    _playerLayer,
+                    QueryTriggerInteraction.Ignore
+                );
 
         for (int i = 0; i < hitCount; i++)
         {
-            Collider hit = _hitColliders[i];
+            Collider hit =
+                _hitColliders[i];
 
             if (hit == null)
                 continue;
@@ -236,23 +206,17 @@ public override void FixedUpdateNetwork()
                 knockbackDirection * _force
             );
 
-            PlayerElimination attacker =
-                GetComponent<PlayerElimination>();
-
             PlayerElimination victim =
                 otherPlayer.GetComponent<PlayerElimination>();
 
-            if (attacker != null && victim != null)
+            if (_elimination != null &&
+                victim != null)
             {
                 OnKnockbackApplied?.Invoke(
-                    attacker,
+                    _elimination,
                     victim
                 );
             }
-
-            Debug.Log(
-                $"[BUMP] {name} hit {otherPlayer.name}"
-            );
         }
     }
 
@@ -262,7 +226,7 @@ public override void FixedUpdateNetwork()
 
         Gizmos.DrawWireSphere(
             transform.position +
-                transform.forward * _range,
+            transform.forward * _range,
             _radius
         );
     }

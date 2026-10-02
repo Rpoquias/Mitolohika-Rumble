@@ -1,6 +1,6 @@
 using Fusion;
 using UnityEngine;
-
+using System.Collections.Generic;
 public class MatiraMatibayManager : MonoBehaviour
 {
     [Header("Systems")]
@@ -20,22 +20,15 @@ public class MatiraMatibayManager : MonoBehaviour
     private bool roundEnded = false;
 
     private void OnEnable()
-    {
-        if (roundStateManager == null)
-            return;
+{
+    if (roundStateManager == null)
+        return;
 
-        roundStateManager.OnRoundStarted += HandleRoundStarted;
-        roundStateManager.OnRoundEnded += HandleRoundEnded;
-        roundStateManager.OnRoundReset += HandleRoundReset;
-    }
-
-    private void Update()
-    {
-        if (initialized)
-            return;
-
-        TryInitialize();
-    }
+    roundStateManager.OnRoundStarted += HandleRoundStarted;
+    roundStateManager.OnRoundEnded += HandleRoundEnded;
+    roundStateManager.OnRoundReset += HandleRoundReset;
+    roundStateManager.OnStateChanged += HandleStateChanged;
+}
 
     private void TryInitialize()
     {
@@ -59,39 +52,102 @@ public class MatiraMatibayManager : MonoBehaviour
         );
     }
 
-    private void OnDestroy()
-    {
-        if (roundStateManager == null)
-            return;
+private void HandleStateChanged(
+    RoundStateManager.RoundState state)
+{
+    if (initialized)
+        return;
 
-        roundStateManager.OnRoundStarted -= HandleRoundStarted;
-        roundStateManager.OnRoundEnded -= HandleRoundEnded;
-        roundStateManager.OnRoundReset -= HandleRoundReset;
+    TryInitialize();
+}
+  private void OnDestroy()
+{
+    if (roundStateManager == null)
+        return;
+
+    roundStateManager.OnRoundStarted -= HandleRoundStarted;
+    roundStateManager.OnRoundEnded -= HandleRoundEnded;
+    roundStateManager.OnRoundReset -= HandleRoundReset;
+    roundStateManager.OnStateChanged -= HandleStateChanged;
+}
+
+ private void HandleRoundStarted()
+{
+    Debug.Log("Matira Matibay started!");
+
+    roundEnded = false;
+
+    placementManager.ResetPlacement();
+
+    scoreManager.StartScoring();
+
+    arenaShrinkController.StartShrinking();
+}
+private void HandleRoundEnded()
+{
+    Debug.Log(
+        "[MATIRA MANAGER] Matira Matibay round ended."
+    );
+
+    if (runner == null || !runner.IsServer)
+    {
+        return;
     }
 
-    private void HandleRoundStarted()
+    if (CurrentResult == null)
     {
-        Debug.Log("Matira Matibay started!");
+        Debug.LogError(
+            "[MATIRA MANAGER] CurrentResult is missing."
+        );
 
-        roundEnded = false;
-
-        placementManager.ResetPlacement();
-        winnerDetector.ResetWinnerDetector();
-
-        scoreManager.StartScoring();
-
-        arenaShrinkController.StartShrinking();
+        return;
     }
 
-    private void HandleRoundEnded()
+    if (MatchFlowManager.Instance == null)
     {
-        Debug.Log("Matira Matibay ended!");
+        Debug.LogError(
+            "[MATIRA MANAGER] MatchFlowManager is missing."
+        );
 
-        scoreManager.StopScoring();
-        arenaShrinkController.StopShrinking();
-
-        roundStateManager.RestartRound();
+        return;
     }
+
+    List<RoundPlacement> placements =
+        new List<RoundPlacement>();
+
+    foreach (
+        MatiraMatibayRoundResult.PlayerResult playerResult
+        in CurrentResult.results)
+    {
+        if (playerResult.player == null)
+            continue;
+
+        PlayerRef player =
+            playerResult.player.Object.InputAuthority;
+
+        if (!player.IsValid)
+        {
+            Debug.LogWarning(
+                "[MATIRA MANAGER] Invalid PlayerRef " +
+                $"for {playerResult.player.name}."
+            );
+
+            continue;
+        }
+
+        placements.Add(
+            new RoundPlacement
+            {
+                Player = player,
+                Placement = playerResult.placement
+            }
+        );
+    }
+
+    MatchFlowManager.Instance.HandleRoundComplete(
+        placements
+    );
+}
 
 private void HandleRoundReset()
 {
@@ -175,9 +231,11 @@ private void HandleRoundReset()
 }
  public void EndRound(PlayerElimination winner)
 {
-    if (roundEnded)
+      if (runner == null || !runner.IsServer)
         return;
 
+    if (roundEnded)
+        return;
     roundEnded = true;
 
 scoreManager.StopScoring();

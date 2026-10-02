@@ -142,12 +142,6 @@ public Transform CameraTransform => transform;
         }
 
         target = playerObject.transform;
-
-        Debug.Log(
-            $"[CAMERA] LocalPlayer: {runner.LocalPlayer} | " +
-            $"PlayerObject: {playerObject.name} | " +
-            $"Position: {playerObject.transform.position}"
-        );
     }
 
     private void OnEnable()

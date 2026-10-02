@@ -12,6 +12,14 @@ PrefabInstance:
       propertyPath: SortKey
       value: 586574522
       objectReference: {fileID: 0}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: NetworkedBehaviours.Array.size
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[8]'
+      value: 
+      objectReference: {fileID: 1922958611006219332}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: m_Name
       value: KapreCharacter
@@ -85,3 +93,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fca204739522bef45a9180438861bde1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SmokeScreenAbility
+  cooldown: 5
+  targetRange: 4
+  maxVerticalDifference: 1.5
+  targetAngle: 31.8
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  smokeCloudPrefab:
+    RawGuidValue: 17cdd9dc0fabcea4aab2497fb487a138
