@@ -18,6 +18,12 @@ EditorBuildSettings:
     path: Assets/_Project/_Scenes/Testing/Ryan/MatiraMatibay.unity
     guid: f10411806ae5a5240be505d6ec59c609
   - enabled: 1
+    path: Assets/_Project/_Scenes/Testing/Ryan/AgawanBandila.unity
+    guid: eb7d1222223e8f3448f1b4e1bca44612
+  - enabled: 1
+    path: Assets/_Project/_Scenes/Testing/Ryan/AgawanRelic.unity
+    guid: 7640678f1c3e4f042836303acdaaf646
+  - enabled: 1
     path: Assets/_Project/_Scenes/Testing/Ryan/Celebration.unity
     guid: dd1c55853c84a744aaf6999e7380bb0f
   m_configObjects:

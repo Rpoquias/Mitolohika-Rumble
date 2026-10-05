@@ -1,0 +1,42 @@
+using System;
+using System.Collections.Generic;
+using Fusion;
+using UnityEngine;
+
+public class PlayerRegistry : SimulationBehaviour
+{
+    public static PlayerRegistry Instance { get; private set; }
+
+    private readonly List<NetworkObject> players = new List<NetworkObject>();
+
+    public IReadOnlyList<NetworkObject> Players => players;
+
+    public event Action<NetworkObject> OnPlayerRegistered;
+    public event Action<NetworkObject> OnPlayerUnregistered;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+    }
+
+    public void RegisterPlayer(NetworkObject playerObject)
+    {
+        if (playerObject == null) return;
+        if (players.Contains(playerObject)) return;
+
+        players.Add(playerObject);
+
+        Debug.Log($"<color=#64B5F6><b>[PLAYER REGISTRY] OK</b> - Registered {playerObject.name} | Total players: {players.Count}</color>");
+
+        OnPlayerRegistered?.Invoke(playerObject);
+    }
+
+    public void UnregisterPlayer(NetworkObject playerObject)
+    {
+        if (playerObject == null) return;
+        if (!players.Remove(playerObject)) return;
+
+        OnPlayerUnregistered?.Invoke(playerObject);
+    }
+}
