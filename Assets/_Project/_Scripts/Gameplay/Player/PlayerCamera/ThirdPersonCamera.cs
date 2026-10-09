@@ -235,20 +235,30 @@ public class ThirdPersonCamera : MonoBehaviour
     public Transform CameraTransform =>
         transform;
 
-    private void TryFindLocalPlayer()
+  private void TryFindLocalPlayer()
+{
+    if (!runner.IsRunning)
+        return;
+
+    if (!runner.TryGetPlayerObject(
+            runner.LocalPlayer,
+            out NetworkObject playerObject))
     {
-        if (!runner.IsRunning)
-            return;
-
-        if (!runner.TryGetPlayerObject(
-                runner.LocalPlayer,
-                out NetworkObject playerObject))
-        {
-            return;
-        }
-
-        target = playerObject.transform;
+        return;
     }
+
+    Transform cameraTarget =
+        playerObject.transform.Find("CameraTarget");
+
+    if (cameraTarget == null)
+    {
+        Debug.LogError(
+            "[ThirdPersonCamera] CameraTarget not found on local player.");
+        return;
+    }
+
+    target = cameraTarget;
+}
 
     private void OnEnable()
     {

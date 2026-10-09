@@ -17,6 +17,10 @@ PrefabInstance:
       value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[7]'
+      value: 
+      objectReference: {fileID: 3832097410379874835}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[8]'
       value: 
       objectReference: {fileID: 1922958611006219332}
@@ -102,3 +106,14 @@ MonoBehaviour:
     m_Bits: 64
   smokeCloudPrefab:
     RawGuidValue: 17cdd9dc0fabcea4aab2497fb487a138
+--- !u!114 &3832097410379874835 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2502265891853913773, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 1699983346091969726}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1363756898350676128}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 839f5b9b5c2436c438e1f362104d0ddb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInputHandler

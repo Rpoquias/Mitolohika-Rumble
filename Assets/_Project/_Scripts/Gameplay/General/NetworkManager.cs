@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
 using Fusion.Sockets;
 
 public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
@@ -12,7 +13,7 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
     [SerializeField] private int lobbySceneBuildIndex;
     [SerializeField] private NetworkObject matchSessionPrefab;
-
+[SerializeField] private NetworkRunner runnerPrefab;
     public static NetworkManager Instance { get; private set; }
     public MatchSession CurrentMatchSession { get; private set; }
     public MainMenuMessage PendingMainMenuMessage { get; private set; }
@@ -161,13 +162,13 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     private void ReturnToMainMenu()
     {
         SceneManager.sceneLoaded += OnMainMenuLoaded;
-        SceneManager.LoadScene("MainMenu 1");
+        SceneManager.LoadScene("MainMenu");
     }
 
     private void OnMainMenuLoaded(Scene scene, LoadSceneMode mode)
     {
         SceneManager.sceneLoaded -= OnMainMenuLoaded;
-        if (scene.name != "MainMenu 1") return;
+        if (scene.name != "MainMenu") return;
 
         MainMenuUI mainMenu = FindAnyObjectByType<MainMenuUI>();
         if (mainMenu != null) mainMenu.ShowJoinPanel();
@@ -192,15 +193,22 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     private NetworkRunner CreateRunner()
+{
+    if (runnerPrefab == null)
     {
-        GameObject runnerObject = new GameObject("NetworkRunner");
-        NetworkRunner newRunner = runnerObject.AddComponent<NetworkRunner>();
-
-        // Gameplay input is enabled by RoundStateManager only when the round starts.
-        newRunner.ProvideInput = true;
-        newRunner.AddCallbacks(this);
-        return newRunner;
+        Debug.LogError("[NETWORK MANAGER] Runner prefab is not assigned.");
+        return null;
     }
+
+    NetworkRunner newRunner = Instantiate(runnerPrefab);
+
+    newRunner.name = "NetworkRunner";
+
+    newRunner.ProvideInput = true;
+    newRunner.AddCallbacks(this);
+
+    return newRunner;
+}
 
     private NetworkRunner GetOrCreateRunner()
     {

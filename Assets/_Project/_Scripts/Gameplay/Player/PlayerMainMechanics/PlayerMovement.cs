@@ -99,47 +99,54 @@ public event Action OnHitReceived;
         }
     }
 
-    public override void FixedUpdateNetwork()
+  public override void FixedUpdateNetwork()
+{
+    CheckGround();
+
+    bool shouldSimulateMovement =
+        HasStateAuthority ||
+        HasInputAuthority;
+
+    if (!shouldSimulateMovement)
+        return;
+
+    bool gotInput =
+        GetInput(out NetworkInputData input);
+
+    if (gotInput)
     {
-        CheckGround();
-
-        bool gotInput =
-            GetInput(out NetworkInputData input);
-
-        if (gotInput)
-        {
-            _moveDirection =
-                new Vector3(
-                    input.MoveDirection.x,
-                    0f,
-                    input.MoveDirection.y
-                );
-
-            if (_inputHandler != null &&
-                _inputHandler.JumpPressed &&
-                _isGrounded &&
-                !IsStunned)
-            {
-                Jump();
-            }
-        }
-        else
-        {
-            _moveDirection = Vector3.zero;
-        }
-
-        Move();
-        Rotate();
-        ApplyBetterGravity();
-
-        ExternalVelocity =
-            Vector3.MoveTowards(
-                ExternalVelocity,
-                Vector3.zero,
-                _externalVelocityDamping *
-                Runner.DeltaTime
+        _moveDirection =
+            new Vector3(
+                input.MoveDirection.x,
+                0f,
+                input.MoveDirection.y
             );
+
+        if (_inputHandler != null &&
+            _inputHandler.JumpPressed &&
+            _isGrounded &&
+            !IsStunned)
+        {
+            Jump();
+        }
     }
+    else
+    {
+        _moveDirection = Vector3.zero;
+    }
+
+    Move();
+    Rotate();
+    ApplyBetterGravity();
+
+    ExternalVelocity =
+        Vector3.MoveTowards(
+            ExternalVelocity,
+            Vector3.zero,
+            _externalVelocityDamping *
+            Runner.DeltaTime
+        );
+}
 
     public void SetBusy(bool busy)
     {

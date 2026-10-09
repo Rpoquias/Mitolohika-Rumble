@@ -17,6 +17,13 @@
       },
       "hash": "4ce7dd3cc54e37e2ed6dc59cb5a047f3dccb3f50"
     },
+    "com.photonengine.fusion-physics": {
+      "version": "https://github.com/Photon-Server/Photon-UPM.git#fusion/v2/fusion-physics",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "30751772c97828f4ab637904424dd677012e95ad"
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,

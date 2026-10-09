@@ -15,13 +15,13 @@ GameObject:
   - component: {fileID: 8123948571029384756}
   - component: {fileID: 7943311670696920883}
   - component: {fileID: 61308517068521054}
-  - component: {fileID: 1837740232475234021}
   - component: {fileID: 5822319257664240599}
   - component: {fileID: 4140746165335911940}
   - component: {fileID: -843958846417892597}
   - component: {fileID: 765166597663014697}
   - component: {fileID: 2502265891853913773}
   - component: {fileID: 2831514250339324669}
+  - component: {fileID: 2168883246267595000}
   m_Layer: 6
   m_Name: PlayerTemplate
   m_TagString: Untagged
@@ -42,6 +42,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 644318686652043140}
   - {fileID: 6487710371806632542}
   - {fileID: 1135736630815222368}
   - {fileID: 2572972071926510844}
@@ -181,7 +182,7 @@ MonoBehaviour:
   Flags: 262402
   NestedObjects: []
   NetworkedBehaviours:
-  - {fileID: 1837740232475234021}
+  - {fileID: 2168883246267595000}
   - {fileID: 5346804513213949179}
   - {fileID: 8123948571029384756}
   - {fileID: 7943311670696920883}
@@ -190,46 +191,6 @@ MonoBehaviour:
   - {fileID: 765166597663014697}
   - {fileID: 2502265891853913773}
   ForceRemoteRenderTimeframe: 0
---- !u!114 &1837740232475234021
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 394773554417792030}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 158639473, guid: e725a070cec140c4caffb81624c8c787, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkTransform
-  _stateAuthorityChangeErrorCorrectionDelta: 0
-  SyncScale: 0
-  SyncParent: 0
-  _autoAOIOverride: 1
-  ConfigFlags: 0
-  PhysicsSettings:
-    ForecastEnabled: 1
-    DebugPhysics: 0
-    GravityForecast: 2
-    MaxExtrapolationTime: 0.15
-    MinLinearDetectedError: 0.1
-    MinAngularDetectedError: 3
-    MaxLinearError: 0
-    MaxAngularError: 0
-    LowCorrectionProgressThreshold: 0.015
-    HighErrorSimilarityThreshold: 1
-    MaxErrorTotalTime: 0.5
-    MaxRemoteSleepIgnoreTime: 0.5
-    ErrorCorrectionType: 0
-    LinearVelCorrectionMul: 1
-    AngularVelCorrectionMul: 1
-    PositionCorrectionLerp: 0.15
-    RotationCorrectionLerp: 0.17
-    Spring: 75
-    Damper: 2
-    MinImpactfulCollisionAlignment: 0.3
-    ImpactStartCorrectionTime: 0.1
-    ImpactCorrectionTimeComplete: 0.3
 --- !u!114 &5822319257664240599
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -315,7 +276,25 @@ MonoBehaviour:
   stunVfx: {fileID: 0}
   kickClip: {fileID: 0}
   stunClip: {fileID: 0}
+  characterVisual: {fileID: 0}
+  localInvisibleVisual: {fileID: 0}
   smokeOverlay: {fileID: 5440280122299330949}
+--- !u!114 &2168883246267595000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394773554417792030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5baa37e08a734f79b9f3720311e58752, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Addons.Physics::Fusion.Addons.Physics.NetworkRigidbody
+  _stateAuthorityChangeErrorCorrectionDelta: 0
+  SyncScale: 0
+  SyncParent: 0
+  _interpolationTarget: {fileID: 644318686652043140}
 --- !u!1 &1096132585349599618
 GameObject:
   m_ObjectHideFlags: 0
@@ -342,6 +321,37 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -1.064, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6939807543374404225}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &4906323175606873485
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 644318686652043140}
+  m_Layer: 6
+  m_Name: CameraTarget
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &644318686652043140
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4906323175606873485}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.594, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -16,16 +16,16 @@ public class MatchFlowManager : MonoBehaviour
 private bool resultCompleted;
 
     private const string MATIRA_SCENE_PATH =
-        "Assets/_Project/_Scenes/Testing/Ryan/MatiraMatibay.unity";
+        "Assets/_Project/_Scenes/Main/MatiraMatibay.unity";
 
 private const string AGAWAN_RELIC_SCENE_PATH =
-    "Assets/_Project/_Scenes/Testing/Ryan/AgawanRelic.unity";
+    "Assets/_Project/_Scenes/Main/AgawanRelic.unity";
 
 private const string AGAWAN_BANDILA_SCENE_PATH =
-    "Assets/_Project/_Scenes/Testing/Ryan/AgawanBandila.unity";
+    "Assets/_Project/_Scenes/Main/AgawanBandila.unity";
 
     private const string CELEBRATION_SCENE_PATH =
-        "Assets/_Project/_Scenes/Testing/Ryan/Celebration.unity";
+        "Assets/_Project/_Scenes/Main/Celebration.unity";
 
     private Coroutine roundRevealCoroutine;
 

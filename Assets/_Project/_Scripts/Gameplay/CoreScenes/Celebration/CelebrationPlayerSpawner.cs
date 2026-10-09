@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 public class CelebrationPlayerSpawner : MonoBehaviour
 {
     private const string CELEBRATION_SCENE_PATH =
-        "Assets/_Project/_Scenes/Testing/Ryan/Celebration.unity";
+        "Assets/_Project/_Scenes/Main/Celebration.unity";
 
     [Header("Characters")]
     [SerializeField]

@@ -10,6 +10,6 @@ public class NetworkBootstrap : MonoBehaviour
 
     private void Start()
     {
-        SceneManager.LoadScene("MainMenu 1");
+        SceneManager.LoadScene("MainMenu");
     }
 }
