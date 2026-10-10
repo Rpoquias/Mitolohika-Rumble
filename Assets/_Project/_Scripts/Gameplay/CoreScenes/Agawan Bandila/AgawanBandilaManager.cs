@@ -23,19 +23,19 @@ public class AgawanBandilaManager : MonoBehaviour
         new List<Quaternion>();
 
     private void Start()
+{
+    CacheFlagStartPositions();
+    ValidateFlagReferences();
+
+    if (roundStateManager != null)
     {
-        CacheFlagStartPositions();
+        roundStateManager.OnRoundStarted +=
+            HandleRoundStarted;
 
-        if (roundStateManager != null)
-        {
-            roundStateManager.OnRoundStarted +=
-                HandleRoundStarted;
-
-            roundStateManager.OnRoundReset +=
-                HandleRoundReset;
-        }
+        roundStateManager.OnRoundReset +=
+            HandleRoundReset;
     }
-
+}
  private void Update()
 {
     if (!roundActive)
@@ -355,6 +355,42 @@ if (MatchFlowManager.Instance == null)
             );
         }
     }
+    private void ValidateFlagReferences()
+{
+    BandilaController[] sceneFlags =
+        FindObjectsByType<BandilaController>();
+
+    HashSet<BandilaController> assignedFlags =
+        new HashSet<BandilaController>();
+
+    if (flags != null)
+    {
+        foreach (BandilaController flag in flags)
+        {
+            if (flag != null)
+                assignedFlags.Add(flag);
+        }
+    }
+
+    foreach (BandilaController sceneFlag in sceneFlags)
+    {
+        if (!assignedFlags.Contains(sceneFlag))
+        {
+            Debug.LogWarning(
+                $"[BANDILA MANAGER] Flag " +
+                $"{sceneFlag.name} is missing from " +
+                $"the manager's flags array.",
+                sceneFlag
+            );
+        }
+    }
+
+    Debug.Log(
+        $"[BANDILA MANAGER] Tracking " +
+        $"{assignedFlags.Count} flag references; " +
+        $"found {sceneFlags.Length} flags in the scene."
+    );
+}
 
     public void ResetBases()
     {

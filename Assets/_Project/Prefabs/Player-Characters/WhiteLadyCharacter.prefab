@@ -18,7 +18,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: NetworkedBehaviours.Array.size
-      value: 9
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[0]'
@@ -54,6 +54,10 @@ PrefabInstance:
       objectReference: {fileID: 8605761389151861628}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[8]'
+      value: 
+      objectReference: {fileID: 8560814566445410067}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[9]'
       value: 
       objectReference: {fileID: 3992416396935922465}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
@@ -223,6 +227,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fd7dc8b3ff581b245b8076ae42222b42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkPlayerInput
+--- !u!114 &8560814566445410067 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2529339143744099010, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 6184598912061175249}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5813759565420167631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5aa22db8b4a8f1149ab0f0e497cd8225, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStatusEffects
 --- !u!114 &8605761389151861628 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2502265891853913773, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}

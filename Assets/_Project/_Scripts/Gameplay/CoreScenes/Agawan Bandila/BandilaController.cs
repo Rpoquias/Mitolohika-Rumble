@@ -11,9 +11,9 @@ public class BandilaController : NetworkBehaviour
     }
 
     [Header("Game Manager")]
-[SerializeField] private AgawanBandilaManager flagManager;
+    [SerializeField] private AgawanBandilaManager flagManager;
 
-        [Header("Pickup")]
+    [Header("Pickup")]
     [SerializeField] private float pickupRadius = 1f;
     [SerializeField] private float pickupLockDuration = 0.6f;
     [SerializeField] private float previousHolderLockDuration = 1f;
@@ -136,11 +136,8 @@ public class BandilaController : NetworkBehaviour
 if (IsPreviousHolderLocked(player))
     continue;
 
-if (flagManager != null &&
-    flagManager.IsPlayerCarryingFlag(player))
-{
+if (IsCarryingAnotherFlag(player))
     continue;
-}
 
 Pickup(player);
 return;
@@ -163,34 +160,36 @@ return;
         return _previousHolder;
     }
 
-    private void Pickup(PlayerRef player)
+  private void Pickup(PlayerRef player)
+{
+    if (State != FlagState.Free)
+        return;
+
+    if (IsCarryingAnotherFlag(player))
+        return;
+
+    if (!Runner.TryGetPlayerObject(
+            player,
+            out NetworkObject playerObject))
     {
-        if (State != FlagState.Free)
-            return;
-
-        if (!Runner.TryGetPlayerObject(
-                player,
-                out NetworkObject playerObject))
-        {
-            return;
-        }
-
-        State = FlagState.Carried;
-        Holder = player;
-        StoredOwner = PlayerRef.None;
-
-_holderMovement =
-    playerObject.GetComponent<PlayerMovement>();
-
-SubscribeToHolder(_holderMovement);
-
-        UpdateCarriedPosition();
-
-        Debug.Log(
-            $"[BANDILA FLAG] {player} picked up a flag."
-        );
+        return;
     }
 
+    State = FlagState.Carried;
+    Holder = player;
+    StoredOwner = PlayerRef.None;
+
+    _holderMovement =
+        playerObject.GetComponent<PlayerMovement>();
+
+    SubscribeToHolder(_holderMovement);
+
+    UpdateCarriedPosition();
+
+    Debug.Log(
+        $"[BANDILA FLAG] {player} picked up a flag."
+    );
+}
     private void UpdateCarriedPosition()
     {
         if (Holder == PlayerRef.None)
@@ -306,7 +305,32 @@ SubscribeToHolder(_holderMovement);
         );
     }
 
-   public void StealFromBase(PlayerRef player)
+private bool IsCarryingAnotherFlag(PlayerRef player)
+{
+    if (flagManager != null &&
+        flagManager.IsPlayerCarryingFlag(player))
+    {
+        return true;
+    }
+
+    BandilaController[] flags =
+        FindObjectsByType<BandilaController>();
+
+    foreach (BandilaController flag in flags)
+    {
+        if (flag == null || flag == this)
+            continue;
+
+        if (flag.State == FlagState.Carried &&
+            flag.Holder == player)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+ public void StealFromBase(PlayerRef player)
 {
     if (!HasStateAuthority)
         return;
@@ -316,28 +340,27 @@ SubscribeToHolder(_holderMovement);
 
     if (StoredOwner == player)
         return;
-        
-if (flagManager != null &&
-    flagManager.IsPlayerCarryingFlag(player))
-{
-    return;
-}
+
+    if (IsCarryingAnotherFlag(player))
+        return;
+
+    if (!Runner.TryGetPlayerObject(
+            player,
+            out NetworkObject playerObject))
+    {
+        return;
+    }
 
     StoredOwner = PlayerRef.None;
     State = FlagState.Carried;
     Holder = player;
 
-    if (Runner.TryGetPlayerObject(
-            player,
-            out NetworkObject playerObject))
-    {
-        _holderMovement =
-            playerObject.GetComponent<PlayerMovement>();
+    _holderMovement =
+        playerObject.GetComponent<PlayerMovement>();
 
-        SubscribeToHolder(_holderMovement);
+    SubscribeToHolder(_holderMovement);
 
-        UpdateCarriedPosition();
-    }
+    UpdateCarriedPosition();
 
     Debug.Log(
         $"[BANDILA FLAG] {player} stole a flag."

@@ -1,3 +1,4 @@
+
 using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
@@ -10,7 +11,8 @@ public class SmokeCloud : NetworkBehaviour
     [Header("Smoke")]
     [SerializeField] private float lifetime = 4f;
 
-    private readonly HashSet<PlayerMovement> playersInside = new();
+    private readonly Dictionary<PlayerStatusEffects, HashSet<Collider>>
+        playersInside = new();
 
     private TickTimer lifetimeTimer;
 
@@ -19,11 +21,10 @@ public class SmokeCloud : NetworkBehaviour
         if (!HasStateAuthority)
             return;
 
-        lifetimeTimer =
-            TickTimer.CreateFromSeconds(
-                Runner,
-                lifetime
-            );
+        lifetimeTimer = TickTimer.CreateFromSeconds(
+            Runner,
+            lifetime
+        );
     }
 
     public override void FixedUpdateNetwork()
@@ -31,12 +32,13 @@ public class SmokeCloud : NetworkBehaviour
         if (!HasStateAuthority)
             return;
 
-        if (lifetimeTimer.Expired(Runner))
-        {
-            ClearPlayersInside();
+        if (!lifetimeTimer.Expired(Runner))
+            return;
 
-            Runner.Despawn(Object);
-        }
+        ClearPlayersInside();
+
+        // The player's networked status persists after this despawn.
+        Runner.Despawn(Object);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -44,20 +46,30 @@ public class SmokeCloud : NetworkBehaviour
         if (!HasStateAuthority)
             return;
 
-        PlayerMovement player =
-            other.GetComponentInParent<PlayerMovement>();
+        PlayerStatusEffects status =
+            other.GetComponentInParent<PlayerStatusEffects>();
 
-        if (player == null)
+        if (status == null || status.Object == null)
             return;
 
-        // Kapre cannot be affected by its own smoke.
-        if (player.Object.InputAuthority == Owner)
+        // Kapre is immune to its own smoke.
+        if (status.Object.InputAuthority == Owner)
             return;
 
-        if (!playersInside.Add(player))
+        if (!playersInside.TryGetValue(
+                status,
+                out HashSet<Collider> colliders))
+        {
+            colliders = new HashSet<Collider>();
+            playersInside.Add(status, colliders);
+        }
+
+        if (!colliders.Add(other))
             return;
 
-        SetSmokeEffect(player, true);
+        // One smoke source per player per cloud.
+        if (colliders.Count == 1)
+            status.AddSmokeSource();
     }
 
     private void OnTriggerExit(Collider other)
@@ -65,80 +77,42 @@ public class SmokeCloud : NetworkBehaviour
         if (!HasStateAuthority)
             return;
 
-        PlayerMovement player =
-            other.GetComponentInParent<PlayerMovement>();
+        PlayerStatusEffects status =
+            other.GetComponentInParent<PlayerStatusEffects>();
 
-        if (player == null)
+        if (status == null)
             return;
 
-        if (!playersInside.Remove(player))
-            return;
-
-        SetSmokeEffect(player, false);
-    }
-
-    private void SetSmokeEffect(
-        PlayerMovement player,
-        bool active)
-    {
-        if (player == null)
-            return;
-
-        RPC_SetSmokeEffect(
-            player.Object.InputAuthority,
-            active
-        );
-    }
-
-    [Rpc(
-        RpcSources.StateAuthority,
-        RpcTargets.All
-    )]
-    private void RPC_SetSmokeEffect(
-        PlayerRef target,
-        bool active)
-    {
-        if (Runner.LocalPlayer != target)
-            return;
-
-        PlayerPresentation presentation =
-            FindLocalPlayerPresentation();
-
-        if (presentation == null)
-            return;
-
-        presentation.SetSmokeEffect(active);
-    }
-
-    private PlayerPresentation FindLocalPlayerPresentation()
-    {
-        if (PlayerRegistry.Instance == null)
-            return null;
-
-        foreach (NetworkObject playerObject
-                 in PlayerRegistry.Instance.Players)
+        if (!playersInside.TryGetValue(
+                status,
+                out HashSet<Collider> colliders))
         {
-            if (playerObject == null)
-                continue;
-
-            if (playerObject.InputAuthority != Runner.LocalPlayer)
-                continue;
-
-            return playerObject
-                .GetComponent<PlayerPresentation>();
+            return;
         }
 
-        return null;
+        if (!colliders.Remove(other))
+            return;
+
+        // Keep the effect until every collider has exited.
+        if (colliders.Count > 0)
+            return;
+
+        playersInside.Remove(status);
+        status.RemoveSmokeSource();
     }
 
     private void ClearPlayersInside()
     {
-        foreach (PlayerMovement player in playersInside)
+        foreach (KeyValuePair<PlayerStatusEffects, HashSet<Collider>>
+                 entry in playersInside)
         {
-            if (player == null)
+            PlayerStatusEffects status = entry.Key;
+
+            if (status == null || status.Object == null)
                 continue;
 
-            SetSmokeEffect(player, false);
+            // Decrement once for this cloud, not once per collider.
+            status.RemoveSmokeSource();
         }
 
         playersInside.Clear();
@@ -156,9 +130,9 @@ public class SmokeCloud : NetworkBehaviour
         NetworkRunner runner,
         bool hasState)
     {
-        if (!HasStateAuthority)
-            return;
-
-        playersInside.Clear();
+        // Safety cleanup for early despawns.
+        // Normal expiration already empties the dictionary.
+        if (hasState && runner.IsServer)
+            ClearPlayersInside();
     }
 }

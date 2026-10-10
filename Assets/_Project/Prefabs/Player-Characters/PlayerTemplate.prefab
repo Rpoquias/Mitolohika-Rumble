@@ -22,6 +22,7 @@ GameObject:
   - component: {fileID: 2502265891853913773}
   - component: {fileID: 2831514250339324669}
   - component: {fileID: 2168883246267595000}
+  - component: {fileID: 2529339143744099010}
   m_Layer: 6
   m_Name: PlayerTemplate
   m_TagString: Untagged
@@ -190,6 +191,7 @@ MonoBehaviour:
   - {fileID: -843958846417892597}
   - {fileID: 765166597663014697}
   - {fileID: 2502265891853913773}
+  - {fileID: 2529339143744099010}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &5822319257664240599
 MonoBehaviour:
@@ -295,6 +297,18 @@ MonoBehaviour:
   SyncScale: 0
   SyncParent: 0
   _interpolationTarget: {fileID: 644318686652043140}
+--- !u!114 &2529339143744099010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394773554417792030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5aa22db8b4a8f1149ab0f0e497cd8225, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStatusEffects
 --- !u!1 &1096132585349599618
 GameObject:
   m_ObjectHideFlags: 0

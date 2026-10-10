@@ -20,21 +20,20 @@ public class PlayerPresentation : MonoBehaviour
     [Header("Smoke")]
     [SerializeField] private GameObject smokeOverlay;
 
+private PlayerStatusEffects smokeStatus;
+private bool lastSmokeState;
+
     private PlayerMovement movement;
     private InvisibilityAbility invisibility;
 
     private bool lastStunState;
     private bool lastInvisibleState;
 
-    public void SetSmokeEffect(bool active)
-    {
-        if (smokeOverlay != null)
-            smokeOverlay.SetActive(active);
-    }
-private void Awake()
+  private void Awake()
 {
     movement = GetComponent<PlayerMovement>();
     invisibility = GetComponent<InvisibilityAbility>();
+    smokeStatus = GetComponent<PlayerStatusEffects>();
 
     if (smokeOverlay != null)
         smokeOverlay.SetActive(false);
@@ -44,12 +43,15 @@ private void Awake()
 
     if (characterVisual != null)
         characterVisual.SetActive(true);
+
+        
 }
 
     private void Update()
     {
         UpdateStunPresentation();
         UpdateInvisibilityPresentation();
+        UpdateSmokePresentation();
     }
 
     private void UpdateStunPresentation()
@@ -66,6 +68,31 @@ private void Awake()
 
         SetStunPresentation(stunned);
     }
+
+private void UpdateSmokePresentation()
+{
+    if (smokeStatus == null ||
+        smokeStatus.Object == null)
+    {
+        return;
+    }
+
+    // Only the affected local player sees the screen overlay.
+    bool isLocalPlayer =
+        smokeStatus.Object.InputAuthority ==
+        smokeStatus.Runner.LocalPlayer;
+
+    bool active =
+        isLocalPlayer && smokeStatus.IsInSmoke;
+
+    if (active == lastSmokeState)
+        return;
+
+    lastSmokeState = active;
+
+    if (smokeOverlay != null)
+        smokeOverlay.SetActive(active);
+}
 
     private void SetStunPresentation(bool stunned)
     {
