@@ -9,6 +9,7 @@ public class PlayerMovement : NetworkBehaviour
 {
 public event Action OnHitReceived;
 
+
     [Header("Control")]
     [SerializeField] private bool _initialCanMove = true;
 
@@ -47,6 +48,8 @@ public event Action OnHitReceived;
 
     [Networked]
     private TickTimer StunTimer { get; set; }
+    [Networked]
+public NetworkBool CanJump { get; private set; }
 
     [Networked]
     private Vector3 CurrentMoveVelocity { get; set; }
@@ -59,9 +62,13 @@ public event Action OnHitReceived;
 
     [Networked]
     public NetworkBool CanMove { get; private set; }
-
+[Networked]
+private float MovementSpeedMultiplier { get; set; } = 1f;
+[Networked, OnChangedRender(nameof(OnHitSequenceChanged))]
+private int HitSequence { get; set; }
     private Rigidbody _rb;
     private PlayerInputHandler _inputHandler;
+    private PlayerControlEffects _controlEffects;
 
     private Vector3 _moveDirection;
     private bool _isGrounded;
@@ -73,7 +80,10 @@ public event Action OnHitReceived;
 
     public bool IsStunned =>
         !StunTimer.ExpiredOrNotRunning(Runner);
-
+private void OnHitSequenceChanged()
+{
+    OnHitReceived?.Invoke();
+}
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
@@ -83,6 +93,8 @@ public event Action OnHitReceived;
     {
         _inputHandler =
             GetComponent<PlayerInputHandler>();
+            _controlEffects =
+    GetComponent<PlayerControlEffects>();
 
         if (_inputHandler == null)
         {
@@ -91,12 +103,12 @@ public event Action OnHitReceived;
                 $"{name} requires a {nameof(PlayerInputHandler)}."
             );
         }
-
-        if (HasStateAuthority)
-        {
-            CanMove = _initialCanMove;
-            IsBusy = false;
-        }
+if (HasStateAuthority)
+{
+    CanMove = _initialCanMove;
+    CanJump = true;
+    IsBusy = false;
+}
     }
 
   public override void FixedUpdateNetwork()
@@ -115,20 +127,28 @@ public event Action OnHitReceived;
 
     if (gotInput)
     {
-        _moveDirection =
-            new Vector3(
-                input.MoveDirection.x,
-                0f,
-                input.MoveDirection.y
-            );
+      Vector2 moveInput = input.MoveDirection;
 
-        if (_inputHandler != null &&
-            _inputHandler.JumpPressed &&
-            _isGrounded &&
-            !IsStunned)
-        {
-            Jump();
-        }
+if (_controlEffects != null &&
+    _controlEffects.IsInputReversed)
+{
+    moveInput = -moveInput;
+}
+
+_moveDirection = new Vector3(
+    moveInput.x,
+    0f,
+    moveInput.y
+);
+
+       if (_inputHandler != null &&
+    _inputHandler.JumpPressed &&
+    CanJump &&
+    _isGrounded &&
+    !IsStunned)
+{
+    Jump();
+}
     }
     else
     {
@@ -158,10 +178,13 @@ public event Action OnHitReceived;
         }
     }
 
- public void AddExternalForce(Vector3 force)
+public void AddExternalForce(Vector3 force)
 {
+    if (!HasStateAuthority)
+        return;
+
     ExternalVelocity += force;
-    OnHitReceived?.Invoke();
+    HitSequence++;
 }
 
 public void ApplyStun(float duration)
@@ -178,7 +201,8 @@ public void ApplyStun(float duration)
     _moveDirection = Vector3.zero;
     CurrentMoveVelocity = Vector3.zero;
 
-    OnHitReceived?.Invoke();
+    HitSequence++;
+
 }
 
     public void SetCanMove(bool canMove)
@@ -191,6 +215,13 @@ public void ApplyStun(float duration)
             CurrentMoveVelocity = Vector3.zero;
         }
     }
+    public void SetMovementSpeedMultiplier(float multiplier)
+{
+    if (!HasStateAuthority)
+        return;
+
+    MovementSpeedMultiplier = Mathf.Max(0f, multiplier);
+}
 
     private void Move()
     {
@@ -208,8 +239,8 @@ public void ApplyStun(float duration)
                     1f
                 );
 
-            Vector3 targetVelocity =
-                movement * _moveSpeed;
+          Vector3 targetVelocity =
+    movement * _moveSpeed * MovementSpeedMultiplier;
 
             float speedChange =
                 movement.sqrMagnitude > 0.01f
@@ -267,6 +298,13 @@ public void ApplyStun(float duration)
         _rb.MoveRotation(newRotation);
     }
 
+public void SetCanJump(bool canJump)
+{
+    if (!HasStateAuthority)
+        return;
+
+    CanJump = canJump;
+}
     private void Jump()
     {
         Vector3 velocity =

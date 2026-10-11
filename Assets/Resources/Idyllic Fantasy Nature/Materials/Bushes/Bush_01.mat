@@ -178,6 +178,7 @@ Material:
     - _Wind_Strength: 0.2
     - _Wind_Variation: 0
     - _WorkflowMode: 0
+    - _XRMotionVectorsPass: 1
     - _ZTest: 4
     - _ZWrite: 1
     - _ZWriteControl: 0

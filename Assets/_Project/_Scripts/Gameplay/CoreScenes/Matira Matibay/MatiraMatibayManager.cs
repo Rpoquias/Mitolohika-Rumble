@@ -11,7 +11,8 @@ public class MatiraMatibayManager : MonoBehaviour
     [SerializeField] private MatiraMatibayPlacementManager placementManager;
     [SerializeField] private MatiraMatibayEliminationManager eliminationManager;
     [SerializeField] private SpawnPointManager spawnPointManager;
-
+[Header("Spectator")]
+[SerializeField] private SpectatorController spectatorController;
 
     private NetworkRunner runner;
 
@@ -221,10 +222,15 @@ public void EndRound(
     // RESET
     // ============================================================
 
- private void HandleRoundReset()
+private void HandleRoundReset()
 {
-    roundEnded = false;
+    if (spectatorController != null)
+        spectatorController.ResetSpectator();
 
+    if (!initialized)
+        TryInitialize();
+
+    roundEnded = false;
     currentPlacements.Clear();
 
     if (eliminationManager != null)
@@ -233,11 +239,11 @@ public void EndRound(
     if (placementManager != null)
         placementManager.ResetPlacement();
 
-    arenaShrinkController.ResetArena();
+    if (arenaShrinkController != null)
+        arenaShrinkController.ResetArena();
 
     ResetAllPlayers();
 }
-
     // ============================================================
     // PLAYER RESET
     // ============================================================
@@ -292,10 +298,8 @@ public void EndRound(
                 continue;
             }
 
-            Transform spawnPoint =
-                spawnPointManager.GetSpawnPoint(
-                    player
-                );
+      Transform spawnPoint =
+    spawnPointManager.GetSpawnPoint(player, runner);
 
             if (spawnPoint == null)
             {

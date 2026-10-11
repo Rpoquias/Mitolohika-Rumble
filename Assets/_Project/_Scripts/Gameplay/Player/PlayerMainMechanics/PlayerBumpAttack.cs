@@ -30,6 +30,8 @@ public class PlayerBumpAttack : NetworkBehaviour
     private readonly Collider[] _hitColliders =
         new Collider[16];
 
+        public event Action OnBumpStarted;
+
     private enum BumpState : byte
     {
         None,
@@ -47,13 +49,13 @@ public class PlayerBumpAttack : NetworkBehaviour
     [Networked]
     private TickTimer CooldownTimer { get; set; }
 
- public override void Spawned()
+public override void Spawned()
 {
     _movement = GetComponent<PlayerMovement>();
     _inputHandler = GetComponent<PlayerInputHandler>();
     _elimination = GetComponent<PlayerElimination>();
-}
 
+}
     public override void FixedUpdateNetwork()
     {
         if (!HasStateAuthority)
@@ -95,25 +97,31 @@ Debug.Log(
         _movement.SetBusy(false);
     }
 }
- private void TryBump()
+private void TryBump()
 {
-
-if (!_canBump ||
-    _relicBlocksBump ||
-    !_movement.CanMove ||
-    _movement.IsBusy ||
-    _movement.IsStunned ||
-    !_movement.IsGrounded ||
-    State != BumpState.None ||
-    !CooldownTimer.ExpiredOrNotRunning(Runner))
-{
-    return;
-}
+    if (!_canBump ||
+        _relicBlocksBump ||
+        !_movement.CanMove ||
+        _movement.IsBusy ||
+        _movement.IsStunned ||
+        !_movement.IsGrounded ||
+        State != BumpState.None ||
+        !CooldownTimer.ExpiredOrNotRunning(Runner))
+    {
+        return;
+    }
 
     State = BumpState.Startup;
-    AttackTimer = TickTimer.CreateFromSeconds(Runner, _startup);
+
+    AttackTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        _startup
+    );
+
     _movement.SetBusy(true);
-}    private void UpdateBumpState()
+
+    OnBumpStarted?.Invoke();
+}   private void UpdateBumpState()
     {
         if (State == BumpState.None)
             return;

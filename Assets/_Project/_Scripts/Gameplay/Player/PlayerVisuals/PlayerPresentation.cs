@@ -4,15 +4,8 @@ public class PlayerPresentation : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Animator animator;
-    [SerializeField] private AudioSource audioSource;
-
     [Header("VFX")]
     [SerializeField] private ParticleSystem stunVfx;
-
-    [Header("Audio")]
-    [SerializeField] private AudioClip kickClip;
-    [SerializeField] private AudioClip stunClip;
-
     [Header("Invisibility")]
     [SerializeField] private GameObject characterVisual;
     [SerializeField] private GameObject localInvisibleVisual;
@@ -94,22 +87,19 @@ private void UpdateSmokePresentation()
         smokeOverlay.SetActive(active);
 }
 
-    private void SetStunPresentation(bool stunned)
+  private void SetStunPresentation(bool stunned)
+{
+    if (stunned)
     {
-        if (stunned)
-        {
-            if (stunVfx != null)
-                stunVfx.Play();
-
-            if (audioSource != null && stunClip != null)
-                audioSource.PlayOneShot(stunClip);
-        }
-        else
-        {
-            if (stunVfx != null)
-                stunVfx.Stop();
-        }
+        if (stunVfx != null)
+            stunVfx.Play();
     }
+    else
+    {
+        if (stunVfx != null)
+            stunVfx.Stop();
+    }
+}
 
     private void UpdateInvisibilityPresentation()
     {
@@ -163,12 +153,9 @@ private void UpdateSmokePresentation()
         }
     }
 
-    public void PlayKickEffects()
-    {
-        if (animator != null)
-            animator.SetTrigger("Kick");
-
-        if (audioSource != null && kickClip != null)
-            audioSource.PlayOneShot(kickClip);
-    }
+   public void PlayKickEffects()
+{
+    if (animator != null)
+        animator.SetTrigger("Kick");
+}
 }

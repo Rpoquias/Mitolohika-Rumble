@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c642520297f7c84eb288db6a9054c17, type: 3}
+  m_Name: Nuno Character
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterData
+  characterID: 4
+  characterName: Nuno
+  characterIcon: {fileID: 0}
+  lobbyPrefab: {fileID: 5022802914455037833, guid: 90289df9c72789946b2745bfd1b1620e, type: 3}
+  gameplayPrefab: {fileID: 5022802914455037833, guid: 90289df9c72789946b2745bfd1b1620e, type: 3}
+  signatureAbility: 
+  abilityDescription: 
+  abilityCooldown: 0
+  abilityRange: 0
+  abilityDuration: 0

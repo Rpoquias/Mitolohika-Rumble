@@ -32,7 +32,7 @@ public class ThirdPersonCamera : MonoBehaviour
     private bool characterSelectionMode;
 
     public NetworkRunner Runner => runner;
-
+public Transform CurrentTarget => target;
     private NetworkRunner runner;
     private Transform target;
     private Vector2 mobileLook;
@@ -258,6 +258,41 @@ public class ThirdPersonCamera : MonoBehaviour
     }
 
     target = cameraTarget;
+}
+public void SetTarget(Transform newTarget)
+{
+    if (newTarget == null)
+        return;
+
+    target = newTarget;
+}
+public void ReturnToLocalPlayer()
+{
+    if (runner == null || !runner.IsRunning)
+        return;
+
+    if (!runner.TryGetPlayerObject(
+            runner.LocalPlayer,
+            out NetworkObject playerObject))
+    {
+        return;
+    }
+
+    Transform localTarget =
+        playerObject.transform.Find("CameraTarget");
+
+    if (localTarget == null)
+    {
+        Debug.LogError(
+            "[ThirdPersonCamera] Local CameraTarget not found."
+        );
+
+        return;
+    }
+
+    target = localTarget;
+    yaw = target.eulerAngles.y;
+    pitch = 25f;
 }
 
     private void OnEnable()

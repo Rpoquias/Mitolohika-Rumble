@@ -217923,10 +217923,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6eb82a497b8c344c96fbc4e52215aed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MatiraMatibayScoreManager
-  knockoutAttributionWindow: 3
   roundStateManager: {fileID: 1198559364}
-  placementManager: {fileID: 2078748453}
-  winnerBonus: 10
+  _EliminationOrder: []
+  _EliminationCount: 0
+  _EliminationSequence: 0
 --- !u!114 &1198559364
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -217957,7 +217957,6 @@ MonoBehaviour:
   useRandomSlash: 1
   startDelay: 10
   shrinkInterval: 3
-  uiState: {fileID: 1198559367}
 --- !u!114 &1198559366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -217979,8 +217978,6 @@ MonoBehaviour:
   - {fileID: 1198559365}
   - {fileID: 1198559364}
   - {fileID: 1198559363}
-  - {fileID: 1198559367}
-  - {fileID: 1198559368}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &1198559367
 MonoBehaviour:
@@ -240590,6 +240587,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoundUI
   roundStateManager: {fileID: 1198559364}
+  roundPanel: {fileID: 0}
   roundText: {fileID: 106878383}
 --- !u!1001 &1321811394
 PrefabInstance:
@@ -268484,7 +268482,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c15486d3d59470d41a4f1fb6d700939c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MatiraMatibayUI
-  uiState: {fileID: 1198559367}
+  arenaShrinkController: {fileID: 0}
   shrinkWarningPanel: {fileID: 1910781780}
   shrinkWarningText: {fileID: 1553210728}
   shrinkCountdownText: {fileID: 1418892614}
@@ -319703,6 +319701,10 @@ MonoBehaviour:
   mouseSensitivity: 0.3
   minPitch: -10
   maxPitch: 20
+  mobileSensitivity: 0.15
+  selectionDistance: 6
+  selectionHeight: 3.5
+  selectionLookHeight: 1.5
 --- !u!1001 &1775287131
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -351948,7 +351950,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1962615848
 RectTransform:
   m_ObjectHideFlags: 0
@@ -351982,7 +351984,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4fb332d4e8bffa640a7a998d17dbb05a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MatiraMatibayLeaderboardUI
-  scoreManager: {fileID: 1198559363}
+  providerSource: {fileID: 0}
+  leaderboardPanel: {fileID: 0}
+  standingButton: {fileID: 0}
+  secondaryHeaderText: {fileID: 0}
   cardPrefab: {fileID: 2236127143631562567, guid: a569dc5129dac74459df590c1df5947f, type: 3}
   cardContainer: {fileID: 1165368113}
 --- !u!1001 &1962619217
@@ -374070,7 +374075,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 685cce879620d064ca84e2e705940ed2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MatiraMatibayPlacementManager
-  scoreManager: {fileID: 1198559363}
+  eliminationManager: {fileID: 0}
+  roundStateManager: {fileID: 0}
 --- !u!114 &2078748454
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -374084,6 +374090,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WinnerDetector
   matiraMatibayManager: {fileID: 2078748456}
+  roundStateManager: {fileID: 0}
 --- !u!114 &2078748455
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -374096,7 +374103,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdeef4d3185ef0f4094f2772caf0bb78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoundPlayerController
-  roundStateManager: {fileID: 1198559364}
+  controlMode: 0
 --- !u!114 &2078748456
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -374113,9 +374120,9 @@ MonoBehaviour:
   arenaShrinkController: {fileID: 1198559365}
   winnerDetector: {fileID: 2078748454}
   placementManager: {fileID: 2078748453}
-  scoreManager: {fileID: 1198559363}
+  eliminationManager: {fileID: 0}
   spawnPointManager: {fileID: 1972078289}
-  resultState: {fileID: 1198559368}
+  spectatorController: {fileID: 0}
 --- !u!1001 &2079625472
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -864,6 +864,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 884bc52c744ac4743842b81d4dd6e03f, type: 2}
   - {fileID: 11400000, guid: d21645577d7caff4ca7309438efe9a63, type: 2}
   - {fileID: 11400000, guid: 0534b0ededd07a749b45138a02facc40, type: 2}
+  - {fileID: 11400000, guid: 8346897fc5f45d844ab6887d166f0031, type: 2}
+  - {fileID: 11400000, guid: 5ec7c85e35ec38f4e8d6afdb85fc43fd, type: 2}
   spawnPointManager: {fileID: 594323487}
 --- !u!1 &603384668
 GameObject:
@@ -2045,18 +2047,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 713340102}
     m_Modifications:
-    - target: {fileID: 757803176020646246, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 764677202348060526, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 898345138024509758, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 990408231078869115, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -2140,10 +2130,6 @@ PrefabInstance:
     - target: {fileID: 6957455534237200517, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
       propertyPath: m_Name
       value: SEETINGSUI
-      objectReference: {fileID: 0}
-    - target: {fileID: 7486239336547693606, guid: 6cf69e123aca5c24480a5b3308464506, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2550,10 +2536,10 @@ RectTransform:
   - {fileID: 982242194}
   m_Father: {fileID: 713340102}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 218.25, y: -204.5}
-  m_SizeDelta: {x: 436.4986, y: 409.1541}
+  m_AnchorMin: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -252, y: -226}
+  m_SizeDelta: {x: 436.49854, y: 409.1541}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1168828155
 MonoBehaviour:
@@ -3933,6 +3919,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5905936793873226960, guid: 75089ace97b73934fb0f6f6b682e7ad7, type: 3}
       propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5905936793873226960, guid: 75089ace97b73934fb0f6f6b682e7ad7, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5905936793873226960, guid: 75089ace97b73934fb0f6f6b682e7ad7, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5905936793873226960, guid: 75089ace97b73934fb0f6f6b682e7ad7, type: 3}
+      propertyPath: m_LocalScale.z
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5905936793873226960, guid: 75089ace97b73934fb0f6f6b682e7ad7, type: 3}

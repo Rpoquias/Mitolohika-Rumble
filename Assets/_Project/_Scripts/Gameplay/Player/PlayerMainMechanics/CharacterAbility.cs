@@ -98,6 +98,14 @@ public void SetCanUseAbility(bool canUse)
 
                 if (target == null)
                     continue;
+                    PlayerTargetingState targetingState =
+    target.GetComponent<PlayerTargetingState>();
+
+if (targetingState != null &&
+    targetingState.IsUntargetable)
+{
+    continue;
+}
 
                 // Don't target yourself.
                 if (target == _movement)

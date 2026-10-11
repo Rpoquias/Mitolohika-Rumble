@@ -8,47 +8,45 @@ public class RoundNumberUI : MonoBehaviour
     [SerializeField] private TMP_Text roundNumberText;
 
     private MatchSession matchSession;
-    private bool initialized;
+    private bool subscribed;
 
     private void Update()
     {
-        if (initialized)
-            return;
-
-        TryInitialize();
+        // Retry initialization if MatchSession has not spawned yet.
+        if (!subscribed)
+            TryInitialize();
     }
 
     private void TryInitialize()
     {
-        if (matchSession == null)
-        {
-            matchSession = MatchSession.Instance;
-        }
+        matchSession = MatchSession.Instance;
 
         if (matchSession == null)
             return;
 
-        initialized = true;
+        matchSession.OnRoundNumberChanged += UpdateRoundNumber;
+        subscribed = true;
 
-        matchSession.OnRoundNumberChanged +=
-            UpdateRoundNumber;
-
-        // Display the current value immediately.
+        // Initialize the display immediately.
         UpdateRoundNumber();
     }
 
     private void UpdateRoundNumber()
     {
+        if (matchSession == null)
+            return;
+
         if (roundNumberText != null)
         {
             roundNumberText.text =
-                $"ROUND {matchSession.CurrentRound}";
+                $"ROUND {matchSession.CurrentRound} / " +
+                $"{matchSession.TotalRounds}";
         }
 
         Show();
     }
 
-    private void Show()
+    public void Show()
     {
         if (roundNumberPanel != null)
             roundNumberPanel.SetActive(true);
@@ -62,13 +60,9 @@ public class RoundNumberUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (!initialized ||
-            matchSession == null)
+        if (subscribed && matchSession != null)
         {
-            return;
+            matchSession.OnRoundNumberChanged -= UpdateRoundNumber;
         }
-
-        matchSession.OnRoundNumberChanged -=
-            UpdateRoundNumber;
     }
 }

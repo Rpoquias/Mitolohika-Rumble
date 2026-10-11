@@ -1,4 +1,3 @@
-using System;
 using Fusion;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -9,170 +8,438 @@ public class LobbyPlayerSpawner : MonoBehaviour
     [SerializeField] private CharacterData[] characters;
 
     private bool initialized;
+    private bool isLobbySceneLoaded;
+
+    private SpawnPointManager spawnPointManager;
+
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
 
     private async void Start()
+{
+    while (NetworkManager.Instance == null ||
+           NetworkManager.Instance.Runner == null ||
+           !NetworkManager.Instance.Runner.IsRunning)
     {
-        while (NetworkManager.Instance == null || NetworkManager.Instance.Runner == null || !NetworkManager.Instance.Runner.IsRunning)
-        {
-            await Awaitable.NextFrameAsync();
-        }
-
-        NetworkManager.Instance.OnPlayerJoinedEvent += HandlePlayerJoined;
-        NetworkManager.Instance.OnPlayerLeftEvent += HandlePlayerLeft;
-        NetworkManager.Instance.OnNetworkSceneLoadDoneEvent += HandleNetworkSceneLoadDone;
-
-        initialized = true;
-
-        Debug.Log("<color=#FFE600><b>[LOBBY PLAYER SPAWNER] OK</b> - Initialized & listening for players</color>");
-
-        TrySpawnExistingPlayers();
+        await Awaitable.NextFrameAsync();
     }
+
+    NetworkManager manager = NetworkManager.Instance;
+
+    manager.OnPlayerJoinedEvent += HandlePlayerJoined;
+    manager.OnPlayerLeftEvent += HandlePlayerLeft;
+    manager.OnNetworkSceneLoadDoneEvent += HandleNetworkSceneLoadDone;
+
+    initialized = true;
+
+  
+    // If the lobby is already loaded, initialize immediately.
+    Scene activeScene = SceneManager.GetActiveScene();
+
+    if (activeScene.buildIndex == manager.LobbySceneBuildIndex)
+    {
+        HandleNetworkSceneLoadDone(activeScene);
+    }
+}
 
     private void OnDestroy()
     {
-        if (NetworkManager.Instance == null) return;
+        if (NetworkManager.Instance == null)
+            return;
 
-        NetworkManager.Instance.OnPlayerJoinedEvent -= HandlePlayerJoined;
-        NetworkManager.Instance.OnPlayerLeftEvent -= HandlePlayerLeft;
-        NetworkManager.Instance.OnNetworkSceneLoadDoneEvent -= HandleNetworkSceneLoadDone;
+        NetworkManager.Instance.OnPlayerJoinedEvent -=
+            HandlePlayerJoined;
+
+        NetworkManager.Instance.OnPlayerLeftEvent -=
+            HandlePlayerLeft;
+
+        NetworkManager.Instance.OnNetworkSceneLoadDoneEvent -=
+            HandleNetworkSceneLoadDone;
     }
 
-    // --------------------------------------------------
-    // Existing Players
-    // --------------------------------------------------
+    // ============================================================
+    // SCENE HANDLING
+    // ============================================================
 
-    private void HandleNetworkSceneLoadDone(Scene scene)
+  private void HandleNetworkSceneLoadDone(Scene scene)
+{
+    if (!initialized || NetworkManager.Instance == null)
+        return;
+
+    bool loadedLobby =
+        scene.buildIndex ==
+        NetworkManager.Instance.LobbySceneBuildIndex;
+
+    isLobbySceneLoaded = loadedLobby;
+    spawnPointManager = null;
+
+    if (!loadedLobby)
     {
-        if (!initialized) return;
+     
 
-        NetworkRunner runner = NetworkManager.Instance.Runner;
-        if (runner == null || !runner.IsRunning || !runner.IsServer) return;
-
-        // Only react when the Lobby scene has loaded.
-        if (scene.buildIndex != NetworkManager.Instance.LobbySceneBuildIndex) return;
-
-        TrySpawnExistingPlayers();
+        return;
     }
 
-    private void TrySpawnExistingPlayers()
+  
+  SpawnPointManager[] managers =
+    FindObjectsByType<SpawnPointManager>( );
+
+
+
+foreach (SpawnPointManager manager in managers)
+{
+    
+
+    if (manager.gameObject.scene != scene)
+        continue;
+
+    spawnPointManager = manager;
+    break;
+}
+
+if (spawnPointManager == null)
+{
+    
+    return;
+}
+
+
+
+TrySpawnExistingPlayers();
+}
+
+    // ============================================================
+    // SPAWN EXISTING PLAYERS
+    // ============================================================
+
+   private void TrySpawnExistingPlayers()
+{
+
+    if (!initialized || !isLobbySceneLoaded || spawnPointManager == null ||
+        NetworkManager.Instance == null)
     {
-        if (!initialized) return;
+     
+        return;
+    }
 
-        NetworkRunner runner = NetworkManager.Instance.Runner;
-        if (runner == null || !runner.IsRunning || !runner.IsServer) return;
+    NetworkRunner runner = NetworkManager.Instance.Runner;
 
-        foreach (PlayerRef player in runner.ActivePlayers)
+    if (runner == null || !runner.IsRunning || !runner.IsServer)
+    {
+    
+        return;
+    }
+
+    int playerCount = 0;
+
+    foreach (PlayerRef player in runner.ActivePlayers)
+    {
+        playerCount++;
+
+
+        if (runner.TryGetPlayerObject(player, out NetworkObject existingPlayer))
         {
-            if (runner.TryGetPlayerObject(player, out NetworkObject existingPlayer)) continue;
-            SpawnExistingPlayer(runner, player);
+           
+            continue;
         }
+
+       
+        SpawnExistingPlayer(runner, player);
     }
 
-    // --------------------------------------------------
-    // Player Joined / Left
-    // --------------------------------------------------
+  
+}
+
+   private void SpawnExistingPlayer(NetworkRunner runner, PlayerRef player)
+{
+   
+    if (!isLobbySceneLoaded || spawnPointManager == null)
+    {
+       
+        return;
+    }
+
+    if (!NetworkManager.Instance.TryGetPlayerSelection(
+            player, out CharacterID characterID))
+    {
+       
+
+        if (characters == null || characters.Length == 0 || characters[0] == null)
+        {
+            
+            return;
+        }
+
+        characterID = characters[0].characterID;
+        NetworkManager.Instance.SetPlayerSelection(player, characterID);
+    }
+
+    CharacterData character = GetCharacterData(characterID);
+
+    if (character == null)
+    {
+       
+        return;
+    }
+
+    if (character.lobbyPrefab == null)
+    {
+       
+        return;
+    }
+
+    if (!TryGetSpawnPoint(player, runner, out Transform spawnPoint))
+    {
+        
+        return;
+    }
+
+  
+
+    SpawnCharacter(
+        runner,
+        player,
+        character,
+        spawnPoint.position,
+        spawnPoint.rotation
+    );
+}
+
+    // ============================================================
+    // PLAYER JOINED / LEFT
+    // ============================================================
 
     private void HandlePlayerJoined(PlayerRef player)
     {
-        NetworkRunner runner = NetworkManager.Instance.Runner;
-        if (runner == null || !runner.IsServer) return;
-        if (runner.TryGetPlayerObject(player, out NetworkObject existingPlayer)) return;
-        if (characters == null || characters.Length == 0) return;
-
-        if (!NetworkManager.Instance.TryGetPlayerSelection(player, out CharacterID characterID))
+        if (!isLobbySceneLoaded ||
+            spawnPointManager == null ||
+            NetworkManager.Instance == null)
         {
-            characterID = characters[0].characterID;
-            NetworkManager.Instance.SetPlayerSelection(player, characterID);
+            return;
         }
 
-        CharacterData character = GetCharacterData(characterID);
-        if (character == null) return;
+        NetworkRunner runner =
+            NetworkManager.Instance.Runner;
 
-        SpawnCharacter(runner, player, character, GetSpawnPosition(player));
+        if (runner == null ||
+            !runner.IsRunning ||
+            !runner.IsServer)
+        {
+            return;
+        }
+
+        if (runner.TryGetPlayerObject(
+                player,
+                out NetworkObject existingPlayer))
+        {
+            return;
+        }
+
+        SpawnExistingPlayer(runner, player);
     }
 
     private void HandlePlayerLeft(PlayerRef player)
     {
-        NetworkRunner runner = NetworkManager.Instance.Runner;
-        if (runner == null || !runner.IsServer) return;
+        if (NetworkManager.Instance == null)
+            return;
 
-        if (runner.TryGetPlayerObject(player, out NetworkObject playerObject)) runner.Despawn(playerObject);
-    }
+        NetworkRunner runner =
+            NetworkManager.Instance.Runner;
 
-    private void SpawnExistingPlayer(NetworkRunner runner, PlayerRef player)
-    {
-        if (!NetworkManager.Instance.TryGetPlayerSelection(player, out CharacterID characterID))
+        if (runner == null ||
+            !runner.IsRunning ||
+            !runner.IsServer)
         {
-            if (characters == null || characters.Length == 0) return;
-
-            characterID = characters[0].characterID;
-            NetworkManager.Instance.SetPlayerSelection(player, characterID);
+            return;
         }
 
-        CharacterData character = GetCharacterData(characterID);
-        if (character == null) return;
-
-        SpawnCharacter(runner, player, character, GetSpawnPosition(player));
+        if (runner.TryGetPlayerObject(
+                player,
+                out NetworkObject playerObject))
+        {
+            runner.Despawn(playerObject);
+        }
     }
 
-    // --------------------------------------------------
-    // Character Change
-    // --------------------------------------------------
+    // ============================================================
+    // CHARACTER CHANGE
+    // ============================================================
 
-    public void ChangeCharacter(PlayerRef player, CharacterID characterID)
+    public void ChangeCharacter(
+        PlayerRef player,
+        CharacterID characterID)
     {
-        NetworkRunner runner = NetworkManager.Instance.Runner;
-        if (runner == null || !runner.IsServer) return;
-
-        CharacterData character = GetCharacterData(characterID);
-        if (character == null) return;
-
-        NetworkManager.Instance.SetPlayerSelection(player, characterID);
-
-        Vector3 spawnPosition = GetSpawnPosition(player);
-
-        if (runner.TryGetPlayerObject(player, out NetworkObject oldObject))
+        if (!isLobbySceneLoaded ||
+            NetworkManager.Instance == null)
         {
+            return;
+        }
+
+        NetworkRunner runner =
+            NetworkManager.Instance.Runner;
+
+        if (runner == null ||
+            !runner.IsRunning ||
+            !runner.IsServer)
+        {
+            return;
+        }
+
+        CharacterData character =
+            GetCharacterData(characterID);
+
+        if (character == null ||
+            character.lobbyPrefab == null)
+        {
+          
+
+            return;
+        }
+
+        Vector3 spawnPosition;
+        Quaternion spawnRotation;
+
+        bool hasExistingPlayer =
+            runner.TryGetPlayerObject(
+                player,
+                out NetworkObject oldObject
+            );
+
+        if (hasExistingPlayer)
+        {
+            // Preserve the player's current position when
+            // changing characters in the lobby.
             spawnPosition = oldObject.transform.position;
-            runner.Despawn(oldObject);
+            spawnRotation = oldObject.transform.rotation;
+        }
+        else
+        {
+            if (!TryGetSpawnPoint(
+                    player,
+                    runner,
+                    out Transform spawnPoint))
+            {
+               
+                return;
+            }
+
+            spawnPosition = spawnPoint.position;
+            spawnRotation = spawnPoint.rotation;
         }
 
-        SpawnCharacter(runner, player, character, spawnPosition);
+        NetworkManager.Instance.SetPlayerSelection(
+            player,
+            characterID
+        );
+
+        if (hasExistingPlayer)
+            runner.Despawn(oldObject);
+
+        SpawnCharacter(
+            runner,
+            player,
+            character,
+            spawnPosition,
+            spawnRotation
+        );
     }
 
-    // --------------------------------------------------
-    // Spawn Character
-    // --------------------------------------------------
+    // ============================================================
+    // SPAWN POINT
+    // ============================================================
 
-    private void SpawnCharacter(NetworkRunner runner, PlayerRef player, CharacterData character, Vector3 spawnPosition)
+    private bool TryGetSpawnPoint(
+        PlayerRef player,
+        NetworkRunner runner,
+        out Transform spawnPoint)
     {
-        if (character.gameplayPrefab == null) return;
+        spawnPoint = null;
 
-        NetworkObject playerObject = runner.Spawn(character.gameplayPrefab, spawnPosition, Quaternion.identity, player, (r, spawnedObject) =>
+        if (!isLobbySceneLoaded ||
+            spawnPointManager == null ||
+            runner == null ||
+            !runner.IsRunning)
         {
-            NetworkPlayerState state = spawnedObject.GetComponent<NetworkPlayerState>();
-            if (state != null) state.SelectedCharacter = character.characterID;
-        });
+            return false;
+        }
 
-        if (playerObject == null) return;
+        spawnPoint =
+            spawnPointManager.GetSpawnPoint(
+                player,
+                runner
+            );
+
+        return spawnPoint != null;
+    }
+
+    // ============================================================
+    // SPAWN CHARACTER
+    // ============================================================
+
+    private void SpawnCharacter(
+        NetworkRunner runner,
+        PlayerRef player,
+        CharacterData character,
+        Vector3 spawnPosition,
+        Quaternion spawnRotation)
+    {
+        if (runner == null ||
+            !runner.IsRunning ||
+            !runner.IsServer ||
+            character == null ||
+            character.lobbyPrefab == null)
+        {
+            return;
+        }
+
+        NetworkObject playerObject = runner.Spawn(
+            character.lobbyPrefab,
+            spawnPosition,
+            spawnRotation,
+            player,
+            (r, spawnedObject) =>
+            {
+                NetworkPlayerState state =
+                    spawnedObject.GetComponent<NetworkPlayerState>();
+
+                if (state != null)
+                {
+                    state.SelectedCharacter =
+                        character.characterID;
+                }
+            }
+        );
+
+        if (playerObject == null)
+        {
+         
+
+            return;
+        }
 
         runner.SetPlayerObject(player, playerObject);
     }
 
-    // --------------------------------------------------
-    // Helpers
-    // --------------------------------------------------
+    // ============================================================
+    // HELPERS
+    // ============================================================
 
-    private CharacterData GetCharacterData(CharacterID characterID)
+    private CharacterData GetCharacterData(
+        CharacterID characterID)
     {
+        if (characters == null)
+            return null;
+
         foreach (CharacterData character in characters)
         {
-            if (character == null) continue;
-            if (character.characterID == characterID) return character;
+            if (character == null)
+                continue;
+
+            if (character.characterID == characterID)
+                return character;
         }
 
         return null;
     }
-
-    private Vector3 GetSpawnPosition(PlayerRef player) => new Vector3(player.PlayerId * 2f, 1f, 0f);
 }

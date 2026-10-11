@@ -1,23 +1,19 @@
 using System;
 using System.Collections.Generic;
 using Fusion;
+using Fusion.Sockets;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-using Fusion.Sockets;
-
 public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 {
-    private const ushort LAN_PORT = 7777;
-    private const string LAN_HOST_IP = "0.0.0.0";
-
     [SerializeField] private int lobbySceneBuildIndex;
     [SerializeField] private NetworkObject matchSessionPrefab;
-[SerializeField] private NetworkRunner runnerPrefab;
+    [SerializeField] private NetworkRunner runnerPrefab;
+
     public static NetworkManager Instance { get; private set; }
     public MatchSession CurrentMatchSession { get; private set; }
     public MainMenuMessage PendingMainMenuMessage { get; private set; }
-    public string LANHostIP { get; private set; }
     public string LastNetworkError { get; private set; }
     public int LobbySceneBuildIndex => lobbySceneBuildIndex;
 
@@ -48,7 +44,6 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
     public async void Host(string sessionName)
     {
-        LANHostIP = null;
         runner = GetOrCreateRunner();
 
         await runner.StartGame(new StartGameArgs
@@ -58,36 +53,6 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
             IsVisible = true,
             IsOpen = true,
             Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
-            SceneManager = GetOrCreateSceneManager()
-        });
-    }
-
-    public async void HostLAN(string sessionName)
-    {
-        runner = GetOrCreateRunner();
-
-        var result = await runner.StartGame(new StartGameArgs
-        {
-            GameMode = GameMode.Host,
-            SessionName = sessionName,
-            Address = NetAddress.Any(LAN_PORT), // Listen on all local network interfaces.
-            Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
-            SceneManager = GetOrCreateSceneManager()
-        });
-
-        if (result.Ok) LANHostIP = GetLocalIPAddress();
-        else LastNetworkError = $"Shutdown: {result.ShutdownReason}\nError: {result.ErrorMessage}";
-    }
-
-    public async void JoinLAN(string ipAddress)
-    {
-        runner = GetOrCreateRunner();
-
-        await runner.StartGame(new StartGameArgs
-        {
-            GameMode = GameMode.Client,
-            Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
-            Address = NetAddress.CreateFromIpPort(ipAddress, LAN_PORT), // Connect directly to the LAN host.
             SceneManager = GetOrCreateSceneManager()
         });
     }
@@ -123,31 +88,26 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     // Helpers
     // ----------------------------
 
-    private string GetLocalIPAddress()
+    private NetworkRunner GetOrCreateRunner()
     {
-        foreach (var networkInterface in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
-        {
-            if (networkInterface.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
-
-            foreach (var address in networkInterface.GetIPProperties().UnicastAddresses)
-            {
-                if (address.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
-
-                string ip = address.Address.ToString();
-                if (ip.StartsWith("10.") || ip.StartsWith("192.168.") || IsPrivate172(ip)) return ip;
-            }
-        }
-
-        return "127.0.0.1";
+        if (runner == null) runner = CreateRunner();
+        return runner;
     }
 
-    private bool IsPrivate172(string ip)
+    private NetworkRunner CreateRunner()
     {
-        string[] parts = ip.Split('.');
-        if (parts.Length != 4) return false;
-        if (!int.TryParse(parts[0], out int first)) return false;
-        if (!int.TryParse(parts[1], out int second)) return false;
-        return first == 172 && second >= 16 && second <= 31;
+        if (runnerPrefab == null)
+        {
+            Debug.LogError("[NETWORK MANAGER] Runner prefab is not assigned.");
+            return null;
+        }
+
+        NetworkRunner newRunner = Instantiate(runnerPrefab);
+        newRunner.name = "NetworkRunner";
+        newRunner.ProvideInput = true;
+        newRunner.AddCallbacks(this);
+
+        return newRunner;
     }
 
     private NetworkSceneManagerDefault GetOrCreateSceneManager()
@@ -174,10 +134,6 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
         if (mainMenu != null) mainMenu.ShowJoinPanel();
     }
 
-    public void SetPlayerSelection(PlayerRef player, CharacterID characterID) { playerSelections[player] = characterID; }
-
-    public bool TryGetPlayerSelection(PlayerRef player, out CharacterID characterID) => playerSelections.TryGetValue(player, out characterID);
-
     private void SpawnMatchSession()
     {
         if (runner == null || !runner.IsServer) return;
@@ -192,29 +148,13 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
         Debug.Log($"<color=#B388FF><b>[NETWORK MANAGER] OK</b> - Runner active & MatchSession spawned (Total Rounds = {CurrentMatchSession.TotalRounds})</color>");
     }
 
-    private NetworkRunner CreateRunner()
-{
-    if (runnerPrefab == null)
-    {
-        Debug.LogError("[NETWORK MANAGER] Runner prefab is not assigned.");
-        return null;
-    }
+    // ----------------------------
+    // Public API
+    // ----------------------------
 
-    NetworkRunner newRunner = Instantiate(runnerPrefab);
+    public void SetPlayerSelection(PlayerRef player, CharacterID characterID) { playerSelections[player] = characterID; }
 
-    newRunner.name = "NetworkRunner";
-
-    newRunner.ProvideInput = true;
-    newRunner.AddCallbacks(this);
-
-    return newRunner;
-}
-
-    private NetworkRunner GetOrCreateRunner()
-    {
-        if (runner == null) runner = CreateRunner();
-        return runner;
-    }
+    public bool TryGetPlayerSelection(PlayerRef player, out CharacterID characterID) => playerSelections.TryGetValue(player, out characterID);
 
     public void ClearMainMenuMessage() { PendingMainMenuMessage = MainMenuMessage.None; }
 

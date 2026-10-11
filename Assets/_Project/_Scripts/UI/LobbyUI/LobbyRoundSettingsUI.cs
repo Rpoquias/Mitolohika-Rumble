@@ -11,16 +11,13 @@ public class LobbyRoundSettingsUI : MonoBehaviour
 
     [Header("Display")]
     [SerializeField] private TMP_Text roundCountText;
-    [SerializeField] private TMP_Text currentRoundText;
-    [SerializeField] private TMP_Text gameModeText;
 
     private MatchSession matchSession;
 
     private void OnEnable()
     {
-        Refresh();
-
         TrySubscribe();
+        Refresh();
     }
 
     private void OnDisable()
@@ -30,42 +27,38 @@ public class LobbyRoundSettingsUI : MonoBehaviour
 
     private void TrySubscribe()
     {
-        if (MatchSession.Instance == null)
-            return;
+        MatchSession currentSession = MatchSession.Instance;
 
-        if (matchSession == MatchSession.Instance)
+        if (currentSession == null ||
+            matchSession == currentSession)
+        {
             return;
+        }
 
         Unsubscribe();
 
-        matchSession =
-            MatchSession.Instance;
-
-        matchSession.OnLobbySettingsChanged +=
-            Refresh;
+        matchSession = currentSession;
+        matchSession.OnLobbySettingsChanged += Refresh;
     }
+
     public void Open()
-{
-    TrySubscribe();
-    Refresh();
-}
+    {
+        TrySubscribe();
+        Refresh();
+    }
 
     private void Unsubscribe()
     {
         if (matchSession == null)
             return;
 
-        matchSession.OnLobbySettingsChanged -=
-            Refresh;
-
+        matchSession.OnLobbySettingsChanged -= Refresh;
         matchSession = null;
     }
 
     public void Refresh()
     {
         UpdateRoundCountDisplay();
-        UpdateCurrentRoundDisplay();
-        UpdateGameModeDisplay();
         UpdateButtons();
     }
 
@@ -74,45 +67,13 @@ public class LobbyRoundSettingsUI : MonoBehaviour
         if (roundCountText == null)
             return;
 
-        if (MatchSession.Instance == null)
-        {
-            roundCountText.text = "3 ROUNDS";
-            return;
-        }
+        MatchSession session = MatchSession.Instance;
 
-        roundCountText.text =
-            $"{MatchSession.Instance.TotalRounds} ROUNDS";
-    }
+        int totalRounds = session != null
+            ? session.TotalRounds
+            : 3;
 
-    private void UpdateCurrentRoundDisplay()
-    {
-        if (currentRoundText == null)
-            return;
-
-        if (MatchSession.Instance == null)
-        {
-            currentRoundText.text = "ROUND 1 / 3";
-            return;
-        }
-
-        currentRoundText.text =
-            $"ROUND {MatchSession.Instance.CurrentRound} / " +
-            $"{MatchSession.Instance.TotalRounds}";
-    }
-
-    private void UpdateGameModeDisplay()
-    {
-        if (gameModeText == null)
-            return;
-
-        if (MatchSession.Instance == null)
-        {
-            gameModeText.text = "MODE: -";
-            return;
-        }
-
-        gameModeText.text =
-            $"MODE: {MatchSession.Instance.CurrentGameMode}";
+        roundCountText.text = $"{totalRounds} ROUNDS";
     }
 
     private void UpdateButtons()
@@ -121,20 +82,9 @@ public class LobbyRoundSettingsUI : MonoBehaviour
             LobbyManager.Instance != null &&
             LobbyManager.Instance.IsHost;
 
-        SetButtonInteractable(
-            threeRoundsButton,
-            isHost
-        );
-
-        SetButtonInteractable(
-            fiveRoundsButton,
-            isHost
-        );
-
-        SetButtonInteractable(
-            sevenRoundsButton,
-            isHost
-        );
+        SetButtonInteractable(threeRoundsButton, isHost);
+        SetButtonInteractable(fiveRoundsButton, isHost);
+        SetButtonInteractable(sevenRoundsButton, isHost);
     }
 
     private void SetButtonInteractable(
@@ -171,8 +121,11 @@ public class LobbyRoundSettingsUI : MonoBehaviour
             return;
         }
 
-        LobbyManager.Instance.SetRoundCount(
-            roundCount
-        );
+        LobbyManager.Instance.SetRoundCount(roundCount);
+    }
+
+    private void OnDestroy()
+    {
+        Unsubscribe();
     }
 }

@@ -14,6 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterData
   characterID: 2
   characterName: White Lady
-  lobbyPrefab: {fileID: 5854705301838398409, guid: 1d1f00919e2dfa3418bc461a97d43cac, type: 3}
+  characterIcon: {fileID: 0}
+  lobbyPrefab: {fileID: 5813759565420167631, guid: 51d7ba91734d45f44aa26fdd7a70d0fb, type: 3}
   gameplayPrefab: {fileID: 5813759565420167631, guid: 51d7ba91734d45f44aa26fdd7a70d0fb, type: 3}
   signatureAbility: Invisibility
+  abilityDescription: 
+  abilityCooldown: 0
+  abilityRange: 0
+  abilityDuration: 0

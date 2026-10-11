@@ -139,7 +139,7 @@ GameObject:
   - component: {fileID: 6373187726829629071}
   - component: {fileID: 5373238426018500233}
   m_Layer: 0
-  m_Name: Text (TMP)
+  m_Name: Round 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -3,5 +3,7 @@ public enum CharacterID
     Tikbalang,
     Kapre,
     WhiteLady,
-    Aswang
+    Aswang,
+    Nuno,
+    Sirena
 }

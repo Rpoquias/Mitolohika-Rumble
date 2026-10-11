@@ -9,139 +9,52 @@ public class MainMenuUI : MonoBehaviour
 
     [Header("Join")]
     [SerializeField] private GameObject joinLobbyPanel;
-    [SerializeField] private TMP_InputField ipAddressInput;
-
 
     [Header("Status")]
     [SerializeField] private TMP_Text statusText;
     [SerializeField] private float statusDuration = 3f;
 
-private Coroutine statusCoroutine;
+    private Coroutine statusCoroutine;
 
-private ConnectionMode connectionMode = ConnectionMode.Online;
-public void SelectOnline()
-{
-    connectionMode = ConnectionMode.Online;
-    Debug.Log("[MAIN MENU] Connection mode: Online");
-}
-
-public void SelectLAN()
-{
-    connectionMode = ConnectionMode.LAN;
-    Debug.Log("[MAIN MENU] Connection mode: LAN");
-}
-private void Start()
-{
-    ShowPendingStatus();
-}
-
- private void ShowPendingStatus()
-{
-    if (statusText == null)
-        return;
-
-    if (NetworkManager.Instance == null)
+    private void Start()
     {
-        statusText.gameObject.SetActive(false);
-        return;
+        ShowPendingStatus();
     }
 
-    MainMenuMessage message =
-        NetworkManager.Instance.PendingMainMenuMessage;
-
-    switch (message)
+    public void HostGame()
     {
-      case MainMenuMessage.HostDisconnected:
-    statusText.text =
-        $"HOST DISCONNECTED\n{NetworkManager.Instance.LastNetworkError}";
-    break;
+        string roomName = roomNameInput.text.Trim();
 
-        case MainMenuMessage.ConnectionFailed:
-            statusText.text = "CONNECTION FAILED";
-            break;
-
-        default:
-            statusText.gameObject.SetActive(false);
+        if (string.IsNullOrEmpty(roomName))
+        {
+            ShowStatus("ROOM NAME EMPTY");
             return;
+        }
+
+        if (NetworkManager.Instance == null)
+        {
+            ShowStatus("NETWORK MANAGER UNAVAILABLE");
+            return;
+        }
+
+        Debug.Log($"[ONLINE] Hosting room: {roomName}");
+        NetworkManager.Instance.Host(roomName);
     }
 
-    statusText.gameObject.SetActive(true);
-
-    NetworkManager.Instance.ClearMainMenuMessage();
-
-    if (statusCoroutine != null)
-        StopCoroutine(statusCoroutine);
-
-    statusCoroutine = StartCoroutine(HideStatusAfterDelay());
-}
-private IEnumerator HideStatusAfterDelay()
-{
-    yield return new WaitForSeconds(statusDuration);
-
-    statusText.gameObject.SetActive(false);
-
-    statusCoroutine = null;
-}
-
-  public void HostGame()
-{
-    string roomName = roomNameInput.text.Trim();
-
-    if (string.IsNullOrEmpty(roomName))
+    public void JoinGame()
     {
-        statusText.text = "ROOM NAME EMPTY";
-        statusText.gameObject.SetActive(true);
-        return;
-    }
-    switch (connectionMode)
-    {
-        case ConnectionMode.Online:
+        if (NetworkManager.Instance == null)
+        {
+            ShowStatus("NETWORK MANAGER UNAVAILABLE");
+            return;
+        }
 
-            Debug.Log($"[ONLINE] Hosting room: {roomName}");
+        Debug.Log("[ONLINE] Opening join lobby.");
+        NetworkManager.Instance.OpenPublicLobby();
 
-            NetworkManager.Instance.Host(roomName);
-
-            break;
-
-        case ConnectionMode.LAN:
-
-            Debug.Log($"[LAN] Hosting local room: {roomName}");
-
-            NetworkManager.Instance.HostLAN(roomName);
-
-            break;
-    }
-}
-
-public void JoinLANGame()
-{
-    string ipAddress = ipAddressInput.text.Trim();
-
-    if (string.IsNullOrEmpty(ipAddress))
-    {
-        Debug.LogWarning("[LAN] IP address cannot be empty.");
-        return;
+        ShowJoinPanel();
     }
 
-    Debug.Log($"[LAN] Joining host at {ipAddress}");
-
-    NetworkManager.Instance.JoinLAN(ipAddress);
-}
-public void JoinGame()
-{
-    switch (connectionMode)
-    {
-        case ConnectionMode.Online:
-            Debug.Log("[ONLINE] Opening online join lobby.");
-            FindAnyObjectByType<MainMenu>().ShowJoinPanel();
-            break;
-
-        case ConnectionMode.LAN:
-            Debug.Log("[LAN] Opening local join lobby.");
-            FindAnyObjectByType<MainMenu>().ShowLocalJoinPanel();
-            break;
-    }
-}
     public void ShowJoinPanel()
     {
         joinLobbyPanel.SetActive(true);
@@ -149,24 +62,68 @@ public void JoinGame()
 
     public void BackFromJoin()
     {
-        NetworkManager.Instance.Disconnect();
+        if (NetworkManager.Instance != null)
+            NetworkManager.Instance.Disconnect();
 
         joinLobbyPanel.SetActive(false);
     }
-public void OpenJoinLobby()
-{
-    switch (connectionMode)
-    {
-        case ConnectionMode.Online:
-            Debug.Log("[ONLINE] Opening online join lobby.");
-            NetworkManager.Instance.OpenPublicLobby();
-            FindAnyObjectByType<MainMenu>().ShowJoinPanel();
-            break;
 
-        case ConnectionMode.LAN:
-            Debug.Log("[LAN] Opening local join lobby.");
-            FindAnyObjectByType<MainMenu>().ShowLocalJoinPanel();
-            break;
+    private void ShowPendingStatus()
+    {
+        if (statusText == null)
+            return;
+
+        if (NetworkManager.Instance == null)
+        {
+            statusText.gameObject.SetActive(false);
+            return;
+        }
+
+        MainMenuMessage message =
+            NetworkManager.Instance.PendingMainMenuMessage;
+
+        switch (message)
+        {
+            case MainMenuMessage.HostDisconnected:
+                ShowStatus(
+                    $"HOST DISCONNECTED\n" +
+                    $"{NetworkManager.Instance.LastNetworkError}"
+                );
+                break;
+
+            case MainMenuMessage.ConnectionFailed:
+                ShowStatus("CONNECTION FAILED");
+                break;
+
+            default:
+                statusText.gameObject.SetActive(false);
+                return;
+        }
+
+        NetworkManager.Instance.ClearMainMenuMessage();
     }
-}
+
+    private void ShowStatus(string message)
+    {
+        if (statusText == null)
+            return;
+
+        statusText.text = message;
+        statusText.gameObject.SetActive(true);
+
+        if (statusCoroutine != null)
+            StopCoroutine(statusCoroutine);
+
+        statusCoroutine = StartCoroutine(HideStatusAfterDelay());
+    }
+
+    private IEnumerator HideStatusAfterDelay()
+    {
+        yield return new WaitForSeconds(statusDuration);
+
+        if (statusText != null)
+            statusText.gameObject.SetActive(false);
+
+        statusCoroutine = null;
+    }
 }
