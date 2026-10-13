@@ -56,30 +56,47 @@ public event System.Action OnRevealCompleted;
         }
     }
 
-    private void Update()
+  private void Update()
+{
+    
+    // Discard a session that has despawned.
+    if (matchSession != null && !matchSession.IsSpawned)
     {
-        if (matchSession == null)
-        {
-            matchSession = MatchSession.Instance;
+        matchSession.OnRoundRevealRequested -= HandleRoundReveal;
+        matchSession = null;
+        lastHandledSequence = -1;
 
-            if (matchSession != null)
-            {
-                matchSession
-                    .OnRoundRevealRequested +=
-                    HandleRoundReveal;
-
-                CheckForMissedReveal();
-            }
-
-            return;
-        }
-
-        if (matchSession.RoundRevealSequence !=
-            lastHandledSequence)
-        {
-            CheckForMissedReveal();
-        }
+        HideImmediately();
     }
+
+    
+
+    // Find the current spawned session.
+    if (matchSession == null)
+    {
+        MatchSession candidate = MatchSession.Instance;
+
+        if (candidate == null || !candidate.IsSpawned)
+            return;
+
+        matchSession = candidate;
+
+        matchSession.OnRoundRevealRequested += HandleRoundReveal;
+
+        CheckForMissedReveal();
+        return;
+    }
+
+    // Only access networked properties on a spawned session.
+    if (!matchSession.IsSpawned)
+        return;
+        
+
+    if (matchSession.RoundRevealSequence != lastHandledSequence)
+    {
+        CheckForMissedReveal();
+    }
+}
 
     private void CreateModeCards()
     {
@@ -140,124 +157,128 @@ public event System.Action OnRevealCompleted;
         modeCards.Clear();
     }
 
-    private void CheckForMissedReveal()
+ private void CheckForMissedReveal()
+{
+    if (matchSession == null || !matchSession.IsSpawned)
+        return;
+
+    if (matchSession.RoundRevealSequence <= 0)
+        return;
+
+    if (matchSession.RoundRevealSequence == lastHandledSequence)
+        return;
+
+    HandleRoundReveal();
+}
+private void HandleRoundReveal()
+{
+    if (matchSession == null || !matchSession.IsSpawned)
+        return;
+
+    if (matchSession.RoundRevealSequence <= 0)
+        return;
+
+    lastHandledSequence = matchSession.RoundRevealSequence;
+
+    if (revealCoroutine != null)
     {
-        if (matchSession == null)
-            return;
-
-        if (matchSession.RoundRevealSequence ==
-            lastHandledSequence)
-        {
-            return;
-        }
-
-        HandleRoundReveal();
+        StopCoroutine(revealCoroutine);
+        revealCoroutine = null;
     }
 
-    private void HandleRoundReveal()
+    AudioManager.Instance?.PlayMusic(MusicID.RoundReveal);
+
+    revealCoroutine = StartCoroutine(PlayRevealSequence());
+}
+
+  private IEnumerator PlayRevealSequence()
+{
+  if (matchSession == null || !matchSession.IsSpawned)
+{
+    rootPanel.SetActive(false);
+    revealCoroutine = null;
+    yield break;
+}
+
+    rootPanel.SetActive(true);
+
+    ResetCards();
+
+    // 1. Random mode pick
+    randomPickPanel.SetActive(true);
+    modePickPanel.SetActive(false);
+    roundRevealPanel.SetActive(false);
+
+    yield return new WaitForSeconds(randomPickDuration);
+
+    if (matchSession == null || !matchSession.IsSpawned)
     {
-        if (matchSession == null)
-            return;
-
-        if (matchSession.RoundRevealSequence <= 0)
-            return;
-
-        lastHandledSequence =
-            matchSession.RoundRevealSequence;
-
-        if (revealCoroutine != null)
-        {
-            StopCoroutine(
-                revealCoroutine
-            );
-        }
-
-        revealCoroutine =
-            StartCoroutine(
-                PlayRevealSequence()
-            );
+        revealCoroutine = null;
+        yield break;
     }
 
-    private IEnumerator PlayRevealSequence()
+    // 2. Mode selection
+    randomPickPanel.SetActive(false);
+    modePickPanel.SetActive(true);
+
+    List<GameModeData> availableModes = GetAvailableModes();
+
+    yield return StartCoroutine(
+        AnimateModeSelection(availableModes)
+    );
+
+    if (matchSession == null || !matchSession.IsSpawned)
     {
-        rootPanel.SetActive(true);
-
-        ResetCards();
-
-        // =========================
-        // 1. RANDOM MATCH MODE PICK
-        // =========================
-
-        randomPickPanel.SetActive(true);
-        modePickPanel.SetActive(false);
-        roundRevealPanel.SetActive(false);
-
-        yield return new WaitForSeconds(
-            randomPickDuration
-        );
-
-        // =========================
-        // 2. MODE SELECTION
-        // =========================
-
-        randomPickPanel.SetActive(false);
-        modePickPanel.SetActive(true);
-
-        List<GameModeData> availableModes =
-            GetAvailableModes();
-
-        yield return StartCoroutine(
-            AnimateModeSelection(
-                availableModes
-            )
-        );
-
-        // =========================
-        // 3. ROUND REVEAL
-        // =========================
-
-        modePickPanel.SetActive(false);
-        roundRevealPanel.SetActive(true);
-
-        GameModeData selectedMode =
-            GetGameModeData(
-                matchSession.CurrentGameMode
-            );
-
-        if (selectedMode != null)
-        {
-            modeText.text =
-                selectedMode.DisplayName;
-
-            locationText.text =
-                selectedMode.LocationName;
-        }
-
-        roundText.text =
-            $"ROUND {matchSession.CurrentRound}";
-
-        yield return new WaitForSeconds(
-            roundRevealDuration
-        );
-rootPanel.SetActive(false);
-
-revealCoroutine = null;
-
-OnRevealCompleted?.Invoke();
+        revealCoroutine = null;
+        yield break;
     }
+
+    // 3. Round reveal
+    modePickPanel.SetActive(false);
+    roundRevealPanel.SetActive(true);
+
+    GameModeData selectedMode = GetGameModeData(
+        matchSession.CurrentGameMode
+    );
+
+    if (selectedMode != null)
+    {
+        modeText.text = selectedMode.DisplayName;
+        locationText.text = selectedMode.LocationName;
+    }
+
+    roundText.text = $"ROUND {matchSession.CurrentRound}";
+
+    yield return new WaitForSeconds(roundRevealDuration);
+
+    if (matchSession == null || !matchSession.IsSpawned)
+    {
+        revealCoroutine = null;
+        yield break;
+    }
+
+    rootPanel.SetActive(false);
+
+    revealCoroutine = null;
+
+    OnRevealCompleted?.Invoke();
+}
 
     private IEnumerator AnimateModeSelection(
         List<GameModeData> availableModes)
     {
-        if (availableModes.Count == 0)
-        {
-            Debug.LogError(
-                "[MATCH REVEAL UI] " +
-                "No available game modes."
-            );
+         if (matchSession == null || !matchSession.IsSpawned)
+        yield break;
 
-            yield break;
-        }
+    if (availableModes.Count == 0)
+    {
+        Debug.LogError(
+            "[MATCH REVEAL UI] No available game modes."
+        );
+
+        yield break;
+    }
+    
 
         GameModeData selectedMode =
             GetGameModeData(
@@ -302,36 +323,21 @@ OnRevealCompleted?.Invoke();
                 availableModes.Count
             ) % availableModes.Count;
 
-        for (int i = 0;
-             i <= totalSteps;
-             i++)
-        {
-            int index =
-                (startIndex + i) %
-                availableModes.Count;
+    for (int i = 0; i <= totalSteps; i++)
+{
+    if (matchSession == null || !matchSession.IsSpawned)
+        yield break;
 
-            HighlightMode(
-                availableModes[index]
-            );
+    int index = (startIndex + i) % availableModes.Count;
 
-            float progress =
-                (float)i /
-                Mathf.Max(
-                    1,
-                    totalSteps
-                );
+    HighlightMode(availableModes[index]);
 
-            float delay =
-                Mathf.Lerp(
-                    0.08f,
-                    0.24f,
-                    progress
-                );
+    float progress = (float)i / Mathf.Max(1, totalSteps);
 
-            yield return new WaitForSeconds(
-                delay
-            );
-        }
+    float delay = Mathf.Lerp(0.08f, 0.24f, progress);
+
+    yield return new WaitForSeconds(delay);
+}
 
         HighlightMode(
             selectedMode
@@ -359,18 +365,26 @@ OnRevealCompleted?.Invoke();
     }
 public void PlayCurrentRound()
 {
-    if (matchSession == null)
-    {
-        matchSession = MatchSession.Instance;
-    }
+    MatchSession candidate = MatchSession.Instance;
 
-    if (matchSession == null)
+    if (candidate == null || !candidate.IsSpawned)
     {
-        Debug.LogError(
-            "[MATCH REVEAL UI] MatchSession is missing."
+        Debug.LogWarning(
+            "[MATCH REVEAL UI] No spawned MatchSession is available."
         );
 
         return;
+    }
+
+    if (matchSession != candidate)
+    {
+        if (matchSession != null)
+        {
+            matchSession.OnRoundRevealRequested -= HandleRoundReveal;
+        }
+
+        matchSession = candidate;
+        matchSession.OnRoundRevealRequested += HandleRoundReveal;
     }
 
     if (matchSession.RoundRevealSequence <= 0)

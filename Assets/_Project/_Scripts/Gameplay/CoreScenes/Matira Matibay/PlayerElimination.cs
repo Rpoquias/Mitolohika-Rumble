@@ -11,11 +11,14 @@ public class PlayerElimination : NetworkBehaviour
     public bool IsAlive => !IsEliminated;
 
     public event Action<PlayerElimination> OnPlayerEliminated;
+    public bool IsNetworkInitialized { get; private set; }
+
 
 
 public override void Spawned()
 {
-    
+    IsNetworkInitialized = true;
+
     if (HasStateAuthority)
         IsEliminated = false;
 

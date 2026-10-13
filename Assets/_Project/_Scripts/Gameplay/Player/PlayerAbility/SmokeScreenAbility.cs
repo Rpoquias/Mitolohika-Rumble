@@ -13,7 +13,7 @@ public class SmokeScreenAbility : CharacterAbility
 
     public override void Activate()
     {
-        if (!Object.HasStateAuthority)
+        if (!HasStateAuthority)
             return;
 
         if (!CanActivate())
@@ -26,30 +26,33 @@ public class SmokeScreenAbility : CharacterAbility
         }
 
         SpawnSmoke();
-
         StartCooldown();
     }
 
     private void SpawnSmoke()
     {
         Runner.Spawn(
-        smokeCloudPrefab,
-        transform.position,
-        Quaternion.identity,
-        Object.InputAuthority,
-        OnSmokeSpawned
-    );
+            smokeCloudPrefab,
+            transform.position,
+            Quaternion.identity,
+            Object.InputAuthority,
+            OnSmokeSpawned
+        );
+    }
+
+    private void OnSmokeSpawned(
+        NetworkRunner runner,
+        NetworkObject obj)
+    {
+        SmokeCloud smoke = obj.GetComponent<SmokeCloud>();
+
+        if (smoke != null)
+            smoke.Initialize(Object.InputAuthority);
+
+        Audio?.Play(SFXID.KapreSmoke);
+
         Debug.Log(
             $"[ABILITY] {GetType().Name} activated."
         );
     }
-    private void OnSmokeSpawned(
-    NetworkRunner runner,
-    NetworkObject obj
-)
-{
-    SmokeCloud smoke = obj.GetComponent<SmokeCloud>();
-
-    smoke.Initialize(Object.InputAuthority);
-}
 }

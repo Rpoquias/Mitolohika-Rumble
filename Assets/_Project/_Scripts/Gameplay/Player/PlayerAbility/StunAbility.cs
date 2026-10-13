@@ -7,16 +7,20 @@ public class StunAbility : CharacterAbility
 
     public override void Activate()
     {
+        if (!HasStateAuthority)
+            return;
+
         if (!CanActivate())
             return;
 
-        PlayerMovement target =
-            FindBestTarget();
+        PlayerMovement target = FindBestTarget();
 
         if (target == null)
             return;
 
         target.ApplyStun(stunDuration);
+
+        Audio?.Play(SFXID.AswangStun);
 
         StartCooldown();
     }

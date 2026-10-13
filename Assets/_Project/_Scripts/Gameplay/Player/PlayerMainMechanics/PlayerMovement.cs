@@ -8,8 +8,9 @@ using System;
 public class PlayerMovement : NetworkBehaviour
 {
 public event Action OnHitReceived;
-
-
+public event Action OnJumped;
+public event Action OnLanded;
+private bool _hasInitializedGroundState;
     [Header("Control")]
     [SerializeField] private bool _initialCanMove = true;
 
@@ -64,15 +65,18 @@ public NetworkBool CanJump { get; private set; }
     public NetworkBool CanMove { get; private set; }
 [Networked]
 private float MovementSpeedMultiplier { get; set; } = 1f;
-[Networked, OnChangedRender(nameof(OnHitSequenceChanged))]
 private int HitSequence { get; set; }
     private Rigidbody _rb;
     private PlayerInputHandler _inputHandler;
     private PlayerControlEffects _controlEffects;
+    private PlayerAudio _audio;
 
     private Vector3 _moveDirection;
     private bool _isGrounded;
-
+    public bool IsMoving =>
+    CurrentMoveVelocity.sqrMagnitude > 0.1f;
+    private bool _wasGrounded;
+private float _airTime;
     private readonly Collider[] _groundHits =
         new Collider[8];
 
@@ -80,10 +84,6 @@ private int HitSequence { get; set; }
 
     public bool IsStunned =>
         !StunTimer.ExpiredOrNotRunning(Runner);
-private void OnHitSequenceChanged()
-{
-    OnHitReceived?.Invoke();
-}
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
@@ -95,6 +95,7 @@ private void OnHitSequenceChanged()
             GetComponent<PlayerInputHandler>();
             _controlEffects =
     GetComponent<PlayerControlEffects>();
+    _audio = GetComponent<PlayerAudio>();
 
         if (_inputHandler == null)
         {
@@ -185,26 +186,35 @@ public void AddExternalForce(Vector3 force)
 
     ExternalVelocity += force;
     HitSequence++;
+
+    NotifyHitReceived();
+
+    _audio?.Play(SFXID.PlayerHit);
 }
 
+private void NotifyHitReceived()
+{
+    OnHitReceived?.Invoke();
+}
 public void ApplyStun(float duration)
 {
     if (!HasStateAuthority)
         return;
 
-    StunTimer =
-        TickTimer.CreateFromSeconds(
-            Runner,
-            duration
-        );
+    StunTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        duration
+    );
 
     _moveDirection = Vector3.zero;
     CurrentMoveVelocity = Vector3.zero;
 
     HitSequence++;
 
-}
+    NotifyHitReceived();
 
+    _audio?.Play(SFXID.PlayerHit);
+}
     public void SetCanMove(bool canMove)
     {
         CanMove = canMove;
@@ -305,21 +315,23 @@ public void SetCanJump(bool canJump)
 
     CanJump = canJump;
 }
-    private void Jump()
-    {
-        Vector3 velocity =
-            _rb.linearVelocity;
+private void Jump()
+{
+    Vector3 velocity = _rb.linearVelocity;
+    velocity.y = 0f;
 
-        velocity.y = 0f;
+    _rb.linearVelocity = velocity;
 
-        _rb.linearVelocity =
-            velocity;
+    _rb.AddForce(
+        Vector3.up * _jumpForce,
+        ForceMode.Impulse
+    );
 
-        _rb.AddForce(
-            Vector3.up * _jumpForce,
-            ForceMode.Impulse
-        );
-    }
+    if (HasStateAuthority)
+        _audio?.Play(SFXID.PlayerJump);
+
+    OnJumped?.Invoke();
+}
 
     private void ApplyBetterGravity()
     {
@@ -333,36 +345,58 @@ public void SetCanJump(bool canJump)
         }
     }
 
-    private void CheckGround()
+ private void CheckGround()
+{
+    if (_groundCheck == null ||
+        Runner == null ||
+        !Runner.IsRunning)
     {
-        if (_groundCheck == null)
-        {
-            _isGrounded = false;
-            return;
-        }
-
-        if (Runner == null ||
-            !Runner.IsRunning)
-        {
-            _isGrounded = false;
-            return;
-        }
-
-        var physicsScene =
-            Runner.GetPhysicsScene();
-
-        int hitCount =
-            physicsScene.OverlapSphere(
-                _groundCheck.position,
-                _groundCheckRadius,
-                _groundHits,
-                _groundLayer,
-                QueryTriggerInteraction.Ignore
-            );
-
-        _isGrounded =
-            hitCount > 0;
+        _isGrounded = false;
+        _wasGrounded = false;
+        _hasInitializedGroundState = false;
+        _airTime = 0f;
+        return;
     }
+
+    var physicsScene = Runner.GetPhysicsScene();
+
+    int hitCount = physicsScene.OverlapSphere(
+        _groundCheck.position,
+        _groundCheckRadius,
+        _groundHits,
+        _groundLayer,
+        QueryTriggerInteraction.Ignore
+    );
+
+    _isGrounded = hitCount > 0;
+
+    if (!_hasInitializedGroundState)
+    {
+        _wasGrounded = _isGrounded;
+        _hasInitializedGroundState = true;
+        _airTime = 0f;
+        return;
+    }
+
+    if (HasStateAuthority)
+    {
+        if (!_isGrounded)
+        {
+            _airTime += Runner.DeltaTime;
+        }
+        else
+        {
+            if (!_wasGrounded && _airTime > 0.15f)
+            {
+                _audio?.Play(SFXID.PlayerLand);
+            }
+
+            _airTime = 0f;
+        }
+    }
+
+    _wasGrounded = _isGrounded;
+}
 
 #if UNITY_EDITOR
 

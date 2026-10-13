@@ -1,54 +1,105 @@
+using Fusion;
 using UnityEngine;
 
 [RequireComponent(typeof(PlayerBumpAttack))]
 [RequireComponent(typeof(PlayerMovement))]
-public class PlayerAudio : MonoBehaviour
+public class PlayerAudio : NetworkBehaviour
 {
-    private PlayerBumpAttack _bumpAttack;
+    [Header("Movement SFX")]
+    [SerializeField] private SFXID _movementSFX = SFXID.PlayerMove;
+
     private PlayerMovement _movement;
+    private AudioSource _movementSource;
 
-    private void Awake()
+    private bool _isMovementPlaying;
+
+    public override void Spawned()
     {
-        _bumpAttack = GetComponent<PlayerBumpAttack>();
         _movement = GetComponent<PlayerMovement>();
+
+        if (AudioManager.Instance != null)
+        {
+            _movementSource =
+                AudioManager.Instance.CreateLoopingSFX(
+                    _movementSFX,
+                    transform
+                );
+        }
     }
 
-    private void OnEnable()
+    public override void FixedUpdateNetwork()
     {
-        if (_bumpAttack != null)
-            _bumpAttack.OnBumpStarted += HandleBumpStarted;
+        if (!HasStateAuthority || _movement == null)
+            return;
 
-        if (_movement != null)
-            _movement.OnHitReceived += HandleHitReceived;
+        bool shouldPlayMovement =
+            _movement.CanMove &&
+            !_movement.IsBusy &&
+            !_movement.IsStunned &&
+            _movement.IsGrounded &&
+            _movement.IsMoving;
+
+        if (shouldPlayMovement == _isMovementPlaying)
+            return;
+
+        _isMovementPlaying = shouldPlayMovement;
+
+        RPC_SetMovementSFX(shouldPlayMovement);
     }
 
-    private void OnDisable()
+    public void Play(SFXID sfxID)
     {
-        if (_bumpAttack != null)
-            _bumpAttack.OnBumpStarted -= HandleBumpStarted;
+        if (!HasStateAuthority)
+            return;
 
-        if (_movement != null)
-            _movement.OnHitReceived -= HandleHitReceived;
+        RPC_Play(sfxID);
     }
 
-    private void HandleBumpStarted()
-    {
-        PlayAt(SFXID.PlayerBump);
-    }
-
-    private void HandleHitReceived()
-    {
-        PlayAt(SFXID.PlayerHit);
-    }
-
-    private void PlayAt(SFXID id)
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    private void RPC_Play(SFXID sfxID)
     {
         if (AudioManager.Instance == null)
             return;
 
-        AudioManager.Instance.PlaySFXAtPosition(
-            id,
-            transform.position
-        );
+        AudioManager.Instance.PlaySFX(sfxID);
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    private void RPC_SetMovementSFX(bool shouldPlay)
+    {
+        if (_movementSource == null)
+            return;
+
+        if (shouldPlay)
+        {
+            if (!_movementSource.isPlaying)
+                _movementSource.Play();
+        }
+        else
+        {
+            if (_movementSource.isPlaying)
+                _movementSource.Stop();
+        }
+    }
+
+    public override void Despawned(
+        NetworkRunner runner,
+        bool hasState)
+    {
+        StopMovementSFX();
+
+        if (_movementSource != null)
+        {
+            Destroy(_movementSource.gameObject);
+            _movementSource = null;
+        }
+    }
+
+    private void StopMovementSFX()
+    {
+        if (_movementSource != null)
+            _movementSource.Stop();
+
+        _isMovementPlaying = false;
     }
 }

@@ -29,6 +29,13 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private float selectionHeight = 3.5f;
     [SerializeField] private float selectionLookHeight = 1.5f;
 
+
+[Header("Gameplay Camera Smoothing")]
+[SerializeField] private float followSpeedXZ = 15f;
+[SerializeField] private float followSpeedY = 6f;
+
+private Vector3 focusPoint;
+private bool focusInitialized;
     private bool characterSelectionMode;
 
     public NetworkRunner Runner => runner;
@@ -86,78 +93,86 @@ public Transform CurrentTarget => target;
         UpdateGameplayCamera();
     }
 
-    private void UpdateGameplayCamera()
+   private void UpdateGameplayCamera()
+{
+    float sensitivityMultiplier = 1f;
+
+    if (MobileSettings.Instance != null)
     {
-        float sensitivityMultiplier = 1f;
-
-        if (MobileSettings.Instance != null)
-        {
-            sensitivityMultiplier =
-                MobileSettings.Instance.LookSensitivity;
-        }
-
-        float finalMouseSensitivity =
-            mouseSensitivity * sensitivityMultiplier;
-
-        float finalMobileSensitivity =
-            mobileSensitivity * sensitivityMultiplier;
-
-        Vector2 mouseLook =
-            lookAction.action.ReadValue<Vector2>();
-
-        yaw +=
-            mouseLook.x *
-            finalMouseSensitivity;
-
-        pitch -=
-            mouseLook.y *
-            finalMouseSensitivity;
-
-        yaw +=
-            mobileLook.x *
-            finalMobileSensitivity;
-
-        pitch -=
-            mobileLook.y *
-            finalMobileSensitivity;
-
-        mobileLook = Vector2.zero;
-
-        pitch = Mathf.Clamp(
-            pitch,
-            minPitch,
-            maxPitch
-        );
-
-        Quaternion rotation =
-            Quaternion.Euler(
-                pitch,
-                yaw,
-                0f
-            );
-
-        Vector3 desiredPosition =
-            target.position +
-            rotation *
-            new Vector3(
-                0f,
-                0f,
-                -distance
-            );
-
-        desiredPosition.y += height;
-
-        transform.position =
-            Vector3.Lerp(
-                transform.position,
-                desiredPosition,
-                followSpeed *
-                Time.deltaTime
-            );
-
-        transform.LookAt(target.position);
+        sensitivityMultiplier =
+            MobileSettings.Instance.LookSensitivity;
     }
 
+    float finalMouseSensitivity =
+        mouseSensitivity * sensitivityMultiplier;
+
+    float finalMobileSensitivity =
+        mobileSensitivity * sensitivityMultiplier;
+
+    Vector2 mouseLook = Vector2.zero;
+
+    if (lookAction != null && lookAction.action != null)
+    {
+        mouseLook = lookAction.action.ReadValue<Vector2>();
+    }
+
+    yaw += mouseLook.x * finalMouseSensitivity;
+    pitch -= mouseLook.y * finalMouseSensitivity;
+
+    yaw += mobileLook.x * finalMobileSensitivity;
+    pitch -= mobileLook.y * finalMobileSensitivity;
+
+    mobileLook = Vector2.zero;
+
+    pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+
+    // Smooth the point the camera follows, not the camera itself.
+    Vector3 targetPosition = target.position;
+
+    if (!focusInitialized)
+    {
+        focusPoint = targetPosition;
+        focusInitialized = true;
+    }
+
+    float smoothingXZ =
+        1f - Mathf.Exp(-followSpeedXZ * Time.deltaTime);
+
+    float smoothingY =
+        1f - Mathf.Exp(-followSpeedY * Time.deltaTime);
+
+    focusPoint.x = Mathf.Lerp(
+        focusPoint.x,
+        targetPosition.x,
+        smoothingXZ
+    );
+
+    focusPoint.y = Mathf.Lerp(
+        focusPoint.y,
+        targetPosition.y,
+        smoothingY
+    );
+
+    focusPoint.z = Mathf.Lerp(
+        focusPoint.z,
+        targetPosition.z,
+        smoothingXZ
+    );
+
+    Quaternion rotation = Quaternion.Euler(
+        pitch,
+        yaw,
+        0f
+    );
+
+    Vector3 desiredPosition =
+        focusPoint +
+        rotation * new Vector3(0f, 0f, -distance) +
+        Vector3.up * height;
+
+    transform.position = desiredPosition;
+    transform.LookAt(focusPoint);
+}
    private void UpdateCharacterSelectionCamera()
 {
     if (target == null)
@@ -257,7 +272,9 @@ public Transform CurrentTarget => target;
         return;
     }
 
-    target = cameraTarget;
+target = cameraTarget;
+focusInitialized = false;
+    
 }
 public void SetTarget(Transform newTarget)
 {
@@ -293,6 +310,7 @@ public void ReturnToLocalPlayer()
     target = localTarget;
     yaw = target.eulerAngles.y;
     pitch = 25f;
+    focusInitialized = false;
 }
 
     private void OnEnable()

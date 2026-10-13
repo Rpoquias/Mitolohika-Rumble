@@ -7,6 +7,9 @@ public class PowerfulKickAbility : CharacterAbility
 
     public override void Activate()
     {
+        if (!HasStateAuthority)
+            return;
+
         if (!CanActivate())
         {
             Debug.Log(
@@ -16,14 +19,13 @@ public class PowerfulKickAbility : CharacterAbility
             return;
         }
 
-        PlayerMovement target =
-            FindBestTarget();
+        PlayerMovement target = FindBestTarget();
 
         if (target == null)
         {
             Debug.Log(
                 $"[ABILITY] {GetType().Name} activated, " +
-                $"but no valid target was found."
+                "but no valid target was found."
             );
 
             return;
@@ -35,14 +37,15 @@ public class PowerfulKickAbility : CharacterAbility
 
         ApplyKick(target);
 
+        Audio?.Play(SFXID.TikbalangKick);
+
         StartCooldown();
     }
 
     private void ApplyKick(PlayerMovement target)
     {
         Vector3 direction =
-            target.transform.position -
-            transform.position;
+            target.transform.position - transform.position;
 
         direction.y = 0f;
 

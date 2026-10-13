@@ -24,6 +24,7 @@
         private bool _canUseAbility;
         // Used only for visualization/debugging.
         protected PlayerMovement CurrentTarget { get; private set; }
+        protected PlayerAudio Audio { get; private set; }
 
         private float MinimumTargetDot =>
             Mathf.Cos(targetAngle * Mathf.Deg2Rad);
@@ -33,10 +34,11 @@
     return CooldownTimer.ExpiredOrNotRunning(Runner);
 }
 
-     public override void Spawned()
+public override void Spawned()
 {
     _movement = GetComponent<PlayerMovement>();
     _inputHandler = GetComponent<PlayerInputHandler>();
+    Audio = GetComponent<PlayerAudio>();
 }
 
 public override void FixedUpdateNetwork()

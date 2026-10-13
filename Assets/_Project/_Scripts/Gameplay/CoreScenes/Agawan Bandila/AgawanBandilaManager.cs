@@ -106,7 +106,7 @@ private void HandleRoundStarted()
         $"Duration: {roundDuration} seconds."
     );
 }
-    private void EndRound()
+   private void EndRound()
 {
     if (!HasServer())
         return;
@@ -124,31 +124,16 @@ private void HandleRoundStarted()
         NetworkManager.Instance.CurrentMatchSession;
 
     if (matchSession != null)
-    {
         matchSession.StopRoundTimer();
-    }
 
     if (scoreManager != null)
-    {
         scoreManager.StopScoring();
-    }
 
     Debug.Log(
-        "[BANDILA] Timer reached zero. " +
-        "Ending round."
+        "[BANDILA] Timer reached zero. Ending round."
     );
 
-   roundStateManager.EndRound();
-
-if (MatchFlowManager.Instance == null)
-{
-    Debug.LogError(
-        "[BANDILA] MatchFlowManager is missing."
-    );
-
-    return;
-}
-     List<RoundPlacement> placements =
+    List<RoundPlacement> placements =
         placementManager.BuildFinalPlacements();
 
     Dictionary<PlayerRef, int> flagCounts =
@@ -159,7 +144,17 @@ if (MatchFlowManager.Instance == null)
         flagCounts[player] = scoreManager.GetScore(player);
     }
 
+    // End the round once.
     roundStateManager.EndRound();
+
+    if (MatchFlowManager.Instance == null)
+    {
+        Debug.LogError(
+            "[BANDILA] MatchFlowManager is missing."
+        );
+
+        return;
+    }
 
     MatchFlowManager.Instance.HandleRoundComplete(
         placements,
@@ -167,7 +162,6 @@ if (MatchFlowManager.Instance == null)
         flagCounts
     );
 }
-
     private void AssignBases()
     {
         NetworkRunner runner =

@@ -54,43 +54,60 @@ public class MatchResultUI : MonoBehaviour
         CreateSessionReference();
     }
 
-    private void Update()
+  private void Update()
+{
+    // Forget the previous session if it has been despawned.
+    if (matchSession != null && !matchSession.IsSpawned)
     {
-        if (matchSession == null)
+        matchSession.OnRoundResultRequested -= HandleRoundResult;
+        matchSession = null;
+
+        lastHandledSequence = -1;
+
+        if (resultCoroutine != null)
         {
-            CreateSessionReference();
-            return;
+            StopCoroutine(resultCoroutine);
+            resultCoroutine = null;
         }
 
-        // Fallback in case the event was missed.
-        if (matchSession.RoundResultSequence !=
-            lastHandledSequence)
-        {
-            HandleRoundResult();
-        }
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
+
+        ClearCards();
     }
 
+    if (matchSession == null)
+    {
+        CreateSessionReference();
+        return;
+    }
+
+    // Fallback if the sequence-change event was missed.
+    if (matchSession.RoundResultSequence != lastHandledSequence)
+    {
+        HandleRoundResult();
+    }
+}
     // ============================================================
     // MATCH SESSION
     // ============================================================
 
-    private void CreateSessionReference()
-    {
-        if (matchSession != null)
-            return;
+ private void CreateSessionReference()
+{
+    if (matchSession != null)
+        return;
 
-        matchSession =
-            MatchSession.Instance;
+    MatchSession candidate = MatchSession.Instance;
 
-        if (matchSession == null)
-            return;
+    if (candidate == null || !candidate.IsSpawned)
+        return;
 
-        matchSession.OnRoundResultRequested +=
-            HandleRoundResult;
+    matchSession = candidate;
 
-        CheckForMissedResult();
-    }
+    matchSession.OnRoundResultRequested += HandleRoundResult;
 
+    CheckForMissedResult();
+}
     private void CheckForMissedResult()
     {
         if (matchSession == null)

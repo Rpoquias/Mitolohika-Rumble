@@ -11,7 +11,19 @@ public class ArenaShrinkController : NetworkBehaviour
     [Header("Shrinking")]
     [SerializeField] private float startDelay = 10f;
     [SerializeField] private float shrinkInterval = 5f;
+[Header("Audio")]
+[SerializeField] private SFXID tileDestroyedSFX = SFXID.ArenaTileDestroyed;
+[Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+private void RPC_PlayTileDestroyedSFX(Vector3 position)
+{
+    if (AudioManager.Instance == null)
+        return;
 
+    AudioManager.Instance.PlaySFXAtPosition(
+        tileDestroyedSFX,
+        position
+    );
+}
 
     private readonly List<GameObject> arenaTiles = new List<GameObject>();
 
@@ -354,10 +366,17 @@ public void StartShrinking()
                     break;
             }
 
-            if (shouldRemove)
-            {
-                tile.SetActive(false);
-            }
+           if (shouldRemove)
+{
+    Vector3 tilePosition = tile.transform.position;
+
+    tile.SetActive(false);
+
+    if (HasStateAuthority)
+    {
+        RPC_PlayTileDestroyedSFX(tilePosition);
+    }
+}
         }
     }
 

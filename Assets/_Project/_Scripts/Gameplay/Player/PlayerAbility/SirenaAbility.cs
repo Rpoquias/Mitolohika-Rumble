@@ -92,29 +92,31 @@ public class SirenaAbility : CharacterAbility
         Emerge();
     }
 
-    private void BeginDive()
-    {
-        CurrentState = SirenaState.Diving;
-
-        DiveTimer = TickTimer.CreateFromSeconds(
-            Runner,
-            _diveDuration
-        );
-
-        if (_targetingState != null)
-            _targetingState.SetUntargetable(true);
-
-       if (_playerMovement != null)
+  private void BeginDive()
 {
-    _playerMovement.SetMovementSpeedMultiplier(
-        _submergedSpeedMultiplier
+    CurrentState = SirenaState.Diving;
+
+    DiveTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        _diveDuration
     );
 
-    _playerMovement.SetCanJump(false);
-}
+    if (_targetingState != null)
+        _targetingState.SetUntargetable(true);
+
+    if (_playerMovement != null)
+    {
+        _playerMovement.SetMovementSpeedMultiplier(
+            _submergedSpeedMultiplier
+        );
+
+        _playerMovement.SetCanJump(false);
     }
 
-   private void Emerge()
+    Audio?.Play(SFXID.SirenaDive);
+}
+
+  private void Emerge()
 {
     if (_playerMovement != null)
     {
@@ -126,6 +128,8 @@ public class SirenaAbility : CharacterAbility
         _targetingState.SetUntargetable(false);
 
     ApplyEmergenceKnockback();
+
+    Audio?.Play(SFXID.SirenaEmerge);
 
     CurrentState = SirenaState.Normal;
 

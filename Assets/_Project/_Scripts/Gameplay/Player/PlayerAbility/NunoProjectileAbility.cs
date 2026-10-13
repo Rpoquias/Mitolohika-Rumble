@@ -5,13 +5,9 @@ public class NunoProjectileAbility : CharacterAbility
 {
     [Header("Projectile")]
     [SerializeField] private NetworkPrefabRef _projectilePrefab;
-
     [SerializeField] private Transform _projectileSpawnPoint;
-
     [SerializeField] private float _projectileSpeed = 12f;
-
     [SerializeField] private float _projectileLifetime = 3f;
-
     [SerializeField] private float _reversedInputDuration = 2f;
 
     public override void Activate()
@@ -23,7 +19,6 @@ public class NunoProjectileAbility : CharacterAbility
             return;
 
         SpawnProjectile();
-
         StartCooldown();
     }
 
@@ -74,5 +69,7 @@ public class NunoProjectileAbility : CharacterAbility
             _reversedInputDuration,
             _projectileLifetime
         );
+
+        Audio?.Play(SFXID.NunoProjectile);
     }
 }

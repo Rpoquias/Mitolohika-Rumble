@@ -11,6 +11,20 @@ public class RelicController : NetworkBehaviour
     [Header("Carry")]
     [SerializeField] private Vector3 carryOffset =
         new Vector3(0f, 1.8f, 0f);
+        
+
+        [Header("Audio")]
+[SerializeField] private SFXID pickupSFX = SFXID.RelicPickup;
+[SerializeField] private SFXID dropSFX = SFXID.RelicDrop;
+
+[Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+private void RPC_PlayRelicSFX(SFXID sfxID, Vector3 position)
+{
+    if (AudioManager.Instance == null)
+        return;
+
+    AudioManager.Instance.PlaySFXAtPosition(sfxID, position);
+}
 
     [Networked]
     private PlayerRef Holder { get; set; }
@@ -68,19 +82,9 @@ public void ResetRelic()
     if (!HasStateAuthority)
         return;
 
-    if (Holder != PlayerRef.None)
-    {
-        if (Runner.TryGetPlayerObject(
-            Holder,
-            out NetworkObject playerObject))
-        {
-            PlayerBumpAttack bump =
-                playerObject.GetComponent<PlayerBumpAttack>();
-
-            if (bump != null)
-                bump.SetRelicBumpBlocked(false);
-        }
-    }
+    // Restore bump attack before clearing the holder reference.
+    if (_holderBump != null)
+        _holderBump.SetObjectiveBumpBlocked(false);
 
     UnsubscribeFromHolder(_holderMovement);
 
@@ -94,11 +98,10 @@ public void ResetRelic()
         _startingRotation
     );
 
-    PickupLockTimer =
-        TickTimer.CreateFromSeconds(
-            Runner,
-            pickupLockDuration
-        );
+    PickupLockTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        pickupLockDuration
+    );
 
     Debug.Log("[RELIC] Relic reset for new round.");
 }
@@ -181,22 +184,24 @@ private void HandleHolderHit()
         {
             return;
         }
+Holder = player;
 
-        Holder = player;
+_holderMovement =
+    playerObject.GetComponent<PlayerMovement>();
 
-        _holderMovement =
-            playerObject.GetComponent<PlayerMovement>();
-        
-        _holderBump =
-            playerObject.GetComponent<PlayerBumpAttack>();
-            SubscribeToHolder(_holderMovement);
+_holderBump =
+    playerObject.GetComponent<PlayerBumpAttack>();
 
-   if (_holderBump != null)
+SubscribeToHolder(_holderMovement);
+
+if (_holderBump != null)
 {
-    _holderBump.SetRelicBumpBlocked(true);
+    _holderBump.SetObjectiveBumpBlocked(true);
 }
 
-        UpdateHeldPosition();
+UpdateHeldPosition();
+
+RPC_PlayRelicSFX(pickupSFX, transform.position);
 
         Debug.Log(
             $"[RELIC] {player} picked up the Relic."
@@ -232,21 +237,13 @@ private void HandleHolderHit()
 
         PlayerRef previousHolder = Holder;
 
-        if (Runner.TryGetPlayerObject(
-                previousHolder,
-                out NetworkObject playerObject))
-        {
-            PlayerBumpAttack bump =
-                playerObject.GetComponent<PlayerBumpAttack>();
-
-        if (bump != null)
+    if (_holderBump != null)
 {
-    bump.SetRelicBumpBlocked(false);
+    _holderBump.SetObjectiveBumpBlocked(false);
 }
-        }
 
         Holder = PlayerRef.None;
-
+RPC_PlayRelicSFX(dropSFX, transform.position);
 
 UnsubscribeFromHolder(_holderMovement);
         _holderMovement = null;

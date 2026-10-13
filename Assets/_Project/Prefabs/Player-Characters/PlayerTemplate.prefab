@@ -42,6 +42,7 @@ GameObject:
   - component: {fileID: 6939807543374404225}
   - component: {fileID: 7251879043630186876}
   - component: {fileID: 4830244679312638644}
+  - component: {fileID: 2168883246267595000}
   - component: {fileID: 5346804513213949179}
   - component: {fileID: 8123948571029384756}
   - component: {fileID: 7943311670696920883}
@@ -52,7 +53,6 @@ GameObject:
   - component: {fileID: 765166597663014697}
   - component: {fileID: 2502265891853913773}
   - component: {fileID: 2831514250339324669}
-  - component: {fileID: 2168883246267595000}
   - component: {fileID: 2529339143744099010}
   - component: {fileID: -124059975618444276}
   - component: {fileID: -1402878859886948706}
@@ -136,6 +136,22 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 0
+--- !u!114 &2168883246267595000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394773554417792030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5baa37e08a734f79b9f3720311e58752, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Addons.Physics::Fusion.Addons.Physics.NetworkRigidbody
+  _stateAuthorityChangeErrorCorrectionDelta: 0
+  SyncScale: 0
+  SyncParent: 0
+  _interpolationTarget: {fileID: 644318686652043140}
 --- !u!114 &5346804513213949179
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -233,6 +249,7 @@ MonoBehaviour:
   - {fileID: 2529339143744099010}
   - {fileID: -124059975618444276}
   - {fileID: -1402878859886948706}
+  - {fileID: 8983363282271677740}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &5822319257664240599
 MonoBehaviour:
@@ -315,29 +332,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerPresentation
   animator: {fileID: 0}
-  audioSource: {fileID: 0}
   stunVfx: {fileID: 0}
-  kickClip: {fileID: 0}
-  stunClip: {fileID: 0}
   characterVisual: {fileID: 0}
   localInvisibleVisual: {fileID: 0}
   smokeOverlay: {fileID: 5440280122299330949}
---- !u!114 &2168883246267595000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 394773554417792030}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5baa37e08a734f79b9f3720311e58752, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Fusion.Addons.Physics::Fusion.Addons.Physics.NetworkRigidbody
-  _stateAuthorityChangeErrorCorrectionDelta: 0
-  SyncScale: 0
-  SyncParent: 0
-  _interpolationTarget: {fileID: 644318686652043140}
 --- !u!114 &2529339143744099010
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -405,6 +403,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74fc20ff46d7a0140a80f289bedd6762, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAudio
+  _movementSFX: 8
 --- !u!1 &1096132585349599618
 GameObject:
   m_ObjectHideFlags: 0

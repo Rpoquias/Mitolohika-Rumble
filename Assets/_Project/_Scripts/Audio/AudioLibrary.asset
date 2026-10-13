@@ -17,22 +17,66 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: 660caaf0e9aa1444495caecc96211b37, type: 3}
   - id: 2
     clip: {fileID: 8300000, guid: faf9d0372226288478ee86a9831e0ed1, type: 3}
-  sfxEntries:
-  - id: 1
-    clip: {fileID: 0}
   - id: 3
-    clip: {fileID: 0}
+    clip: {fileID: 8300000, guid: 93d7f6e85c9b1f84ba48c43bbffb84a1, type: 3}
   - id: 4
-    clip: {fileID: 0}
+    clip: {fileID: 8300000, guid: 024e2d3b481393743b25c828cec46ca6, type: 3}
   - id: 5
-    clip: {fileID: 0}
-  - id: 6
-    clip: {fileID: 0}
-  - id: 8
-    clip: {fileID: 0}
-  - id: 9
-    clip: {fileID: 0}
-  - id: 10
+    clip: {fileID: 8300000, guid: 8509df8387c62d64780ef1602e7c67a1, type: 3}
+  uiSFX:
+  - id: 1
     clip: {fileID: 8300000, guid: 1b4152de0093e0146846d1cdcdb20c63, type: 3}
+  - id: 2
+    clip: {fileID: 8300000, guid: 1b4152de0093e0146846d1cdcdb20c63, type: 3}
+  - id: 3
+    clip: {fileID: 8300000, guid: 1b4152de0093e0146846d1cdcdb20c63, type: 3}
+  matchSFX:
+  - id: 4
+    clip: {fileID: 8300000, guid: 2429e38b165e86f4483441acd724b15a, type: 3}
+  - id: 5
+    clip: {fileID: 8300000, guid: 99038433cd2055e4c94718a3cf04c4be, type: 3}
+  - id: 6
+    clip: {fileID: 8300000, guid: 66bd008df3fbecd459ce5028c6dcf7a9, type: 3}
+  - id: 7
+    clip: {fileID: 8300000, guid: 2004fd6c67ff0504cb5bbf6119f02fda, type: 3}
+  playerSFX:
+  - id: 8
+    clip: {fileID: 8300000, guid: 7a6c9dfb14b6d24468a88885298741f8, type: 3}
+  - id: 9
+    clip: {fileID: 8300000, guid: 9f1b98914ea964a4eb1d380ab30558cc, type: 3}
+  - id: 10
+    clip: {fileID: 8300000, guid: d93b9d727f3382b429dab96abc90d823, type: 3}
   - id: 11
+    clip: {fileID: 8300000, guid: 1b4152de0093e0146846d1cdcdb20c63, type: 3}
+  - id: 12
     clip: {fileID: 8300000, guid: 8b24f693b3a6a1640b024b4dda73eac1, type: 3}
+  - id: 13
+    clip: {fileID: 8300000, guid: f77cb85e6f18c1c4eb07bedd96f9e095, type: 3}
+  abilitySFX:
+  - id: 14
+    clip: {fileID: 8300000, guid: b4ddbe87609e37044b9c6ee13295b943, type: 3}
+  - id: 15
+    clip: {fileID: 8300000, guid: acaa9107fc2199740b1a2b706a1e0e9f, type: 3}
+  - id: 16
+    clip: {fileID: 8300000, guid: e8f5c1ed1bde7634aa4475d26b3a8d14, type: 3}
+  - id: 17
+    clip: {fileID: 8300000, guid: ec9cd26631a80b44b8d64b0948da04f7, type: 3}
+  - id: 20
+    clip: {fileID: 8300000, guid: 9bf9d758353f6094fb2321dcae6923e0, type: 3}
+  - id: 19
+    clip: {fileID: 8300000, guid: f889073a76f6e5f449bf7eab38dba5b5, type: 3}
+  - id: 18
+    clip: {fileID: 8300000, guid: 76765742887b0834598ce8e688dd6973, type: 3}
+  gameModeSFX:
+  - id: 21
+    clip: {fileID: 8300000, guid: d9c49ec85ce10974e8f2d6c3c1dde850, type: 3}
+  - id: 22
+    clip: {fileID: 8300000, guid: f4eaba91d1df78a44b3fa50da1bc0a0f, type: 3}
+  - id: 23
+    clip: {fileID: 8300000, guid: ad06f00596cc25b479f801ce569ff044, type: 3}
+  - id: 24
+    clip: {fileID: 8300000, guid: f4eaba91d1df78a44b3fa50da1bc0a0f, type: 3}
+  - id: 25
+    clip: {fileID: 8300000, guid: ad06f00596cc25b479f801ce569ff044, type: 3}
+  - id: 26
+    clip: {fileID: 8300000, guid: 2169553cbf4346f4f89061b22fd512a6, type: 3}
