@@ -18,7 +18,8 @@ MonoBehaviour:
   lobbyPrefab: {fileID: 5813759565420167631, guid: 51d7ba91734d45f44aa26fdd7a70d0fb, type: 3}
   gameplayPrefab: {fileID: 5813759565420167631, guid: 51d7ba91734d45f44aa26fdd7a70d0fb, type: 3}
   signatureAbility: Invisibility
-  abilityDescription: 
+  abilityDescription: Turns fully invisible, allowing her to reposition or approach
+    unseen.
   abilityCooldown: 0
   abilityRange: 0
   abilityDuration: 0
