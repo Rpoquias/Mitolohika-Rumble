@@ -3,12 +3,12 @@ using UnityEngine;
 
 public class SirenaAbility : CharacterAbility
 {
-    private enum SirenaState
-    {
-        Normal,
-        Diving
-    }
-
+  private enum SirenaState
+{
+    Normal,
+    Diving,
+    Emerging
+}
     [Header("Dive Settings")]
     [SerializeField, Min(0.1f)]
     private float _diveDuration = 2f;
@@ -32,7 +32,10 @@ public class SirenaAbility : CharacterAbility
     [Header("References")]
     [SerializeField]
     private Transform _effectOrigin;
-
+[SerializeField, Min(0.1f)]
+private float _emergeDuration = 0.8f;
+[Networked]
+private TickTimer EmergeTimer { get; set; }
     [Networked]
     private SirenaState CurrentState { get; set; }
 
@@ -45,8 +48,10 @@ public class SirenaAbility : CharacterAbility
     private readonly Collider[] _overlapResults =
         new Collider[16];
 
-    public bool IsDiving =>
-        CurrentState == SirenaState.Diving;
+public bool IsDiving => CurrentState == SirenaState.Diving;
+public bool IsEmerging => CurrentState == SirenaState.Emerging;
+
+
 
     public override void Spawned()
     {
@@ -76,22 +81,24 @@ public class SirenaAbility : CharacterAbility
         // It starts after the emergence attack.
     }
 
-    public override void FixedUpdateNetwork()
+public override void FixedUpdateNetwork()
+{
+    base.FixedUpdateNetwork();
+
+    if (!HasStateAuthority)
+        return;
+
+    if (CurrentState == SirenaState.Diving &&
+        DiveTimer.ExpiredOrNotRunning(Runner))
     {
-        base.FixedUpdateNetwork();
-
-        if (!HasStateAuthority)
-            return;
-
-        if (CurrentState != SirenaState.Diving)
-            return;
-
-        if (!DiveTimer.ExpiredOrNotRunning(Runner))
-            return;
-
         Emerge();
     }
-
+    else if (CurrentState == SirenaState.Emerging &&
+             EmergeTimer.ExpiredOrNotRunning(Runner))
+    {
+        CurrentState = SirenaState.Normal;
+    }
+}
   private void BeginDive()
 {
     CurrentState = SirenaState.Diving;
@@ -116,7 +123,7 @@ public class SirenaAbility : CharacterAbility
     Audio?.Play(SFXID.SirenaDive);
 }
 
-  private void Emerge()
+private void Emerge()
 {
     if (_playerMovement != null)
     {
@@ -127,13 +134,17 @@ public class SirenaAbility : CharacterAbility
     if (_targetingState != null)
         _targetingState.SetUntargetable(false);
 
+    CurrentState = SirenaState.Emerging;
+
+    EmergeTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        _emergeDuration
+    );
+
     ApplyEmergenceKnockback();
 
     Audio?.Play(SFXID.SirenaEmerge);
 
-    CurrentState = SirenaState.Normal;
-
-    // Cooldown starts after the emergence attack.
     StartCooldown();
 }
     private void ApplyEmergenceKnockback()

@@ -349,6 +349,11 @@ MonoBehaviour:
   characterVisual: {fileID: 0}
   localInvisibleVisual: {fileID: 0}
   smokeOverlay: {fileID: 5440280122299330949}
+  sirenaAbility: {fileID: 0}
+  animationController: {fileID: 0}
+  waterholeVfx: {fileID: 0}
+  diveTrigger: Dive
+  emergeTrigger: Emerge
 --- !u!114 &2529339143744099010
 MonoBehaviour:
   m_ObjectHideFlags: 0
