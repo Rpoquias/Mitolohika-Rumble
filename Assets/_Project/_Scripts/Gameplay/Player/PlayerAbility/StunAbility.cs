@@ -13,15 +13,15 @@ public class StunAbility : CharacterAbility
         if (!CanActivate())
             return;
 
-        PlayerMovement target = FindBestTarget();
+   PlayerMovement target = FindBestTarget();
 
-        if (target == null)
-            return;
+if (target == null)
+    return;
 
-        target.ApplyStun(stunDuration);
+target.ApplyStun(stunDuration);
 
-        Audio?.Play(SFXID.AswangStun);
+Audio?.Play(SFXID.AswangStun);
 
-        StartCooldown();
+StartCooldown();
     }
 }

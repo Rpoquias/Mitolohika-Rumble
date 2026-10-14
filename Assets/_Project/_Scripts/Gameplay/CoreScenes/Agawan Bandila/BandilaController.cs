@@ -52,6 +52,7 @@ private void RPC_PlayFlagSFX(SFXID sfxID, Vector3 position)
 
 private PlayerMovement _holderMovement;
 private PlayerBumpAttack _holderBump;
+private Rigidbody _rb;
 
     private readonly Collider[] _pickupHits =
         new Collider[16];
@@ -71,19 +72,34 @@ private PlayerBumpAttack _holderBump;
     public bool IsFree =>
         State == FlagState.Free;
 
-    public override void Spawned()
+public override void Spawned()
+{
+    _rb = GetComponent<Rigidbody>();
+
+    if (!HasStateAuthority)
+        return;
+
+    State = FlagState.Free;
+    Holder = PlayerRef.None;
+    StoredOwner = PlayerRef.None;
+
+    PickupLockTimer = TickTimer.None;
+    PreviousHolderLockTimer = TickTimer.None;
+
+    SetCarriedPhysics(false);
+}private void SetCarriedPhysics(bool carried)
+{
+    if (_rb == null)
+        return;
+
+    _rb.isKinematic = carried;
+
+    if (carried)
     {
-        if (!HasStateAuthority)
-            return;
-
-        State = FlagState.Free;
-        Holder = PlayerRef.None;
-        StoredOwner = PlayerRef.None;
-
-        PickupLockTimer = TickTimer.None;
-        PreviousHolderLockTimer = TickTimer.None;
+        _rb.linearVelocity = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
     }
-
+}
     public override void FixedUpdateNetwork()
     {
         if (!HasStateAuthority)
@@ -192,6 +208,7 @@ return;
     Holder = player;
 
     StoredOwner = PlayerRef.None;
+    SetCarriedPhysics(true);
     
 _holderMovement =
     playerObject.GetComponent<PlayerMovement>();
@@ -252,6 +269,12 @@ public void Drop()
     // Release the flag.
     Holder = PlayerRef.None;
     State = FlagState.Free;
+SetCarriedPhysics(false);
+if (_rb != null)
+{
+    _rb.linearVelocity = Vector3.zero;
+    _rb.angularVelocity = Vector3.zero;
+}
 
     _holderMovement = null;
     _holderBump = null;
@@ -323,7 +346,7 @@ public void StoreAtBase(PlayerRef player)
     // Store the flag for its owner.
     State = FlagState.Stored;
     StoredOwner = player;
-
+SetCarriedPhysics(true);
     PickupLockTimer = TickTimer.None;
     PreviousHolderLockTimer = TickTimer.None;
 
@@ -382,6 +405,7 @@ private bool IsCarryingAnotherFlag(PlayerRef player)
     State = FlagState.Carried;
     Holder = player;
 
+SetCarriedPhysics(true);
    _holderMovement =
     playerObject.GetComponent<PlayerMovement>();
 
@@ -420,7 +444,7 @@ private void SetHolderBumpBlocked(bool blocked)
     State = FlagState.Free;
     Holder = PlayerRef.None;
     StoredOwner = PlayerRef.None;
-
+SetCarriedPhysics(false);
     _holderMovement = null;
     _holderBump = null;
 
@@ -434,6 +458,11 @@ private void SetHolderBumpBlocked(bool blocked)
     PreviousHolderLockTimer = TickTimer.None;
 
     transform.SetPositionAndRotation(position, rotation);
+    if (_rb != null)
+{
+    _rb.linearVelocity = Vector3.zero;
+    _rb.angularVelocity = Vector3.zero;
+}
 }
     private void OnDestroy()
     {

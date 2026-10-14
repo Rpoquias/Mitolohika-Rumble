@@ -14,14 +14,26 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: NetworkedBehaviours.Array.size
-      value: 13
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[11]'
       value: 
-      objectReference: {fileID: 4351956737914240699}
+      objectReference: {fileID: 3191338870476201225}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[12]'
+      value: 
+      objectReference: {fileID: 4351956737914240699}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[13]'
+      value: 
+      objectReference: {fileID: 9137614048935012021}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[14]'
+      value: 
+      objectReference: {fileID: 2783489277089505032}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[15]'
       value: 
       objectReference: {fileID: 188511244256254622}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
@@ -85,6 +97,28 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5780550892009840980, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
   m_PrefabInstance: {fileID: 4669688380327056279}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &2783489277089505032 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7381083579745209503, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 4669688380327056279}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5022802914455037833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b762ef332f2638f44ac51c2bb798c839, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityPresenter
+--- !u!114 &3191338870476201225 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: -1402878859886948706, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 4669688380327056279}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5022802914455037833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ca33523790604f408094e9bb8251499, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerTargetingState
 --- !u!114 &4351956737914240699 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8983363282271677740, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
@@ -120,9 +154,21 @@ MonoBehaviour:
   playerLayer:
     serializedVersion: 2
     m_Bits: 64
+  _ActivationCount: 0
   _projectilePrefab:
     RawGuidValue: b8f413ee81f83034d95a5ecc7a8dfec2
   _projectileSpawnPoint: {fileID: 1222363083951420099}
   _projectileSpeed: 12
   _projectileLifetime: 1
   _reversedInputDuration: 4
+--- !u!114 &9137614048935012021 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4467926278494369058, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 4669688380327056279}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5022802914455037833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 506319458, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkMecanimAnimator

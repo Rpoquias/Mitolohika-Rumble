@@ -1,3 +1,4 @@
+using Fusion;
 using UnityEngine;
 
 public class PowerfulKickAbility : CharacterAbility
@@ -5,41 +6,62 @@ public class PowerfulKickAbility : CharacterAbility
     [Header("Kick")]
     [SerializeField] private float knockbackForce = 10f;
 
-    public override void Activate()
+    [SerializeField] private float windupSeconds = 0.35f;
+
+    [Networked]
+    private TickTimer WindupTimer { get; set; }
+
+    [Networked]
+    private NetworkBool IsKicking { get; set; }
+
+    public override bool CanActivate()
     {
-        if (!HasStateAuthority)
+        return base.CanActivate() && !IsKicking;
+    }
+
+ public override void Activate()
+{
+    if (!HasStateAuthority || !CanActivate())
+        return;
+
+    IsKicking = true;
+
+    WindupTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        windupSeconds
+    );
+
+    NotifyActivated();
+    StartCooldown();
+
+    Debug.Log("[ABILITY] Tikbalang started kicking.");
+}
+    public override void FixedUpdateNetwork()
+    {
+        base.FixedUpdateNetwork();
+
+        if (!HasStateAuthority || !IsKicking)
             return;
 
-        if (!CanActivate())
-        {
-            Debug.Log(
-                $"[ABILITY] {GetType().Name} is on cooldown."
-            );
-
+        if (!WindupTimer.Expired(Runner))
             return;
-        }
+
+        // End the windup before applying the effect.
+        IsKicking = false;
+        WindupTimer = TickTimer.None;
 
         PlayerMovement target = FindBestTarget();
 
         if (target == null)
         {
-            Debug.Log(
-                $"[ABILITY] {GetType().Name} activated, " +
-                "but no valid target was found."
-            );
-
+            Debug.Log("[ABILITY] Kick missed.");
             return;
         }
 
-        Debug.Log(
-            $"[ABILITY] {GetType().Name} hit {target.name}!"
-        );
 
-        ApplyKick(target);
+ApplyKick(target);
 
-        Audio?.Play(SFXID.TikbalangKick);
-
-        StartCooldown();
+GetComponent<PlayerAudio>()?.Play(SFXID.TikbalangKick);
     }
 
     private void ApplyKick(PlayerMovement target)

@@ -6004,6 +6004,8 @@ MonoBehaviour:
   selectionDistance: 6
   selectionHeight: 3.5
   selectionLookHeight: 1.5
+  followSpeedXZ: 15
+  followSpeedY: 6
 --- !u!114 &838789256
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12006,7 +12008,7 @@ MonoBehaviour:
   scoreManager: {fileID: 459440143}
   roundStateManager: {fileID: 459440142}
   relicController: {fileID: 132323511}
-  roundDuration: 20
+  roundDuration: 120
 --- !u!1 &1800322570
 GameObject:
   m_ObjectHideFlags: 0

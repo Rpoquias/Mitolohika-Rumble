@@ -11,6 +11,8 @@ public event Action OnHitReceived;
 public event Action OnJumped;
 public event Action OnLanded;
 private bool _hasInitializedGroundState;
+
+
     [Header("Control")]
     [SerializeField] private bool _initialCanMove = true;
 
@@ -65,8 +67,11 @@ public NetworkBool CanJump { get; private set; }
     public NetworkBool CanMove { get; private set; }
 [Networked]
 private float MovementSpeedMultiplier { get; set; } = 1f;
-private int HitSequence { get; set; }
-    private Rigidbody _rb;
+[Networked]
+public int HitSequence { get; private set; }
+
+[Networked]
+public HitType LastHitType { get; private set; }    private Rigidbody _rb;
     private PlayerInputHandler _inputHandler;
     private PlayerControlEffects _controlEffects;
     private PlayerAudio _audio;
@@ -185,11 +190,7 @@ public void AddExternalForce(Vector3 force)
         return;
 
     ExternalVelocity += force;
-    HitSequence++;
-
-    NotifyHitReceived();
-
-    _audio?.Play(SFXID.PlayerHit);
+    RegisterHit(HitType.Knockback);
 }
 
 private void NotifyHitReceived()
@@ -208,12 +209,13 @@ public void ApplyStun(float duration)
 
     _moveDirection = Vector3.zero;
     CurrentMoveVelocity = Vector3.zero;
-
+     RegisterHit(HitType.Stun);
+}
+private void RegisterHit(HitType type)
+{
+    LastHitType = type;
     HitSequence++;
-
-    NotifyHitReceived();
-
-    _audio?.Play(SFXID.PlayerHit);
+    OnHitReceived?.Invoke();
 }
     public void SetCanMove(bool canMove)
     {

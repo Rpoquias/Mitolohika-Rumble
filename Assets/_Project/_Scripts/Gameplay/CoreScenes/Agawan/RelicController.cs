@@ -37,7 +37,7 @@ private void RPC_PlayRelicSFX(SFXID sfxID, Vector3 position)
 
     private Vector3 _startingPosition;
 private Quaternion _startingRotation;
-
+private Rigidbody _rb;
     private readonly Collider[] _pickupHits =
         new Collider[16];
 
@@ -49,6 +49,8 @@ private Quaternion _startingRotation;
 
 public override void Spawned()
 {
+    _rb = GetComponent<Rigidbody>();
+
     if (!HasStateAuthority)
         return;
 
@@ -57,8 +59,23 @@ public override void Spawned()
 
     Holder = PlayerRef.None;
     PickupLockTimer = TickTimer.None;
+
+    SetCarriedPhysics(false);
 }
 
+private void SetCarriedPhysics(bool carried)
+{
+    if (_rb == null)
+        return;
+
+    _rb.isKinematic = carried;
+
+    if (carried)
+    {
+        _rb.linearVelocity = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
+    }
+}
     public override void FixedUpdateNetwork()
     {
         if (!HasStateAuthority)
@@ -88,16 +105,22 @@ public void ResetRelic()
 
     UnsubscribeFromHolder(_holderMovement);
 
-    Holder = PlayerRef.None;
+  Holder = PlayerRef.None;
+
+SetCarriedPhysics(false);
 
     _holderMovement = null;
     _holderBump = null;
+transform.SetPositionAndRotation(
+    _startingPosition,
+    _startingRotation
+);
 
-    transform.SetPositionAndRotation(
-        _startingPosition,
-        _startingRotation
-    );
-
+if (_rb != null)
+{
+    _rb.linearVelocity = Vector3.zero;
+    _rb.angularVelocity = Vector3.zero;
+}
     PickupLockTimer = TickTimer.CreateFromSeconds(
         Runner,
         pickupLockDuration
@@ -186,6 +209,8 @@ private void HandleHolderHit()
         }
 Holder = player;
 
+SetCarriedPhysics(true);
+
 _holderMovement =
     playerObject.GetComponent<PlayerMovement>();
 
@@ -242,7 +267,16 @@ RPC_PlayRelicSFX(pickupSFX, transform.position);
     _holderBump.SetObjectiveBumpBlocked(false);
 }
 
-        Holder = PlayerRef.None;
+   Holder = PlayerRef.None;
+
+SetCarriedPhysics(false);
+
+if (_rb != null)
+{
+    _rb.linearVelocity = Vector3.zero;
+    _rb.angularVelocity = Vector3.zero;
+}
+
 RPC_PlayRelicSFX(dropSFX, transform.position);
 
 UnsubscribeFromHolder(_holderMovement);

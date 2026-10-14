@@ -56,9 +56,9 @@ MonoBehaviour:
   - id: 14
     clip: {fileID: 8300000, guid: b4ddbe87609e37044b9c6ee13295b943, type: 3}
   - id: 15
-    clip: {fileID: 8300000, guid: acaa9107fc2199740b1a2b706a1e0e9f, type: 3}
+    clip: {fileID: 8300000, guid: 38c7a2dbbf7968845aed8c8a3a7ed346, type: 3}
   - id: 16
-    clip: {fileID: 8300000, guid: e8f5c1ed1bde7634aa4475d26b3a8d14, type: 3}
+    clip: {fileID: 8300000, guid: cae01f39a9293da4d9746ecd911c4fcf, type: 3}
   - id: 17
     clip: {fileID: 8300000, guid: ec9cd26631a80b44b8d64b0948da04f7, type: 3}
   - id: 20
@@ -66,7 +66,7 @@ MonoBehaviour:
   - id: 19
     clip: {fileID: 8300000, guid: f889073a76f6e5f449bf7eab38dba5b5, type: 3}
   - id: 18
-    clip: {fileID: 8300000, guid: 76765742887b0834598ce8e688dd6973, type: 3}
+    clip: {fileID: 8300000, guid: 34f6f052f3062f3448abdd6487ebcf55, type: 3}
   gameModeSFX:
   - id: 21
     clip: {fileID: 8300000, guid: d9c49ec85ce10974e8f2d6c3c1dde850, type: 3}
