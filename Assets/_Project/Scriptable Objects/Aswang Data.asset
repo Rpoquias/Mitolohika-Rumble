@@ -18,7 +18,8 @@ MonoBehaviour:
   lobbyPrefab: {fileID: 4780327029275695668, guid: 33751a4b341d96a44aee517b8b7eb48b, type: 3}
   gameplayPrefab: {fileID: 4780327029275695668, guid: 33751a4b341d96a44aee517b8b7eb48b, type: 3}
   signatureAbility: Stun
-  abilityDescription: 
+  abilityDescription: 'Stuns a single targeted opponent, freezing their movement
+    and actions briefly. '
   abilityCooldown: 0
   abilityRange: 0
   abilityDuration: 0

@@ -18,7 +18,7 @@ MonoBehaviour:
   lobbyPrefab: {fileID: 5621868318684462083, guid: dfe5265ece2fbdb44861721142fd89a3, type: 3}
   gameplayPrefab: {fileID: 5621868318684462083, guid: dfe5265ece2fbdb44861721142fd89a3, type: 3}
   signatureAbility: Powerful Kick
-  abilityDescription: 
+  abilityDescription: Launches nearby opponents backward with strong knockback force.
   abilityCooldown: 0
   abilityRange: 0
   abilityDuration: 0
