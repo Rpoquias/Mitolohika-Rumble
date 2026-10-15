@@ -25,6 +25,7 @@ public class MatchSession : NetworkBehaviour
     [Networked]
 private TickTimer RoundTimer { get; set; }
 
+
 public bool IsRoundTimerRunning =>
     RoundTimer.IsRunning;
 
@@ -81,33 +82,35 @@ public RoundResultDetailType CurrentRoundResultDetailType { get; set; }
     [Networked, Capacity(4)] public NetworkArray<PlayerRef> OverallWinners => default;
 
     public bool IsFinalRound => CurrentRound >= TotalRounds;
+    public bool IsSpawned { get; private set; }
     #endregion
 
     #region Fusion Lifecycle
-    public override void Spawned()
-    {
-        Instance = this;
-        if (NetworkManager.Instance != null) NetworkManager.Instance.RegisterMatchSession(this);
+public override void Spawned()
+{
+    IsSpawned = true;
+    Instance = this;
 
-        Debug.Log($"<color=#39FF14><b>[MATCH SESSION] OK</b> - Spawned & registered | Round {CurrentRound}/{TotalRounds} | Mode: {CurrentGameMode} | Authority: {Object.StateAuthority}</color>");
-    }
+    if (NetworkManager.Instance != null)
+        NetworkManager.Instance.RegisterMatchSession(this);
 
-    public override void Despawned(NetworkRunner runner, bool hasState)
-    {
-        if (Instance == this) Instance = null;
-    }
-    #endregion
+    Debug.Log(
+        $"<color=#39FF14><b>[MATCH SESSION] OK</b> - " +
+        $"Spawned & registered | Round {CurrentRound}/{TotalRounds} | " +
+        $"Mode: {CurrentGameMode} | Authority: {Object.StateAuthority}</color>"
+    );
+}
 
-    #region Match Control & Flow
-    public bool SetTotalRounds(int roundCount)
-    {
-        if (!HasStateAuthority) return false;
-        if (roundCount != 3 && roundCount != 5 && roundCount != 7) return false;
+public override void Despawned(NetworkRunner runner, bool hasState)
+{
+    IsSpawned = false;
 
-        TotalRounds = roundCount;
-        return true;
-    }
+    if (Instance == this)
+        Instance = null;
 
+    if (NetworkManager.Instance != null)
+        NetworkManager.Instance.ClearMatchSession(this);
+}
    public void BeginMatch()
 {
     if (!HasStateAuthority) return;
@@ -343,6 +346,22 @@ public void SetCurrentRoundResults(
         $"Players: {CurrentRoundResultCount} | " +
         $"Detail: {CurrentRoundResultDetailType}"
     );
+}
+
+public void SetTotalRounds(int roundCount)
+{
+    if (!Object.HasStateAuthority)
+        return;
+
+    if (roundCount != 3 && roundCount != 5 && roundCount != 7)
+    {
+        Debug.LogWarning($"[MATCH SESSION] Invalid round count: {roundCount}");
+        return;
+    }
+
+    TotalRounds = roundCount;
+
+    Debug.Log($"[MATCH SESSION] Total rounds set to {TotalRounds}");
 }
 private void OnRoundResultSequenceChanged()
 {

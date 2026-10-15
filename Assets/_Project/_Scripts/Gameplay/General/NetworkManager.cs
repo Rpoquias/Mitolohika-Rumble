@@ -22,12 +22,17 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
     private readonly Dictionary<PlayerRef, CharacterID> playerSelections = new();
     private bool intentionalShutdown;
+    private bool joinsAllowed = true;
 
     public event Action<List<SessionInfo>> OnSessionListUpdatedEvent;
     public event Action<PlayerRef> OnPlayerJoinedEvent;
     public event Action<PlayerRef> OnPlayerLeftEvent;
     public event Action<Scene> OnNetworkSceneLoadDoneEvent;
     public event Action OnNetworkSceneLoadStartEvent;
+    private bool sessionActive;
+private bool joiningLobby;
+
+public bool IsBusy => sessionActive || joiningLobby;
 
     private void Awake()
     {
@@ -42,40 +47,165 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     // Hosting / Joining
     // ----------------------------
 
-    public async void Host(string sessionName)
-    {
-        runner = GetOrCreateRunner();
+public async void Host(string sessionName)
+{
+    if (IsBusy)
+        return;
 
-        await runner.StartGame(new StartGameArgs
+    sessionActive = true;
+    joinsAllowed = true;
+
+    runner = GetOrCreateRunner();
+
+    if (runner == null)
+    {
+        sessionActive = false;
+        return;
+    }
+
+    try
+    {
+        StartGameResult result = await runner.StartGame(new StartGameArgs
         {
             GameMode = GameMode.Host,
             SessionName = sessionName,
+            PlayerCount = 4,
             IsVisible = true,
             IsOpen = true,
             Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
             SceneManager = GetOrCreateSceneManager()
         });
+
+        if (!result.Ok)
+            HandleStartFailed(result);
+    }
+    catch (Exception exception)
+    {
+        Debug.LogException(exception);
+        LastNetworkError = exception.Message;
+
+        if (runner != null)
+            HandleStartExceptionCleanup();
+        else
+            sessionActive = false;
+    }
+}
+public async void OpenPublicLobby()
+{
+    if (IsBusy)
+        return;
+
+    joiningLobby = true;
+
+    runner = GetOrCreateRunner();
+
+    if (runner == null)
+    {
+        joiningLobby = false;
+        return;
     }
 
-    public async void OpenPublicLobby()
+    try
     {
-        runner = GetOrCreateRunner();
         await runner.JoinSessionLobby(SessionLobby.ClientServer);
     }
-
-    public async void JoinSession(SessionInfo session)
+    catch (Exception exception)
     {
-        runner = GetOrCreateRunner();
+        Debug.LogException(exception);
+        LastNetworkError = exception.Message;
+    }
+    finally
+    {
+        joiningLobby = false;
+    }
+}
+public async void JoinSession(SessionInfo session)
+{
+    if (IsBusy)
+        return;
 
-        await runner.StartGame(new StartGameArgs
-        {
-            GameMode = GameMode.Client,
-            SessionName = session.Name,
-            Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
-            SceneManager = GetOrCreateSceneManager()
-        });
+    sessionActive = true;
+
+    runner = GetOrCreateRunner();
+
+    if (runner == null)
+    {
+        sessionActive = false;
+        return;
     }
 
+    StartGameResult result = await runner.StartGame(new StartGameArgs
+    {
+        GameMode = GameMode.Client,
+        SessionName = session.Name,
+        Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
+        SceneManager = GetOrCreateSceneManager()
+    });
+
+    if (!result.Ok)
+    {
+        HandleStartFailed(result);
+    }
+}
+private async void HandleStartFailed(StartGameResult result)
+{
+    Debug.LogWarning(
+        $"[NETWORK MANAGER] StartGame failed: {result.ShutdownReason}"
+    );
+
+    LastNetworkError = result.ErrorMessage;
+
+    NetworkRunner failedRunner = runner;
+
+    if (failedRunner == null)
+    {
+        sessionActive = false;
+        return;
+    }
+
+    // Keep sessionActive true while the failed runner is being cleaned up.
+    if (failedRunner.IsRunning)
+    {
+        intentionalShutdown = true;
+        await failedRunner.Shutdown(destroyGameObject: true);
+    }
+    else
+    {
+        if (runner == failedRunner)
+            runner = null;
+
+        Destroy(failedRunner.gameObject);
+
+        sessionActive = false;
+        intentionalShutdown = false;
+    }
+}
+private async void HandleStartExceptionCleanup()
+{
+    NetworkRunner failedRunner = runner;
+
+    if (failedRunner == null)
+    {
+        sessionActive = false;
+        return;
+    }
+
+    if (failedRunner.IsRunning)
+    {
+        intentionalShutdown = true;
+        await failedRunner.Shutdown(destroyGameObject: true);
+    }
+    else
+    {
+        if (runner == failedRunner)
+            runner = null;
+
+        Destroy(failedRunner.gameObject);
+
+        sessionActive = false;
+        intentionalShutdown = false;
+    }
+}
     public async void Disconnect()
     {
         if (runner == null) return;
@@ -152,6 +282,20 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     // Public API
     // ----------------------------
 
+public void SetJoinable(bool joinable)
+{
+    if (runner == null || !runner.IsRunning || !runner.IsServer)
+        return;
+
+    joinsAllowed = joinable;
+
+    runner.SessionInfo.IsOpen = joinable;
+    runner.SessionInfo.IsVisible = joinable;
+
+    Debug.Log(
+        $"[NETWORK MANAGER] Session joinable: {joinable}"
+    );
+}
     public void SetPlayerSelection(PlayerRef player, CharacterID characterID) { playerSelections[player] = characterID; }
 
     public bool TryGetPlayerSelection(PlayerRef player, out CharacterID characterID) => playerSelections.TryGetValue(player, out characterID);
@@ -170,37 +314,77 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList) => OnSessionListUpdatedEvent?.Invoke(sessionList);
 
-    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player) => OnPlayerJoinedEvent?.Invoke(player);
+    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
+{
+    if (runner.IsServer &&
+        !joinsAllowed &&
+        player != runner.LocalPlayer)
+    {
+        Debug.LogWarning(
+            $"[NETWORK MANAGER] Rejecting {player}: session is closed."
+        );
+
+        runner.Disconnect(player);
+        return;
+    }
+
+    OnPlayerJoinedEvent?.Invoke(player);
+}
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
         playerSelections.Remove(player);
         OnPlayerLeftEvent?.Invoke(player);
     }
+public void OnShutdown(
+    NetworkRunner runner,
+    ShutdownReason shutdownReason)
+{
+    joinsAllowed = true;
+    sessionActive = false;
+    joiningLobby = false;
 
-    public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
-    {
-        LastNetworkError = $"Runner shutdown: {shutdownReason}";
-        playerSelections.Clear();
+    LastNetworkError = $"Runner shutdown: {shutdownReason}";
+    playerSelections.Clear();
 
-        if (this.runner == runner) this.runner = null;
-        if (!intentionalShutdown) PendingMainMenuMessage = MainMenuMessage.HostDisconnected;
+    CurrentMatchSession = null;
 
-        ReturnToMainMenu();
-        intentionalShutdown = false;
-    }
+    if (this.runner == runner)
+        this.runner = null;
 
-    public void OnSceneLoadDone(NetworkRunner runner)
-    {
-        Scene scene = SceneManager.GetActiveScene();
-        OnNetworkSceneLoadDoneEvent?.Invoke(scene);
+    if (!intentionalShutdown)
+        PendingMainMenuMessage = MainMenuMessage.HostDisconnected;
 
-        if (!runner.IsServer) return;
-        if (scene.buildIndex != lobbySceneBuildIndex) return;
-        if (CurrentMatchSession != null) return;
+    ReturnToMainMenu();
 
-        SpawnMatchSession();
-    }
+    intentionalShutdown = false;
+}
+public void ClearMatchSession(MatchSession matchSession)
+{
+    if (CurrentMatchSession == matchSession)
+        CurrentMatchSession = null;
+}
+ public void OnSceneLoadDone(NetworkRunner runner)
+{
+    Scene scene = SceneManager.GetActiveScene();
+
+    OnNetworkSceneLoadDoneEvent?.Invoke(scene);
+
+    if (!runner.IsServer)
+        return;
+
+    bool inLobby = scene.buildIndex == lobbySceneBuildIndex;
+
+    SetJoinable(inLobby);
+
+    if (!inLobby)
+        return;
+
+    if (CurrentMatchSession != null)
+        return;
+
+    SpawnMatchSession();
+}
 
     public void OnSceneLoadStart(NetworkRunner runner) => OnNetworkSceneLoadStartEvent?.Invoke();
 

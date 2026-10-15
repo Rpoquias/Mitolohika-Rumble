@@ -18,7 +18,9 @@ public class MatiraMatibayEliminationManager : NetworkBehaviour
     public int EliminationSequence { get; private set; }
 
     public event Action OnEliminationChanged;
+public event Action<PlayerRef> OnWinnerDecided;
 
+private bool winnerDecided;
     private PlayerRegistry playerRegistry;
     private NetworkRunner runner;
 
@@ -153,20 +155,33 @@ public class MatiraMatibayEliminationManager : NetworkBehaviour
     // ROUND
     // ============================================================
 
-    public void StartTracking()
+public void StartTracking()
+{
+    if (!HasStateAuthority)
+        return;
+
+    if (!initialized)
+        TryInitialize();
+
+    if (!initialized)
     {
-        if (!HasStateAuthority)
-            return;
-
-        ResetEliminations();
-
-        trackingActive = true;
-
-        Debug.Log(
-            "[MATIRA ELIMINATION] Tracking started."
+        Debug.LogError(
+            "[MATIRA ELIMINATION] " +
+            "Could not initialize player tracking."
         );
+
+        return;
     }
 
+    ResetEliminations();
+
+    winnerDecided = false;
+    trackingActive = true;
+
+    Debug.Log(
+        "[MATIRA ELIMINATION] Tracking started."
+    );
+}
     public void StopTracking()
     {
         if (!HasStateAuthority)
@@ -175,28 +190,24 @@ public class MatiraMatibayEliminationManager : NetworkBehaviour
         trackingActive = false;
     }
 
-    public void ResetEliminations()
+  public void ResetEliminations()
+{
+    if (!HasStateAuthority)
+        return;
+
+    trackingActive = false;
+    winnerDecided = false;
+
+    for (int i = 0; i < EliminationOrder.Length; i++)
     {
-        if (!HasStateAuthority)
-            return;
-
-        trackingActive = false;
-
-        for (int i = 0;
-             i < EliminationOrder.Length;
-             i++)
-        {
-            EliminationOrder.Set(
-                i,
-                default
-            );
-        }
-
-        EliminationCount = 0;
-        EliminationSequence = 0;
-
-        OnEliminationChanged?.Invoke();
+        EliminationOrder.Set(i, default);
     }
+
+    EliminationCount = 0;
+    EliminationSequence = 0;
+
+    OnEliminationChanged?.Invoke();
+}
 
     // ============================================================
     // ELIMINATION
@@ -230,23 +241,59 @@ public class MatiraMatibayEliminationManager : NetworkBehaviour
             return;
         }
 
-        EliminationOrder.Set(
-            EliminationCount,
-            player
-        );
+    EliminationOrder.Set(
+    EliminationCount,
+    player
+);
 
-        EliminationCount++;
+EliminationCount++;
 
-        EliminationSequence++;
+EliminationSequence++;
 
-        Debug.Log(
-            $"[MATIRA ELIMINATION] " +
-            $"{player} eliminated. " +
-            $"Order: {EliminationCount}"
-        );
+Debug.Log(
+    $"[MATIRA ELIMINATION] " +
+    $"{player} eliminated. " +
+    $"Order: {EliminationCount}"
+);
 
-        OnEliminationChanged?.Invoke();
+OnEliminationChanged?.Invoke();
+
+// Check only after the elimination has been recorded.
+CheckForWinner();
     }
+
+    private void CheckForWinner()
+{
+    if (winnerDecided || !trackingActive)
+        return;
+
+    if (runner == null || !runner.IsRunning)
+        return;
+
+    int aliveCount = 0;
+    PlayerRef lastAlivePlayer = PlayerRef.None;
+
+    foreach (PlayerRef player in runner.ActivePlayers)
+    {
+        if (IsPlayerEliminated(player))
+            continue;
+
+        aliveCount++;
+        lastAlivePlayer = player;
+    }
+
+    if (aliveCount != 1)
+        return;
+
+    winnerDecided = true;
+
+    Debug.Log(
+        $"[MATIRA ELIMINATION] Winner decided: " +
+        $"{lastAlivePlayer}"
+    );
+
+    OnWinnerDecided?.Invoke(lastAlivePlayer);
+}
 
     // ============================================================
     // ACCESS

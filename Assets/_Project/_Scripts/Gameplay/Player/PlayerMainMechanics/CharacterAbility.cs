@@ -13,9 +13,15 @@
         [SerializeField] protected float maxVerticalDifference = 1.5f;
         [SerializeField, Range(0f, 90f)] protected float targetAngle = 50f;
         [SerializeField] protected LayerMask playerLayer;
-
+private PlayerAnimationController _animationController;
         [Networked]
         protected TickTimer CooldownTimer { get; set; }
+        [Networked]
+public int ActivationCount { get; private set; }
+protected void NotifyActivated()
+{
+    ActivationCount++;
+}
 
         private readonly Collider[] _targetColliders = new Collider[16];
 
@@ -24,21 +30,25 @@
         private bool _canUseAbility;
         // Used only for visualization/debugging.
         protected PlayerMovement CurrentTarget { get; private set; }
+        protected PlayerAudio Audio { get; private set; }
 
         private float MinimumTargetDot =>
             Mathf.Cos(targetAngle * Mathf.Deg2Rad);
 
- public bool CanActivate()
+public virtual bool CanActivate()
 {
     return CooldownTimer.ExpiredOrNotRunning(Runner);
 }
 
-     public override void Spawned()
+public override void Spawned()
 {
     _movement = GetComponent<PlayerMovement>();
     _inputHandler = GetComponent<PlayerInputHandler>();
-}
+    Audio = GetComponent<PlayerAudio>();
 
+    _animationController =
+        GetComponentInChildren<PlayerAnimationController>();
+}
 public override void FixedUpdateNetwork()
 {
     if (!HasStateAuthority)
@@ -52,7 +62,17 @@ public override void FixedUpdateNetwork()
         Activate();
     }
 }
+protected bool HasAbilityAnimation(string triggerName)
+{
+    return _animationController != null &&
+           _animationController.HasTrigger(triggerName);
+}
 
+protected bool PlayAbilityAnimation(string triggerName)
+{
+    return _animationController != null &&
+           _animationController.PlayAbilityAnimation(triggerName);
+}
 public void SetCanUseAbility(bool canUse)
 {
     _canUseAbility = canUse;

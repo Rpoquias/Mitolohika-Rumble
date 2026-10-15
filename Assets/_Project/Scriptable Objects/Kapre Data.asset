@@ -18,7 +18,8 @@ MonoBehaviour:
   lobbyPrefab: {fileID: 1363756898350676128, guid: 830bef02439728a46b9a8ef529544e71, type: 3}
   gameplayPrefab: {fileID: 1363756898350676128, guid: 830bef02439728a46b9a8ef529544e71, type: 3}
   signatureAbility: Smoke Cloud
-  abilityDescription: 
+  abilityDescription: "Creates a cloud that temporarily blocks vision for any player
+    caught inside it\_"
   abilityCooldown: 0
   abilityRange: 0
   abilityDuration: 0

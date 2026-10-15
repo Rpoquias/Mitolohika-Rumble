@@ -42,7 +42,7 @@ private bool spectatorResetLocked;
         runner = thirdPersonCamera.Runner;
     }
 
-   private void Update()
+  private void Update()
 {
     if (runner == null || !runner.IsRunning)
     {
@@ -52,13 +52,20 @@ private bool spectatorResetLocked;
         return;
     }
 
-    if (localElimination == null)
+    if (!IsValidNetworkPlayer(localElimination))
     {
+        localElimination = null;
+
+        IsSpectating = false;
+        hasTargetPlayer = false;
+        currentTargetPlayer = default;
+
+        availablePlayers.Clear();
+
         TryFindLocalPlayer();
         return;
     }
 
-    // Wait for the next round to reset the local player.
     if (spectatorResetLocked)
     {
         if (!localElimination.IsEliminated)
@@ -99,7 +106,22 @@ private bool spectatorResetLocked;
             );
         }
     }
+private bool IsValidNetworkPlayer(PlayerElimination player)
+{
+    if (player == null)
+        return false;
 
+    if (!player.isActiveAndEnabled)
+        return false;
+
+    if (!player.IsNetworkInitialized)
+        return false;
+
+    if (player.Object == null || !player.Object.IsValid)
+        return false;
+
+    return true;
+}
    private void StartSpectating()
 {
     IsSpectating = true;
@@ -207,13 +229,11 @@ private bool spectatorResetLocked;
         );
     }
 
-    private bool IsEligibleTarget(PlayerElimination player)
-    {
-        // Default eligibility rule.
-        // Future game modes can provide their own rules.
-        return player != null && !player.IsEliminated;
-    }
-
+private bool IsEligibleTarget(PlayerElimination player)
+{
+    return IsValidNetworkPlayer(player)
+           && !player.IsEliminated;
+}
     private void ValidateCurrentTarget()
     {
         if (!hasTargetPlayer)
@@ -233,15 +253,13 @@ private bool spectatorResetLocked;
             SelectReplacementTarget();
             return;
         }
+PlayerElimination elimination =
+    playerObject.GetComponent<PlayerElimination>();
 
-        PlayerElimination elimination =
-            playerObject.GetComponent<PlayerElimination>();
-
-        if (elimination == null ||
-            !IsEligibleTarget(elimination))
-        {
-            SelectReplacementTarget();
-        }
+if (!IsEligibleTarget(elimination))
+{
+    SelectReplacementTarget();
+}
     }
 
     private void SelectReplacementTarget()
@@ -318,6 +336,7 @@ private bool spectatorResetLocked;
 
  public void ResetSpectator()
 {
+    localElimination = null;
     spectatorResetLocked = true;
 
     IsSpectating = false;

@@ -6,50 +6,84 @@ public class SmokeScreenAbility : CharacterAbility
     [Header("Smoke Screen")]
     [SerializeField] private NetworkPrefabRef smokeCloudPrefab;
 
+    [SerializeField, Min(0f)]
+    private float windupSeconds = 0.5f;
+
+    [Networked]
+    private TickTimer WindupTimer { get; set; }
+
+    [Networked]
+    private NetworkBool IsCasting { get; set; }
+
     private void Awake()
     {
         cooldown = 12f;
     }
 
+    public override bool CanActivate()
+    {
+        return base.CanActivate() && !IsCasting;
+    }
+
     public override void Activate()
     {
-        if (!Object.HasStateAuthority)
+        if (!HasStateAuthority || !CanActivate())
             return;
 
-        if (!CanActivate())
-        {
-            Debug.Log(
-                $"[ABILITY] {GetType().Name} is on cooldown."
-            );
+        IsCasting = true;
 
+        WindupTimer = TickTimer.CreateFromSeconds(
+            Runner,
+            windupSeconds
+        );
+
+        // Notify the presentation system that casting has started.
+        NotifyActivated();
+
+        // Start cooldown when casting begins.
+        StartCooldown();
+
+        Debug.Log("[ABILITY] Kapre started casting smoke.");
+    }
+
+    public override void FixedUpdateNetwork()
+    {
+        base.FixedUpdateNetwork();
+
+        if (!HasStateAuthority || !IsCasting)
             return;
-        }
+
+        if (!WindupTimer.Expired(Runner))
+            return;
+
+        IsCasting = false;
+        WindupTimer = TickTimer.None;
 
         SpawnSmoke();
-
-        StartCooldown();
     }
 
     private void SpawnSmoke()
     {
         Runner.Spawn(
-        smokeCloudPrefab,
-        transform.position,
-        Quaternion.identity,
-        Object.InputAuthority,
-        OnSmokeSpawned
-    );
-        Debug.Log(
-            $"[ABILITY] {GetType().Name} activated."
+            smokeCloudPrefab,
+            transform.position,
+            Quaternion.identity,
+            Object.InputAuthority,
+            OnSmokeSpawned
         );
     }
-    private void OnSmokeSpawned(
-    NetworkRunner runner,
-    NetworkObject obj
-)
-{
-    SmokeCloud smoke = obj.GetComponent<SmokeCloud>();
 
-    smoke.Initialize(Object.InputAuthority);
-}
+    private void OnSmokeSpawned(
+        NetworkRunner runner,
+        NetworkObject obj)
+    {
+        SmokeCloud smoke = obj.GetComponent<SmokeCloud>();
+
+        if (smoke != null)
+            smoke.Initialize(Object.InputAuthority);
+
+        Audio?.Play(SFXID.KapreSmoke);
+
+        Debug.Log("[ABILITY] Kapre released smoke.");
+    }
 }

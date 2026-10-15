@@ -23,10 +23,11 @@ public class PlayerBumpAttack : NetworkBehaviour
     [SerializeField] private LayerMask _playerLayer;
 
     private PlayerMovement _movement;
+    private PlayerAudio _audio;
     private PlayerInputHandler _inputHandler;
     private PlayerElimination _elimination;
     private bool _canBump;
-    private bool _relicBlocksBump;
+  private bool _objectiveBlocksBump;
     private readonly Collider[] _hitColliders =
         new Collider[16];
 
@@ -54,7 +55,15 @@ public override void Spawned()
     _movement = GetComponent<PlayerMovement>();
     _inputHandler = GetComponent<PlayerInputHandler>();
     _elimination = GetComponent<PlayerElimination>();
+    _audio = GetComponent<PlayerAudio>();
 
+    if (_audio == null)
+    {
+        Debug.LogError(
+            $"[BUMP AUDIO] PlayerAudio is missing on {name}.",
+            this
+        );
+    }
 }
     public override void FixedUpdateNetwork()
     {
@@ -69,19 +78,21 @@ public override void Spawned()
         UpdateBumpState();
     }
 
-public void SetRelicBumpBlocked(bool blocked)
+public void SetObjectiveBumpBlocked(bool blocked)
 {
-    _relicBlocksBump = blocked;
+    _objectiveBlocksBump = blocked;
 
     if (blocked)
     {
         State = BumpState.None;
         AttackTimer = TickTimer.None;
-        _movement.SetBusy(false);
+
+        if (_movement != null)
+            _movement.SetBusy(false);
     }
 
     Debug.Log(
-        $"[BUMP] {name} RelicBumpBlocked = {_relicBlocksBump}"
+        $"[BUMP] {name} ObjectiveBumpBlocked = {_objectiveBlocksBump}"
     );
 }
 public void SetCanBump(bool canBump)
@@ -100,7 +111,7 @@ Debug.Log(
 private void TryBump()
 {
     if (!_canBump ||
-        _relicBlocksBump ||
+        _objectiveBlocksBump ||
         !_movement.CanMove ||
         _movement.IsBusy ||
         _movement.IsStunned ||
@@ -118,9 +129,11 @@ private void TryBump()
         _startup
     );
 
-    _movement.SetBusy(true);
+   _movement.SetBusy(true);
 
-    OnBumpStarted?.Invoke();
+_audio?.Play(SFXID.PlayerBump);
+
+OnBumpStarted?.Invoke();
 }   private void UpdateBumpState()
     {
         if (State == BumpState.None)

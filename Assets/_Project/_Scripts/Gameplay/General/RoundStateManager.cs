@@ -49,7 +49,7 @@ public class RoundStateManager : NetworkBehaviour
     private int lastAppliedResetSequence;
 private bool roundStarted;
 private bool isSpawned;
-
+private int lastPlayedCountdown = -1;
 public bool IsSpawned => isSpawned;
 
     public override void Spawned()
@@ -105,20 +105,10 @@ public bool IsSpawned => isSpawned;
         EnterCountdown();
     }
 
-    public void TriggerRoundEndSequence()
-    {
-        if (!HasStateAuthority)
-            return;
-
-        if (NetworkState != RoundState.Playing)
-            return;
-
-        NetworkState = RoundState.RoundEnd;
-        NetworkCountdown = 0;
-
-        // Start the delay timer before resetting
-        StateTimer = TickTimer.CreateFromSeconds(Runner, restartDelay);
-    }
+  public void TriggerRoundEndSequence()
+{
+    EnterRoundEnd();
+}
 
     private bool AllExpectedPlayersSpawned()
     {
@@ -158,19 +148,15 @@ public bool IsSpawned => isSpawned;
         }
     }
 
-    private void UpdateRoundEnd()
-    {
-        if (!StateTimer.Expired(Runner))
-            return;
+private void UpdateRoundEnd()
+{
+    if (!StateTimer.Expired(Runner))
+        return;
 
-        RoundResetSequence++;
-        lastAppliedResetSequence = RoundResetSequence;
-        OnRoundReset?.Invoke();
 
-        EnterWaiting();
-    }
-
-  public void StartRound()
+    roundStarted = false;
+}
+public void StartRound()
 {
     if (!HasStateAuthority)
         return;
@@ -192,18 +178,10 @@ public bool IsSpawned => isSpawned;
         ExpectedPlayerCount = Runner.ActivePlayers.Count();
     }
 
-    public void EndRound()
-    {
-        if (!HasStateAuthority)
-            return;
-
-        if (NetworkState != RoundState.Playing)
-            return;
-
-        NetworkState = RoundState.RoundEnd;
-        NetworkCountdown = 0;
-    }
-
+public void EndRound()
+{
+    EnterRoundEnd();
+}
     public void RestartRound()
     {
         if (!HasStateAuthority)
@@ -228,33 +206,71 @@ public bool IsSpawned => isSpawned;
         NetworkCountdown = Mathf.CeilToInt(countdownDuration);
         StateTimer = TickTimer.CreateFromSeconds(Runner, 1f);
     }
+    
+private void EnterPlaying()
+{
+    if (!HasStateAuthority)
+        return;
 
-    private void EnterPlaying()
+    NetworkState = RoundState.Playing;
+    NetworkCountdown = 0;
+    StateTimer = TickTimer.None;
+
+    // Gameplay event: only the authoritative instance starts systems.
+    OnRoundStarted?.Invoke();
+
+    Debug.Log("[ROUND] Gameplay started.");
+}
+
+
+
+
+private void EnterRoundEnd()
+{
+    if (!HasStateAuthority)
+        return;
+
+    if (NetworkState != RoundState.Playing)
+        return;
+
+    NetworkState = RoundState.RoundEnd;
+    NetworkCountdown = 0;
+
+    StateTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        restartDelay
+    );
+
+    // Gameplay event: only the authoritative instance ends systems.
+    OnRoundEnded?.Invoke();
+
+    Debug.Log("[ROUND] Gameplay ended.");
+}
+private void OnNetworkRoundStateChanged()
+{
+    RoundState newState = NetworkState;
+
+    Debug.Log(
+        $"<color=green>[ROUND] State changed to: {newState}</color>"
+    );
+
+    switch (newState)
     {
-        NetworkState = RoundState.Playing;
-        NetworkCountdown = 0;
-        StateTimer = TickTimer.None;
+        case RoundState.Waiting:
+            lastPlayedCountdown = -1;
+            break;
+
+        case RoundState.Playing:
+            AudioManager.Instance?.PlaySFX(SFXID.RoundStart);
+            break;
+
+        case RoundState.RoundEnd:
+            AudioManager.Instance?.PlaySFX(SFXID.RoundEnd);
+            break;
     }
 
-    private void OnNetworkRoundStateChanged()
-    {
-        RoundState newState = NetworkState;
-
-        // Green debug log for round state changes
-        Debug.Log($"<color=green>[ROUND] State changed to: {newState}</color>");
-
-        OnStateChanged?.Invoke(newState);
-
-        if (newState == RoundState.Playing)
-        {
-            OnRoundStarted?.Invoke();
-        }
-        else if (newState == RoundState.RoundEnd)
-        {
-            OnRoundEnded?.Invoke();
-        }
-    }
-
+    OnStateChanged?.Invoke(newState);
+}
     private void OnRoundResetSequenceChanged()
     {
         if (RoundResetSequence == lastAppliedResetSequence)
@@ -267,12 +283,22 @@ public bool IsSpawned => isSpawned;
 
         OnRoundReset?.Invoke();
     }
+private void OnNetworkCountdownChanged()
+{
+    if (NetworkCountdown <= 0)
+        return;
 
-    private void OnNetworkCountdownChanged()
-    {
-        if (NetworkCountdown <= 0)
-            return;
+    // Only play the countdown SFX during the actual round countdown.
+    if (NetworkState != RoundState.Countdown)
+        return;
 
-        OnCountdownTick?.Invoke(NetworkCountdown);
-    }
+    OnCountdownTick?.Invoke(NetworkCountdown);
+
+    if (NetworkCountdown == lastPlayedCountdown)
+        return;
+
+    lastPlayedCountdown = NetworkCountdown;
+
+    AudioManager.Instance?.PlaySFX(SFXID.Countdown);
+}
 }

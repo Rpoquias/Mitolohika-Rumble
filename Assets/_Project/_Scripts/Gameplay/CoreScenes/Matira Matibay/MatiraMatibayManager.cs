@@ -7,7 +7,6 @@ public class MatiraMatibayManager : MonoBehaviour
     [Header("Systems")]
     [SerializeField] private RoundStateManager roundStateManager;
     [SerializeField] private ArenaShrinkController arenaShrinkController;
-    [SerializeField] private WinnerDetector winnerDetector;
     [SerializeField] private MatiraMatibayPlacementManager placementManager;
     [SerializeField] private MatiraMatibayEliminationManager eliminationManager;
     [SerializeField] private SpawnPointManager spawnPointManager;
@@ -24,11 +23,10 @@ private List<RoundPlacement> currentPlacements =
     // EVENTS
     // ============================================================
 
-    private void OnEnable()
+private void OnEnable()
+{
+    if (roundStateManager != null)
     {
-        if (roundStateManager == null)
-            return;
-
         roundStateManager.OnRoundStarted +=
             HandleRoundStarted;
 
@@ -42,11 +40,15 @@ private List<RoundPlacement> currentPlacements =
             HandleStateChanged;
     }
 
-    private void OnDestroy()
+    if (eliminationManager != null)
     {
-        if (roundStateManager == null)
-            return;
-
+        eliminationManager.OnWinnerDecided += EndRound;
+    }
+}
+  private void OnDestroy()
+{
+    if (roundStateManager != null)
+    {
         roundStateManager.OnRoundStarted -=
             HandleRoundStarted;
 
@@ -60,6 +62,11 @@ private List<RoundPlacement> currentPlacements =
             HandleStateChanged;
     }
 
+    if (eliminationManager != null)
+    {
+        eliminationManager.OnWinnerDecided -= EndRound;
+    }
+}
     // ============================================================
     // INITIALIZATION
     // ============================================================
@@ -90,45 +97,43 @@ private List<RoundPlacement> currentPlacements =
     // ============================================================
     // ROUND START
     // ============================================================
-
-    private void HandleRoundStarted()
-    {
-        Debug.Log(
-            "[MATIRA MANAGER] Matira Matibay started!"
-        );
-
-        roundEnded = false;
-
-        placementManager.ResetPlacement();
-
-        if (eliminationManager != null)
-        {
-            eliminationManager.StartTracking();
-        }
-
-        arenaShrinkController.StartShrinking();
-    }
-
-    // ============================================================
-    // ROUND END
-    // ============================================================
-
-public void EndRound(
-    PlayerElimination winner)
+private void HandleRoundStarted()
 {
     if (!initialized)
         TryInitialize();
 
-    if (runner == null ||
-        !runner.IsServer)
-    {
+    if (runner == null || !runner.IsServer)
         return;
-    }
 
-    if (winner == null)
+    Debug.Log(
+        "[MATIRA MANAGER] Matira Matibay started!"
+    );
+
+    roundEnded = false;
+
+    placementManager.ResetPlacement();
+
+    if (eliminationManager != null)
+        eliminationManager.StartTracking();
+
+    arenaShrinkController.StartShrinking();
+}
+    // ============================================================
+    // ROUND END
+    // ============================================================
+
+public void EndRound(PlayerRef winner)
+{
+    if (!initialized)
+        TryInitialize();
+
+    if (runner == null || !runner.IsServer)
+        return;
+
+    if (!winner.IsValid || winner == PlayerRef.None)
     {
         Debug.LogError(
-            "[MATIRA MANAGER] Winner is missing."
+            "[MATIRA MANAGER] Winner is invalid."
         );
 
         return;
@@ -139,27 +144,26 @@ public void EndRound(
 
     roundEnded = true;
 
-    if (eliminationManager != null)
-    {
-        eliminationManager.StopTracking();
-    }
+    eliminationManager?.StopTracking();
 
     arenaShrinkController.StopShrinking();
 
-    placementManager.AssignFinalPlacements(
-        winner.PlayerRef
-    );
+    placementManager.AssignFinalPlacements(winner);
 
     currentPlacements.Clear();
 
-    foreach (PlayerRef player
-             in runner.ActivePlayers)
+    foreach (PlayerRef player in runner.ActivePlayers)
     {
-        int placement =
-            placementManager.GetPlacement(player);
+        int placement = placementManager.GetPlacement(player);
 
         if (placement <= 0)
+        {
+            Debug.LogWarning(
+                $"[MATIRA MANAGER] Missing placement for {player}."
+            );
+
             continue;
+        }
 
         currentPlacements.Add(
             new RoundPlacement

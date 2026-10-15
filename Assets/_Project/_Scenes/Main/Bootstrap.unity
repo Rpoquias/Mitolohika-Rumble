@@ -708,8 +708,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0.63671875, y: 0}
-  m_SizeDelta: {x: 2278.4668, y: 1080}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &207380505
 MonoBehaviour:
@@ -1429,7 +1429,7 @@ MonoBehaviour:
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 1920, y: 1080}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 1
+  m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -1854,8 +1854,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -3.3483887, y: 0}
-  m_SizeDelta: {x: 2286.4268, y: 1080}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1248195782
 MonoBehaviour:
@@ -2102,7 +2102,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 459.1, y: -280}
+  m_AnchoredPosition: {x: 368, y: -252}
   m_SizeDelta: {x: 1228.788, y: 192.229}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1421958616
@@ -2241,7 +2241,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 258, y: -467}
+  m_AnchoredPosition: {x: 166.89989, y: -439.00003}
   m_SizeDelta: {x: 1630.984, y: 86.539}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1437266214
@@ -2422,17 +2422,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
   audioLibrary: {fileID: 11400000, guid: 0f2b0a68473609e46b7cf74be453ad84, type: 2}
   mainAudioMixer: {fileID: 24100000, guid: 87a2b9585a8cdc24c9bef1b7c8e529f7, type: 2}
+  masterVolumeParameter: MasterVolume
   musicVolumeParameter: MusicVolume
+  sfxVolumeParameter: SFXVolume
+  masterVolume: 1
+  musicVolume: 0.5
+  sfxVolume: 1
+  musicMixerGroup: {fileID: -3703682676643176426, guid: 87a2b9585a8cdc24c9bef1b7c8e529f7, type: 2}
+  sfxMixerGroup: {fileID: 973253148314601968, guid: 87a2b9585a8cdc24c9bef1b7c8e529f7, type: 2}
   musicSourceA: {fileID: 449848748}
   musicSourceB: {fileID: 90724827}
-  musicVolume: 0
   crossfadeDuration: 1.5
-  sfxVolumeParameter: SFXVolume
-  sfxVolume: 1
   sfxPoolSize: 12
   sfx3DMinDistance: 2
   sfx3DMaxDistance: 20
-  sfxMixerGroup: {fileID: 973253148314601968, guid: 87a2b9585a8cdc24c9bef1b7c8e529f7, type: 2}
 --- !u!1 &1678938935
 GameObject:
   m_ObjectHideFlags: 0
@@ -2917,8 +2920,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -3.3398438, y: 0}
-  m_SizeDelta: {x: 2286.4, y: 1080}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1938537045
 MonoBehaviour:
@@ -3069,7 +3072,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -2280, y: -1080}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2094290192
 GameObject:

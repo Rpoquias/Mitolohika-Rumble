@@ -1,11 +1,15 @@
+using Fusion;
 using UnityEngine;
 
-public class PlayerPresentation : MonoBehaviour
+public class PlayerPresentation : NetworkBehaviour
 {
     [Header("References")]
     [SerializeField] private Animator animator;
-    [Header("VFX")]
-    [SerializeField] private ParticleSystem stunVfx;
+  [Header("Hit VFX")]
+[SerializeField] private ParticleSystem stunVfx;
+[SerializeField] private ParticleSystem knockbackVfx;
+[SerializeField] private ParticleSystem confusionVfx;
+
     [Header("Invisibility")]
     [SerializeField] private GameObject characterVisual;
     [SerializeField] private GameObject localInvisibleVisual;
@@ -15,18 +19,21 @@ public class PlayerPresentation : MonoBehaviour
 
 private PlayerStatusEffects smokeStatus;
 private bool lastSmokeState;
-
+private int lastHitSequence;
+private bool hasInitializedHitSequence;
     private PlayerMovement movement;
     private InvisibilityAbility invisibility;
 
     private bool lastStunState;
     private bool lastInvisibleState;
-
+private PlayerControlEffects controlEffects;
+private bool lastReversedInputState;
   private void Awake()
 {
     movement = GetComponent<PlayerMovement>();
     invisibility = GetComponent<InvisibilityAbility>();
     smokeStatus = GetComponent<PlayerStatusEffects>();
+    controlEffects = GetComponent<PlayerControlEffects>();
 
     if (smokeOverlay != null)
         smokeOverlay.SetActive(false);
@@ -40,13 +47,48 @@ private bool lastSmokeState;
         
 }
 
-    private void Update()
-    {
-        UpdateStunPresentation();
-        UpdateInvisibilityPresentation();
-        UpdateSmokePresentation();
-    }
+public override void Render()
+{
+    UpdateHitPresentation();
+}
+private void UpdateConfusionPresentation()
+{
+    if (controlEffects == null || controlEffects.Object == null)
+        return;
 
+    bool reversed = controlEffects.IsInputReversed;
+
+    if (reversed == lastReversedInputState)
+        return;
+
+    lastReversedInputState = reversed;
+
+    if (confusionVfx == null)
+        return;
+
+    if (reversed)
+    {
+        confusionVfx.gameObject.SetActive(true);
+        confusionVfx.Play(true);
+    }
+    else
+    {
+        confusionVfx.Stop(
+            true,
+            ParticleSystemStopBehavior.StopEmittingAndClear
+        );
+
+        confusionVfx.gameObject.SetActive(false);
+    }
+}
+private void Update()
+{
+    UpdateStunPresentation();
+    UpdateInvisibilityPresentation();
+    UpdateSmokePresentation();
+    UpdateConfusionPresentation();
+    UpdateKnockbackVFX();
+}
     private void UpdateStunPresentation()
     {
         if (movement == null)
@@ -62,6 +104,80 @@ private bool lastSmokeState;
         SetStunPresentation(stunned);
     }
 
+
+private void UpdateHitPresentation()
+{
+    if (movement == null || movement.Object == null)
+        return;
+
+    int currentHitSequence = movement.HitSequence;
+
+    if (!hasInitializedHitSequence)
+    {
+        lastHitSequence = currentHitSequence;
+        hasInitializedHitSequence = true;
+        return;
+    }
+
+    if (currentHitSequence == lastHitSequence)
+        return;
+
+    lastHitSequence = currentHitSequence;
+
+    Debug.Log(
+        $"[PlayerPresentation] {name} received {movement.LastHitType}"
+    );
+
+    switch (movement.LastHitType)
+    {
+        case HitType.Stun:
+            PlayVFX(stunVfx, "Stun");
+            break;
+
+        case HitType.Knockback:
+            PlayVFX(knockbackVfx, "Knockback");
+            break;
+    }
+}
+private void PlayVFX(ParticleSystem effect, string effectName)
+{
+    if (effect == null)
+    {
+        Debug.LogWarning(
+            $"[PlayerPresentation] {effectName} VFX is not assigned!",
+            this
+        );
+
+        return;
+    }
+
+    effect.gameObject.SetActive(true);
+
+    effect.Stop(
+        true,
+        ParticleSystemStopBehavior.StopEmittingAndClear
+    );
+
+    effect.Play(true);
+
+    Debug.Log(
+        $"[PlayerPresentation] Playing {effectName} VFX.",
+        effect
+    );
+}
+private void UpdateKnockbackVFX()
+{
+    if (knockbackVfx == null ||
+        !knockbackVfx.gameObject.activeSelf)
+    {
+        return;
+    }
+
+    if (!knockbackVfx.IsAlive(true))
+    {
+        knockbackVfx.gameObject.SetActive(false);
+    }
+}
 private void UpdateSmokePresentation()
 {
     if (smokeStatus == null ||
@@ -87,20 +203,26 @@ private void UpdateSmokePresentation()
         smokeOverlay.SetActive(active);
 }
 
-  private void SetStunPresentation(bool stunned)
+private void SetStunPresentation(bool stunned)
 {
+    if (stunVfx == null)
+        return;
+
     if (stunned)
     {
-        if (stunVfx != null)
-            stunVfx.Play();
+        stunVfx.gameObject.SetActive(true);
+        stunVfx.Play(true);
     }
     else
     {
-        if (stunVfx != null)
-            stunVfx.Stop();
+        stunVfx.Stop(
+            true,
+            ParticleSystemStopBehavior.StopEmittingAndClear
+        );
+
+        stunVfx.gameObject.SetActive(false);
     }
 }
-
     private void UpdateInvisibilityPresentation()
     {
         if (invisibility == null)

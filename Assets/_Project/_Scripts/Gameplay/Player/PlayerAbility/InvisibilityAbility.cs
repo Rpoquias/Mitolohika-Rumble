@@ -12,30 +12,31 @@ public class InvisibilityAbility : CharacterAbility
     public bool IsInvisible =>
         !InvisibilityTimer.ExpiredOrNotRunning(Runner);
 
-    public override void Activate()
+   public override void Activate()
+{
+    if (!HasStateAuthority)
+        return;
+
+    if (!CanActivate())
     {
-        if (!Object.HasStateAuthority)
-            return;
-
-        if (!CanActivate())
-        {
-            Debug.Log(
-                $"[ABILITY] {GetType().Name} is on cooldown."
-            );
-
-            return;
-        }
-
-        InvisibilityTimer =
-            TickTimer.CreateFromSeconds(
-                Runner,
-                duration
-            );
-
-        StartCooldown();
-
         Debug.Log(
-            $"[ABILITY] {GetType().Name} activated."
+            $"[ABILITY] {GetType().Name} is on cooldown."
         );
+
+        return;
     }
+
+    InvisibilityTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        duration
+    );
+
+    Audio?.Play(SFXID.WhiteLadyInvisibility);
+
+    StartCooldown();
+
+    Debug.Log(
+        $"[ABILITY] {GetType().Name} activated."
+    );
+}
 }

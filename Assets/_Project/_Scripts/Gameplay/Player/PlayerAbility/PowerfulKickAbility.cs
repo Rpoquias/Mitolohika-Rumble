@@ -1,3 +1,4 @@
+using Fusion;
 using UnityEngine;
 
 public class PowerfulKickAbility : CharacterAbility
@@ -5,44 +6,68 @@ public class PowerfulKickAbility : CharacterAbility
     [Header("Kick")]
     [SerializeField] private float knockbackForce = 10f;
 
-    public override void Activate()
+    [SerializeField] private float windupSeconds = 0.35f;
+
+    [Networked]
+    private TickTimer WindupTimer { get; set; }
+
+    [Networked]
+    private NetworkBool IsKicking { get; set; }
+
+    public override bool CanActivate()
     {
-        if (!CanActivate())
-        {
-            Debug.Log(
-                $"[ABILITY] {GetType().Name} is on cooldown."
-            );
+        return base.CanActivate() && !IsKicking;
+    }
 
+ public override void Activate()
+{
+    if (!HasStateAuthority || !CanActivate())
+        return;
+
+    IsKicking = true;
+
+    WindupTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        windupSeconds
+    );
+
+    NotifyActivated();
+    StartCooldown();
+
+    Debug.Log("[ABILITY] Tikbalang started kicking.");
+}
+    public override void FixedUpdateNetwork()
+    {
+        base.FixedUpdateNetwork();
+
+        if (!HasStateAuthority || !IsKicking)
             return;
-        }
 
-        PlayerMovement target =
-            FindBestTarget();
+        if (!WindupTimer.Expired(Runner))
+            return;
+
+        // End the windup before applying the effect.
+        IsKicking = false;
+        WindupTimer = TickTimer.None;
+
+        PlayerMovement target = FindBestTarget();
 
         if (target == null)
         {
-            Debug.Log(
-                $"[ABILITY] {GetType().Name} activated, " +
-                $"but no valid target was found."
-            );
-
+            Debug.Log("[ABILITY] Kick missed.");
             return;
         }
 
-        Debug.Log(
-            $"[ABILITY] {GetType().Name} hit {target.name}!"
-        );
 
-        ApplyKick(target);
+ApplyKick(target);
 
-        StartCooldown();
+GetComponent<PlayerAudio>()?.Play(SFXID.TikbalangKick);
     }
 
     private void ApplyKick(PlayerMovement target)
     {
         Vector3 direction =
-            target.transform.position -
-            transform.position;
+            target.transform.position - transform.position;
 
         direction.y = 0f;
 

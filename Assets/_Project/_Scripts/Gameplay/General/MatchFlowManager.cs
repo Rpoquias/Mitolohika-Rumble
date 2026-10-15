@@ -94,18 +94,8 @@ private const string AGAWAN_BANDILA_SCENE_PATH =
         if (matchSession == null)
             return;
 
-        Debug.Log(
-            $"[MATCH FLOW] Starting match..."
-        );
-
-        /*
-         * Subscribe BEFORE BeginMatch().
-         *
-         * BeginMatch() changes RoundRevealSequence.
-         * MatchRevealUI will detect that change and
-         * automatically play its reveal animation.
-         */
-        StartRoundReveal(matchSession, true);
+    NetworkManager.Instance?.SetJoinable(false);
+StartRoundReveal(matchSession, true);
     }
 
     // ============================================================
@@ -232,30 +222,33 @@ private void OnResultCompleted()
     }
 
     // FINAL ROUND
-    if (matchSession.IsFinalRound)
-    {
-        Debug.Log(
-            "[MATCH FLOW] Final round complete."
-        );
+if (matchSession.IsFinalRound)
+{
+    Debug.Log(
+        "[MATCH FLOW] Final round complete."
+    );
 
-        matchSession.CalculateOverallWinners();
-        matchSession.ResetCelebrationReady();
+    matchSession.CalculateOverallWinners();
 
-        roundTransitionRunning = false;
+    AudioManager.Instance?.PlaySFX(SFXID.Victory);
 
-        DespawnCurrentPlayers(
-            NetworkManager.Instance.Runner
-        );
+    matchSession.ResetCelebrationReady();
 
-        LoadCelebrationScene(
-            NetworkManager.Instance.Runner
-        );
+    roundTransitionRunning = false;
 
-        yield break;
-    }
+    DespawnCurrentPlayers(
+        NetworkManager.Instance.Runner
+    );
 
+    LoadCelebrationScene(
+        NetworkManager.Instance.Runner
+    );
+
+    yield break;
+}
     // NEXT ROUND
-    revealCompleted = false;
+revealCompleted = false;
+
 
     if (matchRevealUI == null)
     {
@@ -296,9 +289,9 @@ private void OnResultCompleted()
     matchRevealUI.OnRevealCompleted -=
         OnRevealCompleted;
 
-    roundTransitionRunning = false;
+   roundTransitionRunning = false;
 
-    LoadCurrentRoundScene();
+LoadCurrentRoundScene();
 }
 
     // ============================================================
@@ -308,7 +301,7 @@ private void OnResultCompleted()
     private void StartRoundReveal(
         MatchSession matchSession,
         bool startMatch)
-    {
+    {   
         if (roundRevealCoroutine != null)
         {
             StopCoroutine(
@@ -372,12 +365,12 @@ private void OnResultCompleted()
             () => revealCompleted
         );
 
-        matchRevealUI.OnRevealCompleted -=
-            OnRevealCompleted;
+   matchRevealUI.OnRevealCompleted -=
+    OnRevealCompleted;
 
-        roundRevealCoroutine = null;
+roundRevealCoroutine = null;
 
-        LoadCurrentRoundScene();
+LoadCurrentRoundScene();
     }
 
     private void OnRevealCompleted()
@@ -585,17 +578,17 @@ private void OnResultCompleted()
         if (!matchSession.AreAllPlayersCelebrationReady())
             return;
 
-        returningToLobby = true;
+       returningToLobby = true;
 
-        DespawnCurrentPlayers(
-            runner
-        );
 
-        runner.LoadScene(
-            SceneRef.FromIndex(
-                networkManager.LobbySceneBuildIndex
-            ),
-            LoadSceneMode.Single
-        );
+DespawnCurrentPlayers(runner);
+
+runner.LoadScene(
+    SceneRef.FromIndex(
+        networkManager.LobbySceneBuildIndex
+    ),
+    LoadSceneMode.Single
+);
     }
+
 }

@@ -10,9 +10,7 @@ public enum MusicID
     RoundReveal,
     Gameplay,
     Celebration
-}
-
-public enum SFXID
+}public enum SFXID
 {
     None,
 
@@ -28,6 +26,7 @@ public enum SFXID
     Victory,
 
     // Player
+    PlayerMove,
     PlayerJump,
     PlayerLand,
     PlayerBump,
@@ -41,7 +40,19 @@ public enum SFXID
     AswangStun,
     NunoProjectile,
     SirenaDive,
-    SirenaEmerge
+    SirenaEmerge,
+
+    // Game Mode SFX
+ArenaTileDestroyed,
+
+RelicPickup,
+RelicDrop,
+
+BandilaPickup,
+BandilaDrop,
+BandilaStored
+
+    
 }
 
 [CreateAssetMenu(
@@ -67,8 +78,19 @@ public class AudioLibrary : ScriptableObject
     [Header("Music")]
     [SerializeField] private List<MusicEntry> musicEntries = new();
 
-    [Header("Sound Effects")]
-    [SerializeField] private List<SFXEntry> sfxEntries = new();
+    [Header("UI SFX")]
+    [SerializeField] private List<SFXEntry> uiSFX = new();
+
+    [Header("Match SFX")]
+    [SerializeField] private List<SFXEntry> matchSFX = new();
+
+    [Header("Player SFX")]
+    [SerializeField] private List<SFXEntry> playerSFX = new();
+
+    [Header("Character Ability SFX")]
+    [SerializeField] private List<SFXEntry> abilitySFX = new();
+    [Header("Game Mode SFX")]
+[SerializeField] private List<SFXEntry> gameModeSFX = new();
 
     private Dictionary<MusicID, AudioClip> musicLookup;
     private Dictionary<SFXID, AudioClip> sfxLookup;
@@ -99,11 +121,22 @@ public class AudioLibrary : ScriptableObject
                 musicLookup,
                 entry.id,
                 entry.clip,
-                "music"
+                "Music"
             );
         }
 
-        foreach (SFXEntry entry in sfxEntries)
+        AddSFXEntries(uiSFX, "UI");
+        AddSFXEntries(matchSFX, "Match");
+        AddSFXEntries(playerSFX, "Player");
+        AddSFXEntries(abilitySFX, "Character Ability");
+        AddSFXEntries(gameModeSFX, "Game Mode");
+    }
+
+    private void AddSFXEntries(
+        List<SFXEntry> entries,
+        string category)
+    {
+        foreach (SFXEntry entry in entries)
         {
             if (entry.id == SFXID.None)
                 continue;
@@ -112,7 +145,7 @@ public class AudioLibrary : ScriptableObject
                 sfxLookup,
                 entry.id,
                 entry.clip,
-                "SFX"
+                category
             );
         }
     }
@@ -126,7 +159,7 @@ public class AudioLibrary : ScriptableObject
         if (lookup.ContainsKey(id))
         {
             Debug.LogWarning(
-                $"[AUDIO LIBRARY] Duplicate {category} ID: {id}",
+                $"[AUDIO LIBRARY] Duplicate {category} ID: {id}.",
                 this
             );
 
@@ -146,7 +179,9 @@ public class AudioLibrary : ScriptableObject
         lookup.Add(id, clip);
     }
 
-    public bool TryGetMusic(MusicID id, out AudioClip clip)
+    public bool TryGetMusic(
+        MusicID id,
+        out AudioClip clip)
     {
         if (musicLookup == null)
             BuildLookups();
@@ -154,7 +189,9 @@ public class AudioLibrary : ScriptableObject
         return musicLookup.TryGetValue(id, out clip);
     }
 
-    public bool TryGetSFX(SFXID id, out AudioClip clip)
+    public bool TryGetSFX(
+        SFXID id,
+        out AudioClip clip)
     {
         if (sfxLookup == null)
             BuildLookups();

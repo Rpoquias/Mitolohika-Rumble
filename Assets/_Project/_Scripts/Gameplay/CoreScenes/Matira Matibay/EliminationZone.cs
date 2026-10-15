@@ -3,21 +3,17 @@ using UnityEngine;
 
 public class EliminationZone : MonoBehaviour
 {
-    [SerializeField] private WinnerDetector winnerDetector;
     [SerializeField] private RoundStateManager roundStateManager;
 
     private NetworkRunner runner;
 
-    private void Update()
+    private void OnTriggerEnter(Collider other)
     {
         if (runner == null)
         {
             runner = NetworkRunner.GetRunnerForGameObject(gameObject);
         }
-    }
 
-    private void OnTriggerEnter(Collider other)
-    {
         if (runner == null || !runner.IsRunning)
             return;
 
@@ -34,9 +30,12 @@ public class EliminationZone : MonoBehaviour
         PlayerElimination player =
             other.GetComponentInParent<PlayerElimination>();
 
-        if (player == null || player.IsEliminated)
-            return;
+if (player == null || !player.Object.IsValid || player.Object.Runner == null)
+    return;
 
-        player.Eliminate();
+if (player.IsEliminated)
+    return;
+
+player.Eliminate();
     }
 }
