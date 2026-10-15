@@ -23,6 +23,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7261055877933802793}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -35,15 +36,19 @@ Transform:
   - {fileID: 5622755626424428379}
   - {fileID: 8679717135507473361}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &866288932965488953
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 8621827786403787882}
     m_Modifications:
+    - target: {fileID: 2466829080362002478, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 10d6b7c3c4a7f2d4b9a7668e3850d69e, type: 2}
     - target: {fileID: 4759644284210773602, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
       propertyPath: m_RootOrder
       value: 4
@@ -92,7 +97,17 @@ PrefabInstance:
       propertyPath: m_Name
       value: Stone_Medium_02
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 8032522428123289970, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b721b63b4a323394c936cf8cf2812923, type: 2}
+    m_RemovedComponents:
+    - {fileID: 1507466912815975504, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+    - {fileID: 312922019024292115, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+    m_RemovedGameObjects:
+    - {fileID: 1447611399208637682, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
 --- !u!4 &5622755626424428379 stripped
 Transform:
@@ -104,8 +119,13 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 8621827786403787882}
     m_Modifications:
+    - target: {fileID: 2756036503266302570, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b721b63b4a323394c936cf8cf2812923, type: 2}
     - target: {fileID: 5988590928601414446, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
       propertyPath: m_Name
       value: Stone_Medium_01
@@ -154,7 +174,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 2652489585022532705, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+    - {fileID: 2164666531128481509, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+    m_RemovedGameObjects:
+    - {fileID: 1117004352593954694, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
 --- !u!4 &5222808150877518883 stripped
 Transform:
@@ -166,8 +192,13 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 8621827786403787882}
     m_Modifications:
+    - target: {fileID: 6345442881880891692, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b721b63b4a323394c936cf8cf2812923, type: 2}
     - target: {fileID: 7189711422697388807, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
       propertyPath: m_Name
       value: Stone_Medium_03
@@ -216,7 +247,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: -6118383519597668399, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+    - {fileID: 3375223036126746316, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+    m_RemovedGameObjects:
+    - {fileID: 4801717718663965101, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
 --- !u!4 &8679717135507473361 stripped
 Transform:
@@ -228,8 +265,13 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 8621827786403787882}
     m_Modifications:
+    - target: {fileID: 6345442881880891692, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b721b63b4a323394c936cf8cf2812923, type: 2}
     - target: {fileID: 7189711422697388807, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
       propertyPath: m_Name
       value: Stone_Medium_03
@@ -278,7 +320,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: -6118383519597668399, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+    - {fileID: 3375223036126746316, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+    m_RemovedGameObjects:
+    - {fileID: 4801717718663965101, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c189ce17a14e05443809b879e3fe6c30, type: 3}
 --- !u!4 &4659838680561005825 stripped
 Transform:
@@ -290,8 +338,13 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 8621827786403787882}
     m_Modifications:
+    - target: {fileID: 2466829080362002478, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b721b63b4a323394c936cf8cf2812923, type: 2}
     - target: {fileID: 4759644284210773602, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
       propertyPath: m_RootOrder
       value: 1
@@ -340,7 +393,17 @@ PrefabInstance:
       propertyPath: m_Name
       value: Stone_Medium_02
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 8032522428123289970, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 10d6b7c3c4a7f2d4b9a7668e3850d69e, type: 2}
+    m_RemovedComponents:
+    - {fileID: 1507466912815975504, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+    - {fileID: 312922019024292115, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+    m_RemovedGameObjects:
+    - {fileID: 1447611399208637682, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 47490ed8bcdce3f4382f5555146d49a5, type: 3}
 --- !u!4 &8990981277401072689 stripped
 Transform:
@@ -352,8 +415,13 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 8621827786403787882}
     m_Modifications:
+    - target: {fileID: 2756036503266302570, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b721b63b4a323394c936cf8cf2812923, type: 2}
     - target: {fileID: 5988590928601414446, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
       propertyPath: m_Name
       value: Stone_Medium_01
@@ -402,7 +470,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 2652489585022532705, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+    - {fileID: 2164666531128481509, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+    m_RemovedGameObjects:
+    - {fileID: 1117004352593954694, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e39885b587dd8e2438efc0dcb990777a, type: 3}
 --- !u!4 &2611649105557562560 stripped
 Transform:
