@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class RelicController : NetworkBehaviour
 {
+
+[Header("Idle Animation")]
+[SerializeField] private float rotationSpeed = 60f;
     [Header("Pickup")]
     [SerializeField] private float pickupRadius = 1f;
     [SerializeField] private float pickupLockDuration = 0.6f;
@@ -54,15 +57,28 @@ public override void Spawned()
     if (!HasStateAuthority)
         return;
 
-    _startingPosition = transform.position;
-    _startingRotation = transform.rotation;
+   _startingPosition = transform.position;
+_startingRotation = transform.rotation;
+
 
     Holder = PlayerRef.None;
     PickupLockTimer = TickTimer.None;
 
     SetCarriedPhysics(false);
 }
+private void UpdateIdleAnimation()
+{
+    if (_rb == null || _rb.isKinematic)
+        return;
 
+    Quaternion rotation = Quaternion.Euler(
+        0f,
+        rotationSpeed * Runner.DeltaTime,
+        0f
+    );
+
+    _rb.MoveRotation(_rb.rotation * rotation);
+}
 private void SetCarriedPhysics(bool carried)
 {
     if (_rb == null)
@@ -76,24 +92,24 @@ private void SetCarriedPhysics(bool carried)
         _rb.angularVelocity = Vector3.zero;
     }
 }
-    public override void FixedUpdateNetwork()
+public override void FixedUpdateNetwork()
+{
+    if (!HasStateAuthority)
+        return;
+
+    if (Holder != PlayerRef.None)
     {
-        if (!HasStateAuthority)
-            return;
-
-        if (Holder != PlayerRef.None)
-        {
-            UpdateHeldPosition();
-            return;
-        }
-
-        if (!PickupLockTimer.ExpiredOrNotRunning(Runner))
-            return;
-
-        TryFindPlayerToPickup();
+        UpdateHeldPosition();
+        return;
     }
 
+    UpdateIdleAnimation();
 
+    if (!PickupLockTimer.ExpiredOrNotRunning(Runner))
+        return;
+
+    TryFindPlayerToPickup();
+}
 public void ResetRelic()
 {
     if (!HasStateAuthority)
@@ -121,6 +137,8 @@ if (_rb != null)
     _rb.linearVelocity = Vector3.zero;
     _rb.angularVelocity = Vector3.zero;
 }
+
+
     PickupLockTimer = TickTimer.CreateFromSeconds(
         Runner,
         pickupLockDuration
