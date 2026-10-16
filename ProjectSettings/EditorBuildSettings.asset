@@ -13,13 +13,13 @@ EditorBuildSettings:
     guid: 8d8b2d14051f4e84ea25fa1ba9aafb35
   - enabled: 1
     path: Assets/_Project/_Scenes/Main/Lobby.unity
-    guid: ea8f1298c0b6cdd43a4611fa9a435e3c
+    guid: 972ff293f8a89bd46a4f14745cf55c9a
   - enabled: 1
     path: Assets/_Project/_Scenes/Main/MatiraMatibay.unity
     guid: a1342fa2ccddf184a938bd237f53cad6
   - enabled: 1
     path: Assets/_Project/_Scenes/Main/AgawanBandila.unity
-    guid: f916c5f2f546a63429ca2096605d3e59
+    guid: 286d61fe105b04546945dad7c058ac93
   - enabled: 1
     path: Assets/_Project/_Scenes/Main/AgawanRelic.unity
     guid: e97f65210f88c6e43a1c3dadb136d3b7
