@@ -1,3 +1,4 @@
+
 using TMPro;
 using UnityEngine;
 using System.Collections;
@@ -50,14 +51,15 @@ public class MainMenuUI : MonoBehaviour
         }
 
         Debug.Log("[ONLINE] Opening join lobby.");
-        NetworkManager.Instance.OpenPublicLobby();
 
         ShowJoinPanel();
+        NetworkManager.Instance.OpenPublicLobby();
     }
 
     public void ShowJoinPanel()
     {
-        joinLobbyPanel.SetActive(true);
+        if (joinLobbyPanel != null)
+            joinLobbyPanel.SetActive(true);
     }
 
     public void BackFromJoin()
@@ -65,42 +67,68 @@ public class MainMenuUI : MonoBehaviour
         if (NetworkManager.Instance != null)
             NetworkManager.Instance.Disconnect();
 
-        joinLobbyPanel.SetActive(false);
+        if (statusCoroutine != null)
+        {
+            StopCoroutine(statusCoroutine);
+            statusCoroutine = null;
+        }
+
+        if (statusText != null)
+            statusText.gameObject.SetActive(false);
+
+        if (joinLobbyPanel != null)
+            joinLobbyPanel.SetActive(false);
     }
 
     private void ShowPendingStatus()
     {
-        if (statusText == null)
+        if (NetworkManager.Instance == null ||
+            statusText == null)
             return;
-
-        if (NetworkManager.Instance == null)
-        {
-            statusText.gameObject.SetActive(false);
-            return;
-        }
 
         MainMenuMessage message =
             NetworkManager.Instance.PendingMainMenuMessage;
 
+        string messageText = null;
+
         switch (message)
         {
             case MainMenuMessage.HostDisconnected:
-                ShowStatus(
+                messageText =
                     $"HOST DISCONNECTED\n" +
-                    $"{NetworkManager.Instance.LastNetworkError}"
-                );
+                    $"{NetworkManager.Instance.LastNetworkError}";
                 break;
 
             case MainMenuMessage.ConnectionFailed:
-                ShowStatus("CONNECTION FAILED");
+                messageText = "CONNECTION FAILED";
                 break;
 
             default:
-                statusText.gameObject.SetActive(false);
                 return;
         }
 
+        // Open the panel BEFORE displaying the status.
+        ShowJoinPanel();
+
+        // Keep disconnect messages visible until dismissed.
+        ShowPersistentStatus(messageText);
+
         NetworkManager.Instance.ClearMainMenuMessage();
+    }
+
+    private void ShowPersistentStatus(string message)
+    {
+        if (statusText == null)
+            return;
+
+        if (statusCoroutine != null)
+        {
+            StopCoroutine(statusCoroutine);
+            statusCoroutine = null;
+        }
+
+        statusText.text = message;
+        statusText.gameObject.SetActive(true);
     }
 
     private void ShowStatus(string message)

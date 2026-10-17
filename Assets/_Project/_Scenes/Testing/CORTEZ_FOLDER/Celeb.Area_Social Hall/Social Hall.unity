@@ -436,7 +436,9 @@ PrefabInstance:
       value: Celebration Area
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 5765196947047208076, guid: 0d0491761c0f3a64c9568c48a84efd73, type: 3}
+    - {fileID: 8201857345253658118, guid: 0d0491761c0f3a64c9568c48a84efd73, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0d0491761c0f3a64c9568c48a84efd73, type: 3}

@@ -62,9 +62,9 @@ MonoBehaviour:
   - id: 17
     clip: {fileID: 8300000, guid: ec9cd26631a80b44b8d64b0948da04f7, type: 3}
   - id: 20
-    clip: {fileID: 8300000, guid: 9bf9d758353f6094fb2321dcae6923e0, type: 3}
+    clip: {fileID: 8300000, guid: df3f971789ad3334c92f3a850558ce73, type: 3}
   - id: 19
-    clip: {fileID: 8300000, guid: f889073a76f6e5f449bf7eab38dba5b5, type: 3}
+    clip: {fileID: 8300000, guid: a5ff8a66ba130ee4489769008d35974d, type: 3}
   - id: 18
     clip: {fileID: 8300000, guid: 34f6f052f3062f3448abdd6487ebcf55, type: 3}
   gameModeSFX:

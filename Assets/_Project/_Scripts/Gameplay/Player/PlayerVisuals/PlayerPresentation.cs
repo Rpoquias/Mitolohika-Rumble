@@ -17,6 +17,17 @@ public class PlayerPresentation : NetworkBehaviour
     [Header("Smoke")]
     [SerializeField] private GameObject smokeOverlay;
 
+    [Header("Sirena")]
+[SerializeField] private SirenaAbility sirenaAbility;
+[SerializeField] private PlayerAnimationController animationController;
+[SerializeField] private GameObject waterholeVfx;
+
+[SerializeField] private string diveTrigger = "Dive";
+[SerializeField] private string emergeTrigger = "Emerge";
+
+private bool lastDivingState;
+private bool lastEmergingState;
+
 private PlayerStatusEffects smokeStatus;
 private bool lastSmokeState;
 private int lastHitSequence;
@@ -34,7 +45,9 @@ private bool lastReversedInputState;
     invisibility = GetComponent<InvisibilityAbility>();
     smokeStatus = GetComponent<PlayerStatusEffects>();
     controlEffects = GetComponent<PlayerControlEffects>();
-
+    sirenaAbility = GetComponent<SirenaAbility>();
+    if (animationController == null)
+    animationController = GetComponentInChildren<PlayerAnimationController>();
     if (smokeOverlay != null)
         smokeOverlay.SetActive(false);
 
@@ -43,6 +56,9 @@ private bool lastReversedInputState;
 
     if (characterVisual != null)
         characterVisual.SetActive(true);
+
+        if (waterholeVfx != null)
+    waterholeVfx.SetActive(false);
 
         
 }
@@ -88,6 +104,7 @@ private void Update()
     UpdateSmokePresentation();
     UpdateConfusionPresentation();
     UpdateKnockbackVFX();
+    UpdateSirenaPresentation();
 }
     private void UpdateStunPresentation()
     {
@@ -138,6 +155,43 @@ private void UpdateHitPresentation()
             PlayVFX(knockbackVfx, "Knockback");
             break;
     }
+}
+private void UpdateSirenaPresentation()
+{
+    if (sirenaAbility == null || sirenaAbility.Object == null)
+        return;
+
+    bool diving = sirenaAbility.IsDiving;
+    bool emerging = sirenaAbility.IsEmerging;
+
+    // Dive starts.
+    if (diving && !lastDivingState)
+    {
+        if (animationController != null)
+            animationController.PlayAbilityAnimation(diveTrigger);
+
+        if (characterVisual != null)
+            characterVisual.SetActive(false);
+
+        if (waterholeVfx != null)
+            waterholeVfx.SetActive(true);
+    }
+
+    // Emergence starts.
+    if (emerging && !lastEmergingState)
+    {
+        if (waterholeVfx != null)
+            waterholeVfx.SetActive(false);
+
+        if (characterVisual != null)
+            characterVisual.SetActive(true);
+
+        if (animationController != null)
+            animationController.PlayAbilityAnimation(emergeTrigger);
+    }
+
+    lastDivingState = diving;
+    lastEmergingState = emerging;
 }
 private void PlayVFX(ParticleSystem effect, string effectName)
 {

@@ -18018,7 +18018,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &146581906
 RectTransform:
   m_ObjectHideFlags: 0
@@ -213256,7 +213256,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MainMenuController
   roomNameInput: {fileID: 726951585}
   joinLobbyPanel: {fileID: 1904161901}
-  ipAddressInput: {fileID: 1816745030}
   statusText: {fileID: 2138405583}
   statusDuration: 3
 --- !u!114 &1697470950
@@ -223462,6 +223461,11 @@ MonoBehaviour:
   minPitch: -20
   maxPitch: 60
   mobileSensitivity: 0.15
+  selectionDistance: 6
+  selectionHeight: 3.5
+  selectionLookHeight: 1.5
+  followSpeedXZ: 15
+  followSpeedY: 6
 --- !u!1001 &1775287131
 PrefabInstance:
   m_ObjectHideFlags: 0
