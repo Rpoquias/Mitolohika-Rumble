@@ -43,7 +43,7 @@ public class SmokeScreenAbility : CharacterAbility
         // Start cooldown when casting begins.
         StartCooldown();
 
-        Debug.Log("[ABILITY] Kapre started casting smoke.");
+     
     }
 
     public override void FixedUpdateNetwork()
@@ -84,6 +84,6 @@ public class SmokeScreenAbility : CharacterAbility
 
         Audio?.Play(SFXID.KapreSmoke);
 
-        Debug.Log("[ABILITY] Kapre released smoke.");
+        
     }
 }

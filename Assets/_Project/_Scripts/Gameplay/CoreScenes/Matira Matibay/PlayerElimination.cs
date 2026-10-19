@@ -24,10 +24,7 @@ public override void Spawned()
 
     ApplyEliminationState();
 
-    Debug.Log(
-        $"[ELIMINATION] Spawned {name} | " +
-        $"PlayerRef: {PlayerRef}"
-    );
+  
 }
 
     public void Eliminate()
@@ -62,10 +59,7 @@ public override void Spawned()
     if (!HasStateAuthority)
         return;
 
-    Debug.Log(
-        $"[ELIMINATION] Resetting {name} to " +
-        $"{spawnPosition}"
-    );
+
 
     IsEliminated = false;
 
@@ -113,13 +107,7 @@ public override void Spawned()
     private void HandleNetworkElimination()
     {
         
-        Debug.Log(
-            gameObject.name +
-            " has been eliminated!"
-        );
-    Debug.Log(
-        $"[ELIMINATION] Invoking OnPlayerEliminated for {name}"
-    );
+    
         DisableGameplay();
 
         OnPlayerEliminated?.Invoke(this);

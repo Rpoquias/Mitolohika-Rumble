@@ -19,11 +19,6 @@ public class AudioSettingsUI : MonoBehaviour
 
         if (audioManager == null)
         {
-            Debug.LogError(
-                "[AUDIO SETTINGS] AudioManager was not found.",
-                this
-            );
-
             enabled = false;
             return;
         }

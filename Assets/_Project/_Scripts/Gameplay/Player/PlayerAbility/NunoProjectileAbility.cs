@@ -52,10 +52,7 @@ public class NunoProjectileAbility : CharacterAbility
 
         if (projectile == null)
         {
-            Debug.LogError(
-                "[NunoProjectileAbility] " +
-                "Projectile prefab is missing NunoProjectile."
-            );
+        
 
             runner.Despawn(networkObject);
             return;

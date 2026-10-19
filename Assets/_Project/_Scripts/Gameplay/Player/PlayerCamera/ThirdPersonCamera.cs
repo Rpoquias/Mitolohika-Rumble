@@ -267,8 +267,7 @@ public Transform CurrentTarget => target;
 
     if (cameraTarget == null)
     {
-        Debug.LogError(
-            "[ThirdPersonCamera] CameraTarget not found on local player.");
+       
         return;
     }
 
@@ -300,9 +299,7 @@ public void ReturnToLocalPlayer()
 
     if (localTarget == null)
     {
-        Debug.LogError(
-            "[ThirdPersonCamera] Local CameraTarget not found."
-        );
+        
 
         return;
     }

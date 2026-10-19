@@ -224,9 +224,6 @@ UpdateCarriedPosition();
 
 RPC_PlayFlagSFX(pickupSFX, transform.position);
 
-    Debug.Log(
-        $"[BANDILA FLAG] {player} picked up a flag."
-    );
 }
     private void UpdateCarriedPosition()
     {
@@ -293,7 +290,7 @@ if (_rb != null)
 
     RPC_PlayFlagSFX(dropSFX, transform.position);
 
-    Debug.Log($"[BANDILA FLAG] Flag dropped by {previousHolder}.");
+   
 }
     private void HandleHolderHit()
     {
@@ -352,7 +349,7 @@ SetCarriedPhysics(true);
 
     RPC_PlayFlagSFX(storedSFX, transform.position);
 
-    Debug.Log($"[BANDILA FLAG] Flag stored by {player}.");
+
 }
 
 private bool IsCarryingAnotherFlag(PlayerRef player)
@@ -419,9 +416,7 @@ SetHolderBumpBlocked(true);
 UpdateCarriedPosition();
 
 RPC_PlayFlagSFX(pickupSFX, transform.position);
-    Debug.Log(
-        $"[BANDILA FLAG] {player} stole a flag."
-    );
+   
 }
 
 private void SetHolderBumpBlocked(bool blocked)

@@ -165,10 +165,7 @@ public void StartTracking()
 
     if (!initialized)
     {
-        Debug.LogError(
-            "[MATIRA ELIMINATION] " +
-            "Could not initialize player tracking."
-        );
+       
 
         return;
     }
@@ -178,9 +175,7 @@ public void StartTracking()
     winnerDecided = false;
     trackingActive = true;
 
-    Debug.Log(
-        "[MATIRA ELIMINATION] Tracking started."
-    );
+   
 }
     public void StopTracking()
     {
@@ -250,11 +245,6 @@ EliminationCount++;
 
 EliminationSequence++;
 
-Debug.Log(
-    $"[MATIRA ELIMINATION] " +
-    $"{player} eliminated. " +
-    $"Order: {EliminationCount}"
-);
 
 OnEliminationChanged?.Invoke();
 
@@ -287,10 +277,7 @@ CheckForWinner();
 
     winnerDecided = true;
 
-    Debug.Log(
-        $"[MATIRA ELIMINATION] Winner decided: " +
-        $"{lastAlivePlayer}"
-    );
+  
 
     OnWinnerDecided?.Invoke(lastAlivePlayer);
 }

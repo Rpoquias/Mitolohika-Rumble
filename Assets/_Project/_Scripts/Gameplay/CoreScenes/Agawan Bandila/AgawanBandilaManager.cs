@@ -8,10 +8,12 @@ public class AgawanBandilaManager : MonoBehaviour
     [SerializeField] private BandilaBaseController[] bases;
     [SerializeField] private BandilaController[] flags;
     [SerializeField] private AgawanBandilaScoreManager scoreManager;
-[SerializeField] private AgawanBandilaPlacementManager placementManager;
+    [SerializeField] private AgawanBandilaPlacementManager placementManager;
+
     [Header("Round")]
     [SerializeField] private RoundStateManager roundStateManager;
     [SerializeField] private float roundDuration = 90f;
+
     private bool basesAssigned;
     private bool roundActive;
     private bool roundEnding;
@@ -23,145 +25,139 @@ public class AgawanBandilaManager : MonoBehaviour
         new List<Quaternion>();
 
     private void Start()
-{
-    CacheFlagStartPositions();
-    ValidateFlagReferences();
-
-    if (roundStateManager != null)
     {
-        roundStateManager.OnRoundStarted +=
-            HandleRoundStarted;
+        CacheFlagStartPositions();
 
-        roundStateManager.OnRoundReset +=
-            HandleRoundReset;
-    }
-}
- private void Update()
-{
-    if (!roundActive)
-        return;
+        if (roundStateManager != null)
+        {
+            roundStateManager.OnRoundStarted +=
+                HandleRoundStarted;
 
-    NetworkRunner runner =
-        NetworkManager.Instance != null
-            ? NetworkManager.Instance.Runner
-            : null;
-
-    if (runner == null ||
-        !runner.IsRunning ||
-        !runner.IsServer)
-    {
-        return;
+            roundStateManager.OnRoundReset +=
+                HandleRoundReset;
+        }
     }
 
-    MatchSession matchSession =
-        NetworkManager.Instance.CurrentMatchSession;
-
-    if (matchSession == null)
-        return;
-
-    if (matchSession.IsRoundTimerExpired())
+    private void Update()
     {
-        EndRound();
+        if (!roundActive)
+            return;
+
+        NetworkRunner runner =
+            NetworkManager.Instance != null
+                ? NetworkManager.Instance.Runner
+                : null;
+
+        if (runner == null ||
+            !runner.IsRunning ||
+            !runner.IsServer)
+        {
+            return;
+        }
+
+        MatchSession matchSession =
+            NetworkManager.Instance.CurrentMatchSession;
+
+        if (matchSession == null)
+            return;
+
+        if (matchSession.IsRoundTimerExpired())
+        {
+            EndRound();
+        }
     }
-}
-private void HandleRoundStarted()
-{
-    if (!HasServer())
-        return;
 
-    ResetRoundObjects();
-    AssignBases();
-
-    if (!basesAssigned)
-        return;
-
-    MatchSession matchSession =
-        NetworkManager.Instance != null
-            ? NetworkManager.Instance.CurrentMatchSession
-            : null;
-
-    if (matchSession == null)
+    private void HandleRoundStarted()
     {
-        Debug.LogError(
-            "[BANDILA MANAGER] MatchSession is missing."
+        if (!HasServer())
+            return;
+
+        ResetRoundObjects();
+        AssignBases();
+
+        if (!basesAssigned)
+            return;
+
+        MatchSession matchSession =
+            NetworkManager.Instance != null
+                ? NetworkManager.Instance.CurrentMatchSession
+                : null;
+
+        if (matchSession == null)
+        {
+            Debug.LogError(
+                "[BANDILA MANAGER] MatchSession is missing."
+            );
+
+            return;
+        }
+
+        matchSession.StartRoundTimer(
+            roundDuration
         );
 
-        return;
+        roundActive = true;
+        roundEnding = false;
+
+        if (scoreManager != null)
+        {
+            scoreManager.StartScoring();
+        }
     }
 
-    matchSession.StartRoundTimer(
-        roundDuration
-    );
-
-    roundActive = true;
-    roundEnding = false;
-
-    if (scoreManager != null)
+    private void EndRound()
     {
-        scoreManager.StartScoring();
-    }
+        if (!HasServer())
+            return;
 
-    Debug.Log(
-        $"[BANDILA] Round started. " +
-        $"Duration: {roundDuration} seconds."
-    );
-}
-   private void EndRound()
-{
-    if (!HasServer())
-        return;
+        if (!roundActive)
+            return;
 
-    if (!roundActive)
-        return;
+        if (roundEnding)
+            return;
 
-    if (roundEnding)
-        return;
+        roundEnding = true;
+        roundActive = false;
 
-    roundEnding = true;
-    roundActive = false;
+        MatchSession matchSession =
+            NetworkManager.Instance.CurrentMatchSession;
 
-    MatchSession matchSession =
-        NetworkManager.Instance.CurrentMatchSession;
+        if (matchSession != null)
+            matchSession.StopRoundTimer();
 
-    if (matchSession != null)
-        matchSession.StopRoundTimer();
+        if (scoreManager != null)
+            scoreManager.StopScoring();
 
-    if (scoreManager != null)
-        scoreManager.StopScoring();
+        List<RoundPlacement> placements =
+            placementManager.BuildFinalPlacements();
 
-    Debug.Log(
-        "[BANDILA] Timer reached zero. Ending round."
-    );
+        Dictionary<PlayerRef, int> flagCounts =
+            new Dictionary<PlayerRef, int>();
 
-    List<RoundPlacement> placements =
-        placementManager.BuildFinalPlacements();
+        foreach (PlayerRef player in NetworkManager.Instance.Runner.ActivePlayers)
+        {
+            flagCounts[player] = scoreManager.GetScore(player);
+        }
 
-    Dictionary<PlayerRef, int> flagCounts =
-        new Dictionary<PlayerRef, int>();
+        // End the round once.
+        roundStateManager.EndRound();
 
-    foreach (PlayerRef player in NetworkManager.Instance.Runner.ActivePlayers)
-    {
-        flagCounts[player] = scoreManager.GetScore(player);
-    }
+        if (MatchFlowManager.Instance == null)
+        {
+            Debug.LogError(
+                "[BANDILA] MatchFlowManager is missing."
+            );
 
-    // End the round once.
-    roundStateManager.EndRound();
+            return;
+        }
 
-    if (MatchFlowManager.Instance == null)
-    {
-        Debug.LogError(
-            "[BANDILA] MatchFlowManager is missing."
+        MatchFlowManager.Instance.HandleRoundComplete(
+            placements,
+            RoundResultDetailType.Flags,
+            flagCounts
         );
-
-        return;
     }
 
-    MatchFlowManager.Instance.HandleRoundComplete(
-        placements,
-        RoundResultDetailType.Flags,
-        flagCounts
-    );
-}
     private void AssignBases()
     {
         NetworkRunner runner =
@@ -194,13 +190,7 @@ private void HandleRoundStarted()
         }
 
         if (players.Count == 0)
-        {
-            Debug.LogWarning(
-                "[BANDILA MANAGER] No active players found."
-            );
-
             return;
-        }
 
         players.Sort(
             (a, b) =>
@@ -219,19 +209,9 @@ private void HandleRoundStarted()
                 continue;
 
             bases[i].SetOwner(players[i]);
-
-            Debug.Log(
-                $"[BANDILA MANAGER] " +
-                $"Base {i} assigned to {players[i]}."
-            );
         }
 
         basesAssigned = true;
-
-        Debug.Log(
-            $"[BANDILA MANAGER] Assigned " +
-            $"{assignmentCount} bases."
-        );
     }
 
     public bool IsPlayerCarryingFlag(
@@ -349,42 +329,6 @@ private void HandleRoundStarted()
             );
         }
     }
-    private void ValidateFlagReferences()
-{
-    BandilaController[] sceneFlags =
-        FindObjectsByType<BandilaController>();
-
-    HashSet<BandilaController> assignedFlags =
-        new HashSet<BandilaController>();
-
-    if (flags != null)
-    {
-        foreach (BandilaController flag in flags)
-        {
-            if (flag != null)
-                assignedFlags.Add(flag);
-        }
-    }
-
-    foreach (BandilaController sceneFlag in sceneFlags)
-    {
-        if (!assignedFlags.Contains(sceneFlag))
-        {
-            Debug.LogWarning(
-                $"[BANDILA MANAGER] Flag " +
-                $"{sceneFlag.name} is missing from " +
-                $"the manager's flags array.",
-                sceneFlag
-            );
-        }
-    }
-
-    Debug.Log(
-        $"[BANDILA MANAGER] Tracking " +
-        $"{assignedFlags.Count} flag references; " +
-        $"found {sceneFlags.Length} flags in the scene."
-    );
-}
 
     public void ResetBases()
     {
@@ -403,26 +347,23 @@ private void HandleRoundStarted()
         basesAssigned = false;
     }
 
-   private void HandleRoundReset()
-{
-    if (!HasServer())
-        return;
-
-    MatchSession matchSession =
-        NetworkManager.Instance.CurrentMatchSession;
-
-    if (matchSession != null)
+    private void HandleRoundReset()
     {
-        matchSession.StopRoundTimer();
+        if (!HasServer())
+            return;
+
+        MatchSession matchSession =
+            NetworkManager.Instance.CurrentMatchSession;
+
+        if (matchSession != null)
+        {
+            matchSession.StopRoundTimer();
+        }
+
+        roundActive = false;
+        roundEnding = false;
     }
 
-    roundActive = false;
-    roundEnding = false;
-
-    Debug.Log(
-        "[BANDILA] Round reset."
-    );
-}
     private bool HasServer()
     {
         NetworkManager networkManager =

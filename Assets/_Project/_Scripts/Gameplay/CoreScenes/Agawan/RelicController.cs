@@ -144,7 +144,7 @@ if (_rb != null)
         pickupLockDuration
     );
 
-    Debug.Log("[RELIC] Relic reset for new round.");
+  
 }
     private void TryFindPlayerToPickup()
     {
@@ -246,9 +246,7 @@ UpdateHeldPosition();
 
 RPC_PlayRelicSFX(pickupSFX, transform.position);
 
-        Debug.Log(
-            $"[RELIC] {player} picked up the Relic."
-        );
+    
     }
 
     private void UpdateHeldPosition()
@@ -307,9 +305,7 @@ UnsubscribeFromHolder(_holderMovement);
                 pickupLockDuration
             );
 
-        Debug.Log(
-            $"[RELIC] Relic dropped by {previousHolder}."
-        );
+      
     }
 
     private void OnDrawGizmosSelected()

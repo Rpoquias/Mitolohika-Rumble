@@ -76,9 +76,7 @@ protected bool PlayAbilityAnimation(string triggerName)
 public void SetCanUseAbility(bool canUse)
 {
     _canUseAbility = canUse;
-     Debug.Log(
-        $"[ABILITY] {name} CanUseAbility = {_canUseAbility}"
-    );
+ 
 }
         public abstract void Activate();
 

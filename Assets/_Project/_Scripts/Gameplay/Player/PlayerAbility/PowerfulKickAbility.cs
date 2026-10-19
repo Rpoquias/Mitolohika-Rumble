@@ -34,7 +34,7 @@ public class PowerfulKickAbility : CharacterAbility
     NotifyActivated();
     StartCooldown();
 
-    Debug.Log("[ABILITY] Tikbalang started kicking.");
+  
 }
     public override void FixedUpdateNetwork()
     {
@@ -54,7 +54,6 @@ public class PowerfulKickAbility : CharacterAbility
 
         if (target == null)
         {
-            Debug.Log("[ABILITY] Kick missed.");
             return;
         }
 

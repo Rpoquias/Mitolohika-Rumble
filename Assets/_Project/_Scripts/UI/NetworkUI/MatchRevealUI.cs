@@ -104,20 +104,14 @@ public event System.Action OnRevealCompleted;
 
         if (modeCardPrefab == null)
         {
-            Debug.LogError(
-                "[MATCH REVEAL UI] " +
-                "Mode Card Prefab is not assigned."
-            );
+          
 
             return;
         }
 
         if (modeCardContainer == null)
         {
-            Debug.LogError(
-                "[MATCH REVEAL UI] " +
-                "Mode Card Container is not assigned."
-            );
+           
 
             return;
         }
@@ -138,10 +132,7 @@ public event System.Action OnRevealCompleted;
             modeCards.Add(card);
         }
 
-        Debug.Log(
-            $"[MATCH REVEAL UI] Created " +
-            $"{modeCards.Count} mode cards."
-        );
+   
     }
 
     private void ClearModeCards()
@@ -272,9 +263,7 @@ private void HandleRoundReveal()
 
     if (availableModes.Count == 0)
     {
-        Debug.LogError(
-            "[MATCH REVEAL UI] No available game modes."
-        );
+       
 
         yield break;
     }
@@ -297,12 +286,7 @@ private void HandleRoundReveal()
 
         if (selectedIndex < 0)
         {
-            Debug.LogError(
-                "[MATCH REVEAL UI] " +
-                "Selected mode is not in " +
-                "the animation list."
-            );
-
+          
             yield break;
         }
 
@@ -369,9 +353,7 @@ public void PlayCurrentRound()
 
     if (candidate == null || !candidate.IsSpawned)
     {
-        Debug.LogWarning(
-            "[MATCH REVEAL UI] No spawned MatchSession is available."
-        );
+       
 
         return;
     }
@@ -389,9 +371,7 @@ public void PlayCurrentRound()
 
     if (matchSession.RoundRevealSequence <= 0)
     {
-        Debug.LogWarning(
-            "[MATCH REVEAL UI] No round reveal available."
-        );
+       
 
         return;
     }
@@ -459,12 +439,7 @@ public void PlayCurrentRound()
             }
         }
 
-        Debug.LogError(
-            $"[MATCH REVEAL UI] " +
-            $"No GameModeData found for " +
-            $"{gameMode}"
-        );
-
+        
         return null;
     }
 
