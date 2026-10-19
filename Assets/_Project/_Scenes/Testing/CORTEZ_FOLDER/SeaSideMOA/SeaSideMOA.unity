@@ -93,8 +93,8 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
-  m_LightingSettings: {fileID: 0}
+  m_LightingDataAsset: {fileID: 112000000, guid: a82a1a628d3f54d4b82262e1b19ad7d1, type: 2}
+  m_LightingSettings: {fileID: 4890085278179872738, guid: 84c3be10863a90c40a971993d89d4a58, type: 2}
 --- !u!196 &4
 NavMeshSettings:
   serializedVersion: 2
@@ -3612,7 +3612,7 @@ Light:
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
-    m_Type: 2
+    m_Type: 1
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
@@ -3645,7 +3645,7 @@ Light:
     serializedVersion: 2
     m_Bits: 4294967295
   m_RenderingLayerMask: 1
-  m_Lightmapping: 4
+  m_Lightmapping: 1
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
@@ -11646,6 +11646,33 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 522e8c8cb05e7f34da054e75b44d20cf, type: 3}
   m_PrefabInstance: {fileID: 1712927689}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1722465261 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2217413979980850360, guid: 5ccf38007c26cc544adf3b7b7edee62e, type: 3}
+  m_PrefabInstance: {fileID: 2584923433041128906}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &1722465265
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1722465261}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 7528762993369411149, guid: 113bbe05d4fc7d440a479f34fac76d18, type: 3}
 --- !u!1001 &1725626961
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -14419,7 +14446,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2217413979980850360, guid: 5ccf38007c26cc544adf3b7b7edee62e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1722465265}
   m_SourcePrefab: {fileID: 100100000, guid: 5ccf38007c26cc544adf3b7b7edee62e, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
