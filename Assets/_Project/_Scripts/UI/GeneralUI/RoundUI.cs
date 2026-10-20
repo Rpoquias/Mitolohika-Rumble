@@ -1,3 +1,4 @@
+
 using TMPro;
 using UnityEngine;
 
@@ -5,7 +6,6 @@ public class RoundUI : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private RoundStateManager roundStateManager;
-    [SerializeField] private GameObject roundPanel;
     [SerializeField] private TMP_Text roundText;
 
     private bool initialized;
@@ -39,9 +39,7 @@ public class RoundUI : MonoBehaviour
             roundStateManager.CurrentState
         );
 
-        Debug.Log(
-            "[ROUND UI] Initialized."
-        );
+        Debug.Log("[ROUND UI] Initialized.");
     }
 
     private void HandleStateChanged(
@@ -66,53 +64,40 @@ public class RoundUI : MonoBehaviour
                 break;
 
             case RoundStateManager.RoundState.Playing:
-                Hide();
-                break;
-
             case RoundStateManager.RoundState.RoundEnd:
                 Hide();
                 break;
         }
     }
 
-    private void HandleCountdownTick(
-        int countdown)
+    private void HandleCountdownTick(int countdown)
     {
         if (roundText == null)
             return;
 
-        ShowPanel();
-
-        roundText.text =
-            countdown.ToString();
+        roundText.gameObject.SetActive(true);
+        roundText.text = countdown.ToString();
     }
 
     private void ShowWaiting()
     {
-        ShowPanel();
-
         if (roundText == null)
             return;
 
-        roundText.text =
-            "WAITING FOR PLAYERS...";
+        roundText.gameObject.SetActive(true);
+        roundText.text = "WAITING FOR PLAYERS...";
     }
 
     private void ShowCountdown()
     {
-        ShowPanel();
-    }
-
-    private void ShowPanel()
-    {
-        if (roundPanel != null)
-            roundPanel.SetActive(true);
+        if (roundText != null)
+            roundText.gameObject.SetActive(true);
     }
 
     private void Hide()
     {
-        if (roundPanel != null)
-            roundPanel.SetActive(false);
+        if (roundText != null)
+            roundText.gameObject.SetActive(false);
     }
 
     private void OnDestroy()
@@ -127,4 +112,3 @@ public class RoundUI : MonoBehaviour
             HandleCountdownTick;
     }
 }
-

@@ -13,7 +13,9 @@ public class AgawanBandilaManager : MonoBehaviour
     [Header("Round")]
     [SerializeField] private RoundStateManager roundStateManager;
     [SerializeField] private float roundDuration = 90f;
-
+[Header("Events")]
+[SerializeField]
+private AgawanBandilaEventManager eventManager;
     private bool basesAssigned;
     private bool roundActive;
     private bool roundEnding;
@@ -95,14 +97,18 @@ public class AgawanBandilaManager : MonoBehaviour
         matchSession.StartRoundTimer(
             roundDuration
         );
+roundActive = true;
+roundEnding = false;
 
-        roundActive = true;
-        roundEnding = false;
+if (scoreManager != null)
+{
+    scoreManager.StartScoring();
+}
 
-        if (scoreManager != null)
-        {
-            scoreManager.StartScoring();
-        }
+if (eventManager != null)
+{
+    eventManager.StartRoundEvents();
+}
     }
 
     private void EndRound()
@@ -116,9 +122,13 @@ public class AgawanBandilaManager : MonoBehaviour
         if (roundEnding)
             return;
 
-        roundEnding = true;
-        roundActive = false;
+      roundEnding = true;
+roundActive = false;
 
+if (eventManager != null)
+{
+    eventManager.StopRoundEvents();
+}
         MatchSession matchSession =
             NetworkManager.Instance.CurrentMatchSession;
 
@@ -347,23 +357,27 @@ public class AgawanBandilaManager : MonoBehaviour
         basesAssigned = false;
     }
 
-    private void HandleRoundReset()
+private void HandleRoundReset()
+{
+    if (!HasServer())
+        return;
+
+    if (eventManager != null)
     {
-        if (!HasServer())
-            return;
-
-        MatchSession matchSession =
-            NetworkManager.Instance.CurrentMatchSession;
-
-        if (matchSession != null)
-        {
-            matchSession.StopRoundTimer();
-        }
-
-        roundActive = false;
-        roundEnding = false;
+        eventManager.StopRoundEvents();
     }
 
+    MatchSession matchSession =
+        NetworkManager.Instance.CurrentMatchSession;
+
+    if (matchSession != null)
+    {
+        matchSession.StopRoundTimer();
+    }
+
+    roundActive = false;
+    roundEnding = false;
+}
     private bool HasServer()
     {
         NetworkManager networkManager =

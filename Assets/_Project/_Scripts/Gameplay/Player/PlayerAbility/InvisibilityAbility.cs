@@ -29,7 +29,7 @@ public class InvisibilityAbility : CharacterAbility
     );
 
     Audio?.Play(SFXID.WhiteLadyInvisibility);
-
+     NotifyActivated();
     StartCooldown();
 
 }

@@ -34,14 +34,27 @@ public class LoadingManager : MonoBehaviour
     }
 
 
-    public void LoadScene(string sceneName)
-    {
-        if (loadingCoroutine != null)
-            StopCoroutine(loadingCoroutine);
+public void LoadScene(string sceneName)
+{
+    LoadScene(sceneName, null);
+}
 
-        loadingCoroutine = StartCoroutine(LoadSceneAsync(sceneName));
+public void LoadScene(string sceneName, Sprite loadingBackground)
+{
+    if (loadingCoroutine != null)
+        StopCoroutine(loadingCoroutine);
+
+    if (LoadingScreenUI.Instance != null)
+    {
+        LoadingScreenUI.Instance.SetLoadingBackground(
+            loadingBackground
+        );
     }
 
+    loadingCoroutine = StartCoroutine(
+        LoadSceneAsync(sceneName)
+    );
+}
     private IEnumerator LoadSceneAsync(string sceneName)
 {
     SetState(LoadState.LoadingScene);

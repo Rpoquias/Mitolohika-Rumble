@@ -144,7 +144,7 @@ private void Emerge()
     ApplyEmergenceKnockback();
 
     Audio?.Play(SFXID.SirenaEmerge);
-
+        NotifyActivated();
     StartCooldown();
 }
     private void ApplyEmergenceKnockback()

@@ -16,5 +16,6 @@ MonoBehaviour:
   displayName: Matira Matibay
   locationName: Intramuros
   modeIcon: {fileID: 21300000, guid: 4cbc879550e5e374a925e2e0a84d6f3c, type: 3}
-  modeBackground: {fileID: 21300000, guid: 84487d73ca4b791498332d8f6858417f, type: 3}
+  modeBackground: {fileID: 21300000, guid: 0c6f9660019090145a567605ad26071f, type: 3}
+  loadingBackground: {fileID: 21300000, guid: 61487836fe95e3442b5a34e8e77adc07, type: 3}
   scenePath: Assets/_Project/_Scenes/Testing/Ryan/MatiraMatibay.unity

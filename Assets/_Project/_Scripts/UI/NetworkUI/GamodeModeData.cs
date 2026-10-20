@@ -16,10 +16,13 @@ public class GameModeData : ScriptableObject
     [Header("Visuals")]
     [SerializeField] private Sprite modeIcon;
     [SerializeField] private Sprite modeBackground;
+    [SerializeField] private Sprite loadingBackground;
+
 
     [Header("Scene")]
     [SerializeField] private string scenePath;
 
+public Sprite LoadingBackground => loadingBackground;
     public GameModeType GameMode => gameMode;
     public string DisplayName => displayName;
     public string LocationName => locationName;

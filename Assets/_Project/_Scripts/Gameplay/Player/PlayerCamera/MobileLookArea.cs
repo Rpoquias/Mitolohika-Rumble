@@ -6,9 +6,19 @@ public class MobileLookArea : MonoBehaviour,
     IPointerUpHandler,
     IDragHandler
 {
+
     [SerializeField] private ThirdPersonCamera cameraController;
 
     private int _activePointerId = -1;
+
+    private void Start()
+    {
+        // Automatically find the ThirdPersonCamera in the scene if not assigned
+        if (cameraController == null)
+        {
+            cameraController = FindAnyObjectByType<ThirdPersonCamera>();
+        }
+    }
 
     public void OnPointerDown(PointerEventData eventData)
     {
@@ -25,7 +35,8 @@ public class MobileLookArea : MonoBehaviour,
         if (eventData.pointerId != _activePointerId)
             return;
 
-        cameraController.SetMobileLook(eventData.delta);
+        if (cameraController != null)
+            cameraController.SetMobileLook(eventData.delta);
     }
 
     public void OnPointerUp(PointerEventData eventData)
@@ -35,7 +46,9 @@ public class MobileLookArea : MonoBehaviour,
             return;
 
         _activePointerId = -1;
-        cameraController.SetMobileLook(Vector2.zero);
+        
+        if (cameraController != null)
+            cameraController.SetMobileLook(Vector2.zero);
     }
 
     private void OnDisable()

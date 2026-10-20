@@ -10,7 +10,7 @@ public class MatiraMatibayManager : MonoBehaviour
     [SerializeField] private MatiraMatibayPlacementManager placementManager;
     [SerializeField] private MatiraMatibayEliminationManager eliminationManager;
     [SerializeField] private SpawnPointManager spawnPointManager;
-
+[SerializeField] private MatiraMatibayHazardManager hazardManager;
     [Header("Spectator")]
     [SerializeField] private SpectatorController spectatorController;
 
@@ -114,6 +114,8 @@ public class MatiraMatibayManager : MonoBehaviour
             eliminationManager.StartTracking();
 
         arenaShrinkController.StartShrinking();
+        arenaShrinkController.StartCrumbling();
+        hazardManager?.StartHazards();
     }
 
     // ============================================================
@@ -143,7 +145,8 @@ public class MatiraMatibayManager : MonoBehaviour
         eliminationManager?.StopTracking();
 
         arenaShrinkController.StopShrinking();
-
+        arenaShrinkController.StopCrumbling();
+        hazardManager?.StopHazards();
         placementManager.AssignFinalPlacements(winner);
 
         currentPlacements.Clear();
@@ -165,6 +168,7 @@ public class MatiraMatibayManager : MonoBehaviour
         }
 
         roundStateManager.EndRound();
+        
     }
 
     // ============================================================
@@ -223,6 +227,7 @@ public class MatiraMatibayManager : MonoBehaviour
 
         if (arenaShrinkController != null)
             arenaShrinkController.ResetArena();
+        hazardManager?.StopHazards();
 
         ResetAllPlayers();
     }

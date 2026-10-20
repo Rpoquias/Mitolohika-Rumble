@@ -10,7 +10,7 @@ public class AgawanRelicManager : MonoBehaviour
     [SerializeField] private AgawanRelicScoreManager scoreManager;
     [SerializeField] private RoundStateManager roundStateManager;
     [SerializeField] private RelicController relicController;
-
+[SerializeField] private AgawanRelicBoostManager relicBoostManager;
     [Header("Round Settings")]
     [SerializeField] private float roundDuration = 75f;
 
@@ -89,9 +89,7 @@ public class AgawanRelicManager : MonoBehaviour
         if (roundStarted)
             return;
 
-        roundStarted = true;
-        roundEnded = false;
-
+  
         MatchSession matchSession =
             NetworkManager.Instance != null
                 ? NetworkManager.Instance.CurrentMatchSession
@@ -105,12 +103,18 @@ public class AgawanRelicManager : MonoBehaviour
 
             return;
         }
+              roundStarted = true;
+        roundEnded = false;
 
-        matchSession.StartRoundTimer(
-            roundDuration
-        );
+// Spawn fresh collectibles when gameplay begins.
+if (relicBoostManager != null)
+{
+    relicBoostManager.StartRoundCollectibles();
+}
 
-        scoreManager.StartScoring();
+matchSession.StartRoundTimer(roundDuration);
+
+scoreManager.StartScoring();
     }
 
     private void UpdateTimer()
@@ -135,6 +139,11 @@ public class AgawanRelicManager : MonoBehaviour
             return;
 
         roundEnded = true;
+
+if (relicBoostManager != null)
+{
+    relicBoostManager.ClearCollectibles();
+}
 
         MatchSession matchSession =
             NetworkManager.Instance.CurrentMatchSession;
@@ -176,24 +185,27 @@ public class AgawanRelicManager : MonoBehaviour
         );
     }
 
-    private void HandleRoundReset()
-    {
-        roundStarted = false;
-        roundEnded = false;
+private void HandleRoundReset()
+{
+    roundStarted = false;
+    roundEnded = false;
 
-        MatchSession matchSession =
-            NetworkManager.Instance != null
-                ? NetworkManager.Instance.CurrentMatchSession
-                : null;
+    MatchSession matchSession =
+        NetworkManager.Instance != null
+            ? NetworkManager.Instance.CurrentMatchSession
+            : null;
 
-        if (matchSession != null)
-        {
-            matchSession.StopRoundTimer();
-        }
+    if (matchSession != null)
+        matchSession.StopRoundTimer();
 
-        scoreManager.ResetScores();
-        placementManager.ResetPlacement();
+    scoreManager.ResetScores();
+    placementManager.ResetPlacement();
+// Clear the previous round without spawning pickups yet.
+if (relicBoostManager != null)
+{
+    relicBoostManager.ClearCollectibles();
+}
 
-        relicController.ResetRelic();
-    }
+    relicController.ResetRelic();
+}
 }

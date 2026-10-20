@@ -44,9 +44,7 @@ public override void Spawned()
         InitializePlayer(player);
     }
 
-    Debug.Log(
-        "[BANDILA SCORE] Scoring started."
-    );
+ 
 }
     public void StopScoring()
     {
@@ -55,9 +53,7 @@ public override void Spawned()
 
         scoringActive = false;
 
-        Debug.Log(
-            "[BANDILA SCORE] Scoring stopped."
-        );
+
     }
 
     public override void FixedUpdateNetwork()
@@ -116,10 +112,7 @@ public override void Spawned()
                 score
             );
 
-            Debug.Log(
-                $"[BANDILA SCORE] " +
-                $"{player} score updated: {score}"
-            );
+        
         }
 
         return;

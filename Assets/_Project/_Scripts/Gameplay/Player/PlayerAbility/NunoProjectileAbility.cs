@@ -18,6 +18,7 @@ public class NunoProjectileAbility : CharacterAbility
         if (!CanActivate())
             return;
 
+        NotifyActivated();
         SpawnProjectile();
         StartCooldown();
     }

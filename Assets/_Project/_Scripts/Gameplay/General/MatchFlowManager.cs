@@ -140,9 +140,7 @@ public void HandleRoundComplete(
     if (placements == null ||
         placements.Count == 0)
     {
-        Debug.LogError(
-            "[MATCH FLOW] No placements received."
-        );
+     
 
         return;
     }
@@ -224,9 +222,7 @@ private void OnResultCompleted()
     // FINAL ROUND
 if (matchSession.IsFinalRound)
 {
-    Debug.Log(
-        "[MATCH FLOW] Final round complete."
-    );
+ 
 
     matchSession.CalculateOverallWinners();
 
@@ -349,12 +345,7 @@ LoadCurrentRoundScene();
              */
             matchSession.BeginMatch();
 
-            Debug.Log(
-                $"[MATCH FLOW] Round " +
-                $"{matchSession.CurrentRound}/" +
-                $"{matchSession.TotalRounds} | " +
-                $"Mode: {matchSession.CurrentGameMode}"
-            );
+      
         }
 
         /*
@@ -432,23 +423,25 @@ LoadCurrentRoundScene();
 
             default:
 
-                Debug.LogError(
-                    $"[MATCH FLOW] Unsupported game mode: " +
-                    $"{matchSession.CurrentGameMode}"
-                );
-
                 return;
         }
 
-        Debug.Log(
-            $"[MATCH FLOW] Loading gameplay scene: " +
-            $"{scenePath}"
-        );
+// Select the loading artwork before Fusion starts loading.
+Sprite loadingBackground = matchRevealUI != null
+    ? matchRevealUI.GetLoadingBackground(
+        matchSession.CurrentGameMode
+    )
+    : null;
 
-        runner.LoadScene(
-            SceneRef.FromPath(scenePath),
-            LoadSceneMode.Single
-        );
+// A missing mode background automatically uses the general one.
+LoadingScreenUI.Instance?.SetLoadingBackground(
+    loadingBackground
+);
+
+runner.LoadScene(
+    SceneRef.FromPath(scenePath),
+    LoadSceneMode.Single
+);
     }
 
     // ============================================================
@@ -492,9 +485,7 @@ LoadCurrentRoundScene();
 
         if (roundStateManager == null)
         {
-            Debug.LogWarning(
-                "[MATCH FLOW] No RoundStateManager found."
-            );
+         
 
             return;
         }
@@ -514,7 +505,7 @@ LoadCurrentRoundScene();
         {
             return;
         }
-
+LoadingScreenUI.Instance?.SetLoadingBackground();
         runner.LoadScene(
             SceneRef.FromPath(
                 CELEBRATION_SCENE_PATH
@@ -582,6 +573,8 @@ LoadCurrentRoundScene();
 
 
 DespawnCurrentPlayers(runner);
+
+LoadingScreenUI.Instance?.SetLoadingBackground();
 
 runner.LoadScene(
     SceneRef.FromIndex(

@@ -12,13 +12,17 @@ public class LoadingScreenUI : MonoBehaviour
     [SerializeField] private TMP_Text loadingText;
     [SerializeField] private Slider progressBar;
 
+
+[Header("Loading Background")]
+[SerializeField] private Image backgroundImage;
+[SerializeField] private Sprite generalBackground;
     [Header("Fusion Progress Animation")]
     [SerializeField, Min(0.01f)]
     private float estimatedFillSpeed = 0.15f;
 
     [SerializeField, Min(0f)]
     private float completionDisplayDuration = 0.12f;
-
+public static LoadingScreenUI Instance { get; private set; }
     private Coroutine progressCoroutine;
     private Coroutine hideCoroutine;
 
@@ -27,10 +31,18 @@ public class LoadingScreenUI : MonoBehaviour
 
     private void Start()
     {
+        if (Instance != null && Instance != this)
+{
+    Destroy(gameObject);
+    return;
+}
+
+Instance = this;
         if (loadingPanel != null)
             loadingPanel.SetActive(false);
 
         ConfigureSlider();
+        SetLoadingBackground();
         SubscribeToEvents();
     }
 
@@ -77,7 +89,20 @@ public class LoadingScreenUI : MonoBehaviour
             );
         }
     }
+    
+public void SetLoadingBackground(Sprite background = null)
+{
+    if (backgroundImage == null)
+        return;
 
+    Sprite selectedBackground =
+        background != null
+            ? background
+            : generalBackground;
+
+    backgroundImage.sprite = selectedBackground;
+    backgroundImage.enabled = selectedBackground != null;
+}
     private void ShowFusionLoading()
     {
         isFusionLoading = true;
@@ -249,6 +274,8 @@ public class LoadingScreenUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Instance == this)
+    Instance = null;
         NetworkManager networkManager =
             NetworkManager.Instance;
 

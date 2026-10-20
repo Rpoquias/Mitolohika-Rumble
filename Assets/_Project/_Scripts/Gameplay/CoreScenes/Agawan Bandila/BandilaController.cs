@@ -27,6 +27,16 @@ public class BandilaController : NetworkBehaviour
 [SerializeField] private SFXID dropSFX = SFXID.BandilaDrop;
 [SerializeField] private SFXID storedSFX = SFXID.BandilaStored;
 
+[Header("Visuals & Invisibility")]
+[SerializeField] private Renderer[] modelRenderers;
+[SerializeField] private GameObject valuableVFX;
+[SerializeField] private Target targetIndicator;
+[Header("Idle Animation")]
+[SerializeField] private float rotationSpeed = 60f;
+[SerializeField] private Transform modelRoot;
+private bool lastHiddenState;
+private bool _hasSpawned;
+private bool hasInitializedVisualState;
 [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
 private void RPC_PlayFlagSFX(SFXID sfxID, Vector3 position)
 {
@@ -71,10 +81,25 @@ private Rigidbody _rb;
 
     public bool IsFree =>
         State == FlagState.Free;
+private void Update()
+{
+    if (!_hasSpawned)
+        return;
 
+    if (State != FlagState.Free || modelRoot == null)
+        return;
+
+    modelRoot.Rotate(
+        0f,
+        rotationSpeed * Time.deltaTime,
+        0f,
+        Space.Self
+    );
+}
 public override void Spawned()
 {
     _rb = GetComponent<Rigidbody>();
+    _hasSpawned = true;
 
     if (!HasStateAuthority)
         return;
@@ -87,19 +112,88 @@ public override void Spawned()
     PreviousHolderLockTimer = TickTimer.None;
 
     SetCarriedPhysics(false);
-}private void SetCarriedPhysics(bool carried)
+}
+
+
+public override void Render()
+{
+    if (Object == null || Runner == null)
+        return;
+
+    bool shouldHide = false;
+
+    if (State == FlagState.Carried &&
+        Holder != PlayerRef.None &&
+        Runner.TryGetPlayerObject(
+            Holder,
+            out NetworkObject playerObject))
+    {
+        InvisibilityAbility ability =
+            playerObject.GetComponent<InvisibilityAbility>();
+
+        bool holderIsInvisible =
+            ability != null && ability.IsInvisible;
+
+        bool isLocalHolder =
+            playerObject.InputAuthority == Runner.LocalPlayer;
+
+        // Hide the flag only from other players.
+        shouldHide = holderIsInvisible && !isLocalHolder;
+    }
+
+    if (hasInitializedVisualState &&
+        shouldHide == lastHiddenState)
+    {
+        return;
+    }
+
+    hasInitializedVisualState = true;
+    lastHiddenState = shouldHide;
+
+    SetModelVisible(!shouldHide);
+}
+
+
+private void SetModelVisible(bool visible)
+{
+    if (modelRenderers != null)
+    {
+        foreach (Renderer modelRenderer in modelRenderers)
+        {
+            if (modelRenderer != null)
+                modelRenderer.enabled = visible;
+        }
+    }
+
+    if (valuableVFX != null)
+        valuableVFX.SetActive(visible);
+
+    if (targetIndicator != null)
+        targetIndicator.SetHidden(!visible);
+}
+
+private void SetCarriedPhysics(bool carried)
 {
     if (_rb == null)
         return;
 
-    _rb.isKinematic = carried;
-
     if (carried)
     {
-        _rb.linearVelocity = Vector3.zero;
-        _rb.angularVelocity = Vector3.zero;
+        // Clear velocity before making the body kinematic.
+        if (!_rb.isKinematic)
+        {
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
+
+        _rb.isKinematic = true;
+    }
+    else
+    {
+        _rb.isKinematic = false;
     }
 }
+
     public override void FixedUpdateNetwork()
     {
         if (!HasStateAuthority)
@@ -354,28 +448,8 @@ SetCarriedPhysics(true);
 
 private bool IsCarryingAnotherFlag(PlayerRef player)
 {
-    if (flagManager != null &&
-        flagManager.IsPlayerCarryingFlag(player))
-    {
-        return true;
-    }
-
-    BandilaController[] flags =
-        FindObjectsByType<BandilaController>();
-
-    foreach (BandilaController flag in flags)
-    {
-        if (flag == null || flag == this)
-            continue;
-
-        if (flag.State == FlagState.Carried &&
-            flag.Holder == player)
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return flagManager != null &&
+           flagManager.IsPlayerCarryingFlag(player);
 }
  public void StealFromBase(PlayerRef player)
 {
