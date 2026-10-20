@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text;
 using Fusion;
 using UnityEngine;
 
@@ -122,8 +121,6 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
             placements[player] =
                 totalPlayers - i;
         }
-
-        LogFinalPlacements();
     }
 
     public int GetPlacement(
@@ -139,31 +136,5 @@ public class MatiraMatibayPlacementManager : MonoBehaviour
     public void ResetPlacement()
     {
         placements.Clear();
-    }
-
-    private void LogFinalPlacements()
-    {
-        StringBuilder sb =
-            new StringBuilder();
-
-        sb.AppendLine(
-            "<color=red>" +
-            "[MATIRA PLACEMENT] Final Placements:" +
-            "</color>"
-        );
-
-        foreach (
-            KeyValuePair<PlayerRef, int> entry
-            in placements)
-        {
-            sb.AppendLine(
-                $"<color=red>" +
-                $" - {entry.Key} → " +
-                $"{entry.Value} Place" +
-                $"</color>"
-            );
-        }
-
-        Debug.Log(sb.ToString());
     }
 }

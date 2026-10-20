@@ -20,6 +20,31 @@ public class RelicController : NetworkBehaviour
 [SerializeField] private SFXID pickupSFX = SFXID.RelicPickup;
 [SerializeField] private SFXID dropSFX = SFXID.RelicDrop;
 
+
+[Header("Visuals & Invisibility")]
+[SerializeField] private Renderer[] modelRenderers;
+[SerializeField] private GameObject valuableVFX;
+[SerializeField] private Target targetIndicator;
+[SerializeField] private Transform modelRoot;
+
+
+[Header("Carrier Speed Boost")]
+[SerializeField, Min(1f)]
+private float carrierSpeedMultiplier = 1.25f;
+
+[SerializeField, Min(0.1f)]
+private float carrierSpeedBoostDuration = 4f;
+
+[Networked]
+private TickTimer CarrierSpeedBoostTimer { get; set; }
+
+[Networked]
+private NetworkBool CarrierSpeedBoostActive { get; set; }
+
+private bool lastHiddenState;
+private bool hasInitializedVisualState;
+private bool _hasSpawned;
+
 [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
 private void RPC_PlayRelicSFX(SFXID sfxID, Vector3 position)
 {
@@ -50,52 +75,141 @@ private Rigidbody _rb;
     public PlayerRef CurrentHolder =>
         Holder;
 
+
+private void Update()
+{
+    if (!_hasSpawned)
+        return;
+
+    if (IsHeld || modelRoot == null)
+        return;
+
+    modelRoot.Rotate(
+        0f,
+        rotationSpeed * Time.deltaTime,
+        0f,
+        Space.Self
+    );
+}
 public override void Spawned()
 {
     _rb = GetComponent<Rigidbody>();
+    _hasSpawned = true;
 
     if (!HasStateAuthority)
         return;
 
-   _startingPosition = transform.position;
-_startingRotation = transform.rotation;
-
+    _startingPosition = transform.position;
+    _startingRotation = transform.rotation;
 
     Holder = PlayerRef.None;
     PickupLockTimer = TickTimer.None;
 
     SetCarriedPhysics(false);
 }
-private void UpdateIdleAnimation()
+
+
+private void StopCarrierSpeedBoost()
 {
-    if (_rb == null || _rb.isKinematic)
+    CarrierSpeedBoostActive = false;
+    CarrierSpeedBoostTimer = TickTimer.None;
+
+    if (_holderMovement != null &&
+        _holderMovement.HasStateAuthority)
+    {
+      _holderMovement.SetCarrierSpeedMultiplier(1f);
+    }
+}
+
+public override void Render()
+{
+    if (Object == null || Runner == null)
         return;
 
-    Quaternion rotation = Quaternion.Euler(
-        0f,
-        rotationSpeed * Runner.DeltaTime,
-        0f
-    );
+    bool shouldHide = false;
 
-    _rb.MoveRotation(_rb.rotation * rotation);
+    if (IsHeld &&
+        Holder != PlayerRef.None &&
+        Runner.TryGetPlayerObject(
+            Holder,
+            out NetworkObject playerObject))
+    {
+        InvisibilityAbility ability =
+            playerObject.GetComponent<InvisibilityAbility>();
+
+        bool holderIsInvisible =
+            ability != null && ability.IsInvisible;
+
+        bool isLocalHolder =
+            playerObject.InputAuthority == Runner.LocalPlayer;
+
+        // Hide the relic only from other players.
+        shouldHide = holderIsInvisible && !isLocalHolder;
+    }
+
+    if (hasInitializedVisualState &&
+        shouldHide == lastHiddenState)
+    {
+        return;
+    }
+
+    hasInitializedVisualState = true;
+    lastHiddenState = shouldHide;
+
+    SetModelVisible(!shouldHide);
 }
+
+private void SetModelVisible(bool visible)
+{
+    if (modelRenderers != null)
+    {
+        foreach (Renderer modelRenderer in modelRenderers)
+        {
+            if (modelRenderer != null)
+                modelRenderer.enabled = visible;
+        }
+    }
+
+    if (valuableVFX != null)
+        valuableVFX.SetActive(visible);
+
+    if (targetIndicator != null)
+        targetIndicator.SetHidden(!visible);
+}
+
 private void SetCarriedPhysics(bool carried)
 {
     if (_rb == null)
         return;
 
-    _rb.isKinematic = carried;
-
     if (carried)
     {
-        _rb.linearVelocity = Vector3.zero;
-        _rb.angularVelocity = Vector3.zero;
+        // Clear velocity before making the body kinematic.
+        if (!_rb.isKinematic)
+        {
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
+
+        _rb.isKinematic = true;
+    }
+    else
+    {
+        _rb.isKinematic = false;
     }
 }
+
+
 public override void FixedUpdateNetwork()
 {
     if (!HasStateAuthority)
         return;
+
+    if (CarrierSpeedBoostActive &&
+        CarrierSpeedBoostTimer.Expired(Runner))
+    {
+        StopCarrierSpeedBoost();
+    }
 
     if (Holder != PlayerRef.None)
     {
@@ -103,25 +217,32 @@ public override void FixedUpdateNetwork()
         return;
     }
 
-    UpdateIdleAnimation();
-
     if (!PickupLockTimer.ExpiredOrNotRunning(Runner))
         return;
 
     TryFindPlayerToPickup();
 }
+
 public void ResetRelic()
 {
     if (!HasStateAuthority)
         return;
 
-    // Restore bump attack before clearing the holder reference.
-    if (_holderBump != null)
-        _holderBump.SetObjectiveBumpBlocked(false);
+  // Restore bump attack before clearing the holder reference.
+if (_holderBump != null)
+    _holderBump.SetObjectiveBumpBlocked(false);
 
-    UnsubscribeFromHolder(_holderMovement);
+// Clear the old holder's collectible stacks.
+if (_holderMovement != null &&
+    _holderMovement.HasStateAuthority)
+{
+    _holderMovement.ResetCollectibleSpeedBoost();
+}
 
-  Holder = PlayerRef.None;
+UnsubscribeFromHolder(_holderMovement);
+StopCarrierSpeedBoost();
+
+Holder = PlayerRef.None;
 
 SetCarriedPhysics(false);
 
@@ -144,7 +265,7 @@ if (_rb != null)
         pickupLockDuration
     );
 
-    Debug.Log("[RELIC] Relic reset for new round.");
+  
 }
     private void TryFindPlayerToPickup()
     {
@@ -235,6 +356,25 @@ _holderMovement =
 _holderBump =
     playerObject.GetComponent<PlayerBumpAttack>();
 
+if (_holderMovement != null)
+{
+    // A new holder starts without any chaser collectible stacks.
+    _holderMovement.ResetCollectibleSpeedBoost();
+
+    // Apply the existing temporary relic carrier boost.
+    _holderMovement.SetCarrierSpeedMultiplier(
+        carrierSpeedMultiplier
+    );
+
+    CarrierSpeedBoostActive = true;
+
+    CarrierSpeedBoostTimer =
+        TickTimer.CreateFromSeconds(
+            Runner,
+            carrierSpeedBoostDuration
+        );
+}
+
 SubscribeToHolder(_holderMovement);
 
 if (_holderBump != null)
@@ -246,9 +386,7 @@ UpdateHeldPosition();
 
 RPC_PlayRelicSFX(pickupSFX, transform.position);
 
-        Debug.Log(
-            $"[RELIC] {player} picked up the Relic."
-        );
+    
     }
 
     private void UpdateHeldPosition()
@@ -278,14 +416,21 @@ RPC_PlayRelicSFX(pickupSFX, transform.position);
         if (Holder == PlayerRef.None)
             return;
 
-        PlayerRef previousHolder = Holder;
-
     if (_holderBump != null)
 {
     _holderBump.SetObjectiveBumpBlocked(false);
 }
+// The former holder loses all collectible speed stacks.
+if (_holderMovement != null &&
+    _holderMovement.HasStateAuthority)
+{
+    _holderMovement.ResetCollectibleSpeedBoost();
+}
 
-   Holder = PlayerRef.None;
+// Remove the temporary relic carrier boost.
+StopCarrierSpeedBoost();
+
+Holder = PlayerRef.None;
 
 SetCarriedPhysics(false);
 
@@ -307,9 +452,7 @@ UnsubscribeFromHolder(_holderMovement);
                 pickupLockDuration
             );
 
-        Debug.Log(
-            $"[RELIC] Relic dropped by {previousHolder}."
-        );
+      
     }
 
     private void OnDrawGizmosSelected()

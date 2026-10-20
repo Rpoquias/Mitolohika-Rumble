@@ -21,7 +21,7 @@ if (target == null)
 target.ApplyStun(stunDuration);
 
 Audio?.Play(SFXID.AswangStun);
-
+        NotifyActivated();
 StartCooldown();
     }
 }

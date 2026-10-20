@@ -5,79 +5,78 @@ using UnityEngine;
 
 public class AgawanRelicScoreManager : NetworkBehaviour
 {
-
     public event Action OnScoresChanged;
+
     [Header("References")]
     [SerializeField] private RelicController relicController;
 
     [Header("Scoring")]
     [SerializeField] private float secondsPerPoint = 1f;
 
-   [Networked, Capacity(4), OnChangedRender(nameof(OnScoresNetworkChanged))]
-public NetworkDictionary<PlayerRef, int> Scores => default;
+    [Networked, Capacity(4), OnChangedRender(nameof(OnScoresNetworkChanged))]
+    public NetworkDictionary<PlayerRef, int> Scores => default;
 
     [Networked, Capacity(4)]
     public NetworkDictionary<PlayerRef, int> ScoreReachedTick => default;
 
     private PlayerRef _currentHolder = PlayerRef.None;
     private float _continuousHoldTime;
-private bool _scoringActive;
-   public override void Spawned()
-{
-    if (relicController == null)
+    private bool _scoringActive;
+
+    public override void Spawned()
     {
-        Debug.LogError(
-            "[RELIC SCORE] RelicController reference is missing."
-        );
+        if (relicController == null)
+        {
+     
+     
+        }
+
+        if (!HasStateAuthority)
+            return;
+
+        _currentHolder = PlayerRef.None;
+        _continuousHoldTime = 0f;
+        _scoringActive = false;
     }
 
-    if (!HasStateAuthority)
-        return;
+    private void OnScoresNetworkChanged()
+    {
+        OnScoresChanged?.Invoke();
+    }
 
-    _currentHolder = PlayerRef.None;
-    _continuousHoldTime = 0f;
-    _scoringActive = false;
-}
-private void OnScoresNetworkChanged()
-{
-    OnScoresChanged?.Invoke();
-}
-public void StartScoring()
-{
-    if (!HasStateAuthority)
-        return;
+    public void StartScoring()
+    {
+        if (!HasStateAuthority)
+            return;
 
-    _scoringActive = true;
-    _currentHolder = PlayerRef.None;
-    _continuousHoldTime = 0f;
+        _scoringActive = true;
+        _currentHolder = PlayerRef.None;
+        _continuousHoldTime = 0f;
+    }
 
-    Debug.Log("[RELIC SCORE] Scoring started.");
-}
-public void StopScoring()
-{
- if (!HasStateAuthority)
-        return;
+    public void StopScoring()
+    {
+        if (!HasStateAuthority)
+            return;
 
-    if (!_scoringActive)
-        return;
+        if (!_scoringActive)
+            return;
 
-
-    _scoringActive = false;
-    _currentHolder = PlayerRef.None;
-    _continuousHoldTime = 0f;
-
-    Debug.Log("[RELIC SCORE] Scoring stopped.");
-}
+        _scoringActive = false;
+        _currentHolder = PlayerRef.None;
+        _continuousHoldTime = 0f;
+    }
 
     public override void FixedUpdateNetwork()
     {
         if (!HasStateAuthority)
-        return;
+            return;
 
-    if (!_scoringActive)
-        return;
+        if (!_scoringActive)
+            return;
 
-    PlayerRef holder = relicController.CurrentHolder;
+        PlayerRef holder = relicController.CurrentHolder;
+
         // Holder changed.
         if (holder != _currentHolder)
         {
@@ -87,10 +86,6 @@ public void StopScoring()
             if (holder != PlayerRef.None)
             {
                 EnsurePlayerScoreExists(holder);
-
-                Debug.Log(
-                    $"[RELIC SCORE] New holder: {holder}"
-                );
             }
 
             return;
@@ -127,8 +122,7 @@ public void StopScoring()
 
     private void AddPoint(PlayerRef player)
     {
-        int currentScore = Scores[player];
-        int newScore = currentScore + 1;
+        int newScore = Scores[player] + 1;
 
         Scores.Set(player, newScore);
 
@@ -137,11 +131,6 @@ public void StopScoring()
         ScoreReachedTick.Set(
             player,
             Runner.Tick.Raw
-        );
-
-        Debug.Log(
-            $"[RELIC SCORE] {player} scored +1. " +
-            $"Total: {newScore}"
         );
     }
 
@@ -174,14 +163,14 @@ public void StopScoring()
     }
 
     public void ResetScores()
-{
-    if (!HasStateAuthority)
-        return;
+    {
+        if (!HasStateAuthority)
+            return;
 
-    Scores.Clear();
-    ScoreReachedTick.Clear();
+        Scores.Clear();
+        ScoreReachedTick.Clear();
 
-    _currentHolder = PlayerRef.None;
-    _continuousHoldTime = 0f;
-}
+        _currentHolder = PlayerRef.None;
+        _continuousHoldTime = 0f;
+    }
 }

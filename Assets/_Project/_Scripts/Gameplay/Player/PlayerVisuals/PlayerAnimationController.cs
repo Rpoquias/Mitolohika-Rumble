@@ -22,15 +22,22 @@ public class PlayerAnimationController : MonoBehaviour
         _speedHash = Animator.StringToHash(_speedParameter);
     }
 
-    private void Update()
-    {
-        if (_animator == null || _movement == null)
-            return;
+  private void Update()
+{
+    if (_animator == null || _movement == null)
+        return;
 
-        float speed = _movement.IsMoving ? 1f : 0f;
-        _animator.SetFloat(_speedHash, speed);
+    if (_movement.IsInHitstop)
+    {
+        _animator.speed = 0f;
+        return;
     }
 
+    _animator.speed = 1f;
+
+    float speed = _movement.IsMoving ? 1f : 0f;
+    _animator.SetFloat(_speedHash, speed);
+}
     public bool HasTrigger(string triggerName)
     {
         if (_animator == null || string.IsNullOrEmpty(triggerName))

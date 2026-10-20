@@ -15,11 +15,14 @@ public class SpectatorController : MonoBehaviour
 
     private PlayerRef currentTargetPlayer;
     private bool hasTargetPlayer;
-public event System.Action<bool> OnSpectatingChanged;
-   public bool IsSpectating { get; private set; }
-public bool HasTargetPlayer => hasTargetPlayer;
-public PlayerRef CurrentTargetPlayer => currentTargetPlayer;
-private bool spectatorResetLocked;
+
+    public event System.Action<bool> OnSpectatingChanged;
+
+    public bool IsSpectating { get; private set; }
+    public bool HasTargetPlayer => hasTargetPlayer;
+    public PlayerRef CurrentTargetPlayer => currentTargetPlayer;
+
+    private bool spectatorResetLocked;
 
     private void Start()
     {
@@ -42,51 +45,52 @@ private bool spectatorResetLocked;
         runner = thirdPersonCamera.Runner;
     }
 
-  private void Update()
-{
-    if (runner == null || !runner.IsRunning)
+    private void Update()
     {
-        if (thirdPersonCamera != null)
-            runner = thirdPersonCamera.Runner;
+        if (runner == null || !runner.IsRunning)
+        {
+            if (thirdPersonCamera != null)
+                runner = thirdPersonCamera.Runner;
 
-        return;
+            return;
+        }
+
+        if (!IsValidNetworkPlayer(localElimination))
+        {
+            localElimination = null;
+
+            IsSpectating = false;
+            hasTargetPlayer = false;
+            currentTargetPlayer = default;
+
+            availablePlayers.Clear();
+
+            TryFindLocalPlayer();
+            return;
+        }
+
+        if (spectatorResetLocked)
+        {
+            if (!localElimination.IsEliminated)
+                spectatorResetLocked = false;
+
+            return;
+        }
+
+        if (localElimination.IsEliminated)
+        {
+            if (!IsSpectating)
+                StartSpectating();
+        }
+        else if (IsSpectating)
+        {
+            StopSpectating();
+        }
+
+        if (IsSpectating)
+            ValidateCurrentTarget();
     }
 
-    if (!IsValidNetworkPlayer(localElimination))
-    {
-        localElimination = null;
-
-        IsSpectating = false;
-        hasTargetPlayer = false;
-        currentTargetPlayer = default;
-
-        availablePlayers.Clear();
-
-        TryFindLocalPlayer();
-        return;
-    }
-
-    if (spectatorResetLocked)
-    {
-        if (!localElimination.IsEliminated)
-            spectatorResetLocked = false;
-
-        return;
-    }
-
-    if (localElimination.IsEliminated)
-    {
-        if (!IsSpectating)
-            StartSpectating();
-    }
-    else if (IsSpectating)
-    {
-        StopSpectating();
-    }
-
-    if (IsSpectating)
-        ValidateCurrentTarget();
-}
     private void TryFindLocalPlayer()
     {
         if (!runner.TryGetPlayerObject(
@@ -98,53 +102,42 @@ private bool spectatorResetLocked;
 
         localElimination =
             playerObject.GetComponent<PlayerElimination>();
+    }
 
-        if (localElimination == null)
+    private bool IsValidNetworkPlayer(PlayerElimination player)
+    {
+        if (player == null)
+            return false;
+
+        if (!player.isActiveAndEnabled)
+            return false;
+
+        if (!player.IsNetworkInitialized)
+            return false;
+
+        if (player.Object == null || !player.Object.IsValid)
+            return false;
+
+        return true;
+    }
+
+    private void StartSpectating()
+    {
+        IsSpectating = true;
+
+        RefreshAvailablePlayers();
+
+        if (availablePlayers.Count > 0)
         {
-            Debug.LogWarning(
-                "[SPECTATOR] Local player has no PlayerElimination."
-            );
+            SetTarget(0);
         }
+        else
+        {
+            hasTargetPlayer = false;
+        }
+
+        OnSpectatingChanged?.Invoke(true);
     }
-private bool IsValidNetworkPlayer(PlayerElimination player)
-{
-    if (player == null)
-        return false;
-
-    if (!player.isActiveAndEnabled)
-        return false;
-
-    if (!player.IsNetworkInitialized)
-        return false;
-
-    if (player.Object == null || !player.Object.IsValid)
-        return false;
-
-    return true;
-}
-   private void StartSpectating()
-{
-    IsSpectating = true;
-
-    RefreshAvailablePlayers();
-
-    if (availablePlayers.Count > 0)
-    {
-        SetTarget(0);
-    }
-    else
-    {
-        hasTargetPlayer = false;
-
-        Debug.Log(
-            "[SPECTATOR] No eligible players to spectate."
-        );
-    }
-
-    OnSpectatingChanged?.Invoke(true);
-
-    Debug.Log("[SPECTATOR] Spectating started.");
-}
 
     public void NextPlayer()
     {
@@ -229,11 +222,12 @@ private bool IsValidNetworkPlayer(PlayerElimination player)
         );
     }
 
-private bool IsEligibleTarget(PlayerElimination player)
-{
-    return IsValidNetworkPlayer(player)
-           && !player.IsEliminated;
-}
+    private bool IsEligibleTarget(PlayerElimination player)
+    {
+        return IsValidNetworkPlayer(player)
+               && !player.IsEliminated;
+    }
+
     private void ValidateCurrentTarget()
     {
         if (!hasTargetPlayer)
@@ -253,13 +247,14 @@ private bool IsEligibleTarget(PlayerElimination player)
             SelectReplacementTarget();
             return;
         }
-PlayerElimination elimination =
-    playerObject.GetComponent<PlayerElimination>();
 
-if (!IsEligibleTarget(elimination))
-{
-    SelectReplacementTarget();
-}
+        PlayerElimination elimination =
+            playerObject.GetComponent<PlayerElimination>();
+
+        if (!IsEligibleTarget(elimination))
+        {
+            SelectReplacementTarget();
+        }
     }
 
     private void SelectReplacementTarget()
@@ -299,11 +294,6 @@ if (!IsEligibleTarget(elimination))
 
         if (cameraTarget == null)
         {
-            Debug.LogWarning(
-                $"[SPECTATOR] CameraTarget missing on " +
-                $"{targetPlayer.name}."
-            );
-
             hasTargetPlayer = false;
             return;
         }
@@ -312,44 +302,36 @@ if (!IsEligibleTarget(elimination))
         hasTargetPlayer = true;
 
         thirdPersonCamera.SetTarget(cameraTarget);
-
-        Debug.Log(
-            $"[SPECTATOR] Now spectating {currentTargetPlayer}."
-        );
     }
 
-  private void StopSpectating()
-{
-    IsSpectating = false;
-    hasTargetPlayer = false;
-    currentTargetPlayer = default;
+    private void StopSpectating()
+    {
+        IsSpectating = false;
+        hasTargetPlayer = false;
+        currentTargetPlayer = default;
 
-    availablePlayers.Clear();
+        availablePlayers.Clear();
 
-    if (thirdPersonCamera != null)
-        thirdPersonCamera.ReturnToLocalPlayer();
+        if (thirdPersonCamera != null)
+            thirdPersonCamera.ReturnToLocalPlayer();
 
-    OnSpectatingChanged?.Invoke(false);
+        OnSpectatingChanged?.Invoke(false);
+    }
 
-    Debug.Log("[SPECTATOR] Spectating stopped.");
-}
+    public void ResetSpectator()
+    {
+        localElimination = null;
+        spectatorResetLocked = true;
 
- public void ResetSpectator()
-{
-    localElimination = null;
-    spectatorResetLocked = true;
+        IsSpectating = false;
+        hasTargetPlayer = false;
+        currentTargetPlayer = default;
 
-    IsSpectating = false;
-    hasTargetPlayer = false;
-    currentTargetPlayer = default;
+        availablePlayers.Clear();
 
-    availablePlayers.Clear();
+        if (thirdPersonCamera != null)
+            thirdPersonCamera.ReturnToLocalPlayer();
 
-    if (thirdPersonCamera != null)
-        thirdPersonCamera.ReturnToLocalPlayer();
-
-    OnSpectatingChanged?.Invoke(false);
-
-    Debug.Log("[SPECTATOR] Spectator state reset.");
-}
+        OnSpectatingChanged?.Invoke(false);
+    }
 }

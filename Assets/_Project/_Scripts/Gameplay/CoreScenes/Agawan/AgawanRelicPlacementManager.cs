@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text;
 using Fusion;
 using UnityEngine;
 
@@ -208,8 +207,6 @@ public class AgawanRelicPlacementManager : MonoBehaviour
             }
         }
 
-        LogFinalPlacements();
-
         return result;
     }
 
@@ -232,35 +229,6 @@ public class AgawanRelicPlacementManager : MonoBehaviour
     public void ResetPlacement()
     {
         placements.Clear();
-    }
-
-    // ---------------------------------
-    // Debug
-    // ---------------------------------
-
-    private void LogFinalPlacements()
-    {
-        StringBuilder sb = new StringBuilder();
-
-        sb.AppendLine(
-            "<color=yellow>" +
-            "[RELIC PLACEMENT] Final Placements:" +
-            "</color>"
-        );
-
-        foreach (
-            KeyValuePair<PlayerRef, int> entry
-            in placements)
-        {
-            sb.AppendLine(
-                $"<color=yellow>" +
-                $" - {entry.Key} → " +
-                $"{entry.Value} Place" +
-                $"</color>"
-            );
-        }
-
-        Debug.Log(sb.ToString());
     }
 
     // ---------------------------------

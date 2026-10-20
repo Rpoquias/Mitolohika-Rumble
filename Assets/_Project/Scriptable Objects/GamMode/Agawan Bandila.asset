@@ -10,11 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39fdc3eda08109445bc68c10b0a80111, type: 3}
-  m_Name: Agawan Buko
+  m_Name: Agawan Bandila
   m_EditorClassIdentifier: Assembly-CSharp::GameModeData
-  gameMode: 1
-  displayName: Agawan Buko
-  locationName: Sea Side
+  gameMode: 2
+  displayName: Agawan Bandila
+  locationName: Rizal Park
   modeIcon: {fileID: 21300000, guid: 4cbc879550e5e374a925e2e0a84d6f3c, type: 3}
-  modeBackground: {fileID: 21300000, guid: 84487d73ca4b791498332d8f6858417f, type: 3}
-  scenePath: Assets/_Project/_Scenes/Testing/Ryan/AgawanBuko.unity
+  modeBackground: {fileID: 21300000, guid: fe2b176b6c6835348a7a72b010e5bbd1, type: 3}
+  loadingBackground: {fileID: 21300000, guid: 47e3b0112c5cccc4a8c6300a6335264c, type: 3}
+  scenePath: Assets/_Project/_Scenes/Testing/Ryan/AgawanBandila.unity

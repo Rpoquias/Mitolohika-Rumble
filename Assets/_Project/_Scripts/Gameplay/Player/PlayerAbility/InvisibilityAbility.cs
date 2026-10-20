@@ -19,10 +19,7 @@ public class InvisibilityAbility : CharacterAbility
 
     if (!CanActivate())
     {
-        Debug.Log(
-            $"[ABILITY] {GetType().Name} is on cooldown."
-        );
-
+        
         return;
     }
 
@@ -32,11 +29,8 @@ public class InvisibilityAbility : CharacterAbility
     );
 
     Audio?.Play(SFXID.WhiteLadyInvisibility);
-
+     NotifyActivated();
     StartCooldown();
 
-    Debug.Log(
-        $"[ABILITY] {GetType().Name} activated."
-    );
 }
 }

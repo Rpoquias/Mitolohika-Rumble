@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿
+using UnityEngine;
 
 [DefaultExecutionOrder(0)]
 public class Target : MonoBehaviour
@@ -18,10 +19,11 @@ public class Target : MonoBehaviour
     public bool NeedDistanceText => needDistanceText;
 
     private bool isRegistered;
+    private bool isHidden;
 
     private void OnEnable()
     {
-        RegisterTarget();
+        UpdateRegistration();
     }
 
     private void OnDisable()
@@ -29,13 +31,32 @@ public class Target : MonoBehaviour
         UnregisterTarget();
     }
 
+    public void SetHidden(bool hidden)
+    {
+        if (isHidden == hidden)
+            return;
+
+        isHidden = hidden;
+        UpdateRegistration();
+    }
+
+    private void UpdateRegistration()
+    {
+        if (!isActiveAndEnabled || isHidden)
+        {
+            UnregisterTarget();
+            return;
+        }
+
+        RegisterTarget();
+    }
+
     public void RegisterTarget()
     {
-        if (isRegistered)
+        if (isRegistered || !isActiveAndEnabled || isHidden)
             return;
 
         isRegistered = true;
-
         OffScreenIndicator.TargetStateChanged?.Invoke(this, true);
     }
 
@@ -45,7 +66,6 @@ public class Target : MonoBehaviour
             return;
 
         isRegistered = false;
-
         OffScreenIndicator.TargetStateChanged?.Invoke(this, false);
     }
 

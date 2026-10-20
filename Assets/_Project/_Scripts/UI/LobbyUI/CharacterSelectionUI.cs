@@ -7,11 +7,24 @@ public class CharacterSelectionUI : MonoBehaviour
     [SerializeField] private LobbyUIController uiController;
     [SerializeField] private CharacterDetailsUI detailsUI;
     [SerializeField] private ThirdPersonCamera thirdPersonCamera;
-[SerializeField] private PlayerControlController playerControlController;
+    [SerializeField] private PlayerControlController playerControlController;
     private NetworkPlayerState localPlayer;
 
     private void Start()
     {
+        // Automatically find missing references in the scene
+        if (uiController == null)
+            uiController = FindAnyObjectByType<LobbyUIController>();
+
+        if (detailsUI == null)
+            detailsUI = FindAnyObjectByType<CharacterDetailsUI>();
+
+        if (thirdPersonCamera == null)
+            thirdPersonCamera = FindAnyObjectByType<ThirdPersonCamera>();
+
+        if (playerControlController == null)
+            playerControlController = FindAnyObjectByType<PlayerControlController>();
+
         FindLocalPlayer();
 
         OpenCharacterSelection();
@@ -46,29 +59,29 @@ public class CharacterSelectionUI : MonoBehaviour
         }
     }
 
-public void OpenCharacterSelection()
-{
-    if (uiController != null)
-        uiController.ShowCharacterSelection();
+    public void OpenCharacterSelection()
+    {
+        if (uiController != null)
+            uiController.ShowCharacterSelection();
 
-    if (thirdPersonCamera != null)
-        thirdPersonCamera.EnterCharacterSelection();
+        if (thirdPersonCamera != null)
+            thirdPersonCamera.EnterCharacterSelection();
 
-    if (playerControlController != null)
-        playerControlController.SetLocalPlayerControlLock(true);
-}
+        if (playerControlController != null)
+            playerControlController.SetLocalPlayerControlLock(true);
+    }
 
-public void CloseCharacterSelection()
-{
-    if (uiController != null)
-        uiController.ShowLobby();
+    public void CloseCharacterSelection()
+    {
+        if (uiController != null)
+            uiController.ShowLobby();
 
-    if (thirdPersonCamera != null)
-        thirdPersonCamera.ExitCharacterSelection();
+        if (thirdPersonCamera != null)
+            thirdPersonCamera.ExitCharacterSelection();
 
-    if (playerControlController != null)
-        playerControlController.SetLocalPlayerControlLock(false);
-}
+        if (playerControlController != null)
+            playerControlController.SetLocalPlayerControlLock(false);
+    }
 
     public void SelectCharacter(CharacterData character)
     {

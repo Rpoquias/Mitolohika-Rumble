@@ -10,7 +10,9 @@ public enum MusicID
     RoundReveal,
     Gameplay,
     Celebration
-}public enum SFXID
+}
+
+public enum SFXID
 {
     None,
 
@@ -43,16 +45,14 @@ public enum MusicID
     SirenaEmerge,
 
     // Game Mode SFX
-ArenaTileDestroyed,
+    ArenaTileDestroyed,
 
-RelicPickup,
-RelicDrop,
+    RelicPickup,
+    RelicDrop,
 
-BandilaPickup,
-BandilaDrop,
-BandilaStored
-
-    
+    BandilaPickup,
+    BandilaDrop,
+    BandilaStored
 }
 
 [CreateAssetMenu(
@@ -89,8 +89,9 @@ public class AudioLibrary : ScriptableObject
 
     [Header("Character Ability SFX")]
     [SerializeField] private List<SFXEntry> abilitySFX = new();
+
     [Header("Game Mode SFX")]
-[SerializeField] private List<SFXEntry> gameModeSFX = new();
+    [SerializeField] private List<SFXEntry> gameModeSFX = new();
 
     private Dictionary<MusicID, AudioClip> musicLookup;
     private Dictionary<SFXID, AudioClip> sfxLookup;
@@ -120,21 +121,18 @@ public class AudioLibrary : ScriptableObject
             AddClip(
                 musicLookup,
                 entry.id,
-                entry.clip,
-                "Music"
+                entry.clip
             );
         }
 
-        AddSFXEntries(uiSFX, "UI");
-        AddSFXEntries(matchSFX, "Match");
-        AddSFXEntries(playerSFX, "Player");
-        AddSFXEntries(abilitySFX, "Character Ability");
-        AddSFXEntries(gameModeSFX, "Game Mode");
+        AddSFXEntries(uiSFX);
+        AddSFXEntries(matchSFX);
+        AddSFXEntries(playerSFX);
+        AddSFXEntries(abilitySFX);
+        AddSFXEntries(gameModeSFX);
     }
 
-    private void AddSFXEntries(
-        List<SFXEntry> entries,
-        string category)
+    private void AddSFXEntries(List<SFXEntry> entries)
     {
         foreach (SFXEntry entry in entries)
         {
@@ -144,8 +142,7 @@ public class AudioLibrary : ScriptableObject
             AddClip(
                 sfxLookup,
                 entry.id,
-                entry.clip,
-                category
+                entry.clip
             );
         }
     }
@@ -153,28 +150,11 @@ public class AudioLibrary : ScriptableObject
     private void AddClip<T>(
         Dictionary<T, AudioClip> lookup,
         T id,
-        AudioClip clip,
-        string category)
+        AudioClip clip)
     {
-        if (lookup.ContainsKey(id))
-        {
-            Debug.LogWarning(
-                $"[AUDIO LIBRARY] Duplicate {category} ID: {id}.",
-                this
-            );
-
+        // Skip duplicate IDs and entries without a clip.
+        if (lookup.ContainsKey(id) || clip == null)
             return;
-        }
-
-        if (clip == null)
-        {
-            Debug.LogWarning(
-                $"[AUDIO LIBRARY] No clip assigned for {category} ID: {id}.",
-                this
-            );
-
-            return;
-        }
 
         lookup.Add(id, clip);
     }

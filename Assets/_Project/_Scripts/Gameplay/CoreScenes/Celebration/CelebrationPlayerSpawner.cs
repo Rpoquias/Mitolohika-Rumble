@@ -67,19 +67,14 @@ public class CelebrationPlayerSpawner : MonoBehaviour
 
         if (matchSession == null)
         {
-            Debug.LogError(
-                "[CELEBRATION SPAWNER] MatchSession is missing."
-            );
+          
 
             return;
         }
 
         if (spawnPointManager == null)
         {
-            Debug.LogError(
-                "[CELEBRATION SPAWNER] " +
-                "CelebrationSpawnPointManager is NULL."
-            );
+           
 
             return;
         }
@@ -95,13 +90,6 @@ public class CelebrationPlayerSpawner : MonoBehaviour
             {
                 players.Add(player);
             }
-            else
-            {
-                Debug.LogWarning(
-                    $"[CELEBRATION SPAWNER] " +
-                    $"No overall placement for {player}."
-                );
-            }
         }
 
         SpawnPlayers(
@@ -111,142 +99,108 @@ public class CelebrationPlayerSpawner : MonoBehaviour
         );
     }
 
-  private async void SpawnPlayers(
-    NetworkRunner runner,
-    MatchSession matchSession,
-    List<PlayerRef> players)
-{
-    Dictionary<int, int> placementCounts =
-        new Dictionary<int, int>();
-
-    foreach (PlayerRef player in players)
+    private async void SpawnPlayers(
+        NetworkRunner runner,
+        MatchSession matchSession,
+        List<PlayerRef> players)
     {
-        if (!matchSession.TryGetOverallPlacement(
-                player,
-                out int placement))
+        Dictionary<int, int> placementCounts =
+            new Dictionary<int, int>();
+
+        foreach (PlayerRef player in players)
         {
-            continue;
-        }
+            if (!matchSession.TryGetOverallPlacement(
+                    player,
+                    out int placement))
+            {
+                continue;
+            }
 
-        if (!placementCounts.ContainsKey(placement))
-        {
-            placementCounts[placement] = 0;
-        }
+            if (!placementCounts.ContainsKey(placement))
+            {
+                placementCounts[placement] = 0;
+            }
 
-        int placementIndex =
-            placementCounts[placement];
+            int placementIndex =
+                placementCounts[placement];
 
-        placementCounts[placement]++;
+            placementCounts[placement]++;
 
-        if (!NetworkManager.Instance.TryGetPlayerSelection(
-                player,
-                out CharacterID characterID))
-        {
-            Debug.LogWarning(
-                $"[CELEBRATION SPAWNER] " +
-                $"No character selection for {player}."
-            );
+            if (!NetworkManager.Instance.TryGetPlayerSelection(
+                    player,
+                    out CharacterID characterID))
+            {
+                continue;
+            }
 
-            continue;
-        }
+            CharacterData character =
+                GetCharacterData(characterID);
 
-        CharacterData character =
-            GetCharacterData(characterID);
+            if (character == null)
+            {
+              
 
-        if (character == null)
-        {
-            Debug.LogError(
-                $"[CELEBRATION SPAWNER] " +
-                $"No CharacterData for {characterID}."
-            );
 
-            continue;
-        }
+                continue;
+            }
 
-        if (character.gameplayPrefab == null)
-        {
-            Debug.LogError(
-                $"[CELEBRATION SPAWNER] " +
-                $"Gameplay prefab missing for " +
-                $"{character.characterName}."
-            );
+            if (character.gameplayPrefab == null)
+            {
+                
 
-            continue;
-        }
+                continue;
+            }
 
-        Transform spawnPoint =
-            spawnPointManager.GetSpawnPoint(
-                placement,
-                placementIndex
-            );
+            Transform spawnPoint =
+                spawnPointManager.GetSpawnPoint(
+                    placement,
+                    placementIndex
+                );
 
-        if (spawnPoint == null)
-        {
-            Debug.LogError(
-                $"[CELEBRATION SPAWNER] " +
-                $"No spawn point for " +
-                $"{placement} Place, index " +
-                $"{placementIndex}."
-            );
+            if (spawnPoint == null)
+            {
+              
+              
+                continue;
+            }
 
-            continue;
-        }
-
-        NetworkObject playerObject =
-            await runner.SpawnAsync(
-                character.gameplayPrefab,
-                spawnPoint.position,
-                spawnPoint.rotation,
-                player,
-                (runner, spawnedObject) =>
-                {
-                    NetworkPlayerState state =
-                        spawnedObject.GetComponent<NetworkPlayerState>();
-
-                    if (state != null)
+            NetworkObject playerObject =
+                await runner.SpawnAsync(
+                    character.gameplayPrefab,
+                    spawnPoint.position,
+                    spawnPoint.rotation,
+                    player,
+                    (runner, spawnedObject) =>
                     {
-                        state.SelectedCharacter =
-                            character.characterID;
-                    }
-                    else
-                    {
-                        Debug.LogError(
-                            "[CELEBRATION SPAWNER] " +
-                            "Spawned player has no NetworkPlayerState."
-                        );
-                    }
-                }
-            );
+                        NetworkPlayerState state =
+                            spawnedObject.GetComponent<NetworkPlayerState>();
 
-        if (playerObject == null)
-        {
-            Debug.LogError(
-                $"[CELEBRATION SPAWNER] " +
-                $"Failed to spawn {player}."
-            );
+                        if (state != null)
+                        {
+                            state.SelectedCharacter =
+                                character.characterID;
+                        }
+                        else
+                        {
+                           
+                        }
+                    }
+                );
 
-            continue;
+            if (playerObject == null)
+            {
+              
+                continue;
+            }
+
+            runner.SetPlayerObject(
+                player,
+                playerObject
+            );
         }
 
-        runner.SetPlayerObject(
-            player,
-            playerObject
-        );
-
-        Debug.Log(
-            $"[CELEBRATION SPAWNER] Spawned " +
-            $"{character.characterName} for {player} " +
-            $"at {placement} Place."
-        );
+        spawnedPlayers = true;
     }
-
-    spawnedPlayers = true;
-
-    Debug.Log(
-        "[CELEBRATION SPAWNER] " +
-        "All celebration players spawned."
-    );
-}
 
     private CharacterData GetCharacterData(
         CharacterID characterID)

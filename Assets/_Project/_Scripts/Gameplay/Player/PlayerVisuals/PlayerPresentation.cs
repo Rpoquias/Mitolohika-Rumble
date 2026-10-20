@@ -3,17 +3,22 @@ using UnityEngine;
 
 public class PlayerPresentation : NetworkBehaviour
 {
+
+    [SerializeField] private Target targetIndicator;
     [Header("References")]
     [SerializeField] private Animator animator;
   [Header("Hit VFX")]
 [SerializeField] private ParticleSystem stunVfx;
 [SerializeField] private ParticleSystem knockbackVfx;
+[SerializeField] private ParticleSystem powerfulKickVfx;
 [SerializeField] private ParticleSystem confusionVfx;
 
-    [Header("Invisibility")]
-    [SerializeField] private GameObject characterVisual;
-    [SerializeField] private GameObject localInvisibleVisual;
+[Header("Invisibility")]
+[SerializeField] private GameObject characterVisual;
+[SerializeField] private GameObject localInvisibleVisual;
+[SerializeField] private ParticleSystem invisibilityPotionVfx;
 
+private bool hasInitializedInvisibility;
     [Header("Smoke")]
     [SerializeField] private GameObject smokeOverlay;
 
@@ -146,14 +151,36 @@ private void UpdateHitPresentation()
     );
 
     switch (movement.LastHitType)
-    {
-        case HitType.Stun:
-            PlayVFX(stunVfx, "Stun");
-            break;
+{
+    case HitType.Stun:
+        PlayVFX(stunVfx, "Stun");
+        break;
 
-        case HitType.Knockback:
-            PlayVFX(knockbackVfx, "Knockback");
-            break;
+    case HitType.Knockback:
+        PlayVFX(knockbackVfx, "Knockback");
+        ShakeLocalCamera(0.07f, 0.08f);
+        break;
+
+    case HitType.PowerfulKick:
+        PlayVFX(powerfulKickVfx, "Powerful Kick");
+        ShakeLocalCamera(0.18f, 0.28f);
+        break;
+}
+}
+private void ShakeLocalCamera(float duration, float magnitude)
+{
+    if (movement == null || movement.Object == null)
+        return;
+
+    // Only shake the camera belonging to the player being hit.
+    if (!movement.Object.HasInputAuthority)
+        return;
+
+    if (ThirdPersonCamera.TryGetCamera(
+            movement.Runner,
+            out ThirdPersonCamera camera))
+    {
+        camera.Shake(duration, magnitude);
     }
 }
 private void UpdateSirenaPresentation()
@@ -221,16 +248,16 @@ private void PlayVFX(ParticleSystem effect, string effectName)
 }
 private void UpdateKnockbackVFX()
 {
-    if (knockbackVfx == null ||
-        !knockbackVfx.gameObject.activeSelf)
-    {
+    CleanupVFX(knockbackVfx);
+    CleanupVFX(powerfulKickVfx);
+}
+private void CleanupVFX(ParticleSystem effect)
+{
+    if (effect == null || !effect.gameObject.activeSelf)
         return;
-    }
 
-    if (!knockbackVfx.IsAlive(true))
-    {
-        knockbackVfx.gameObject.SetActive(false);
-    }
+    if (!effect.IsAlive(true))
+        effect.gameObject.SetActive(false);
 }
 private void UpdateSmokePresentation()
 {
@@ -277,57 +304,67 @@ private void SetStunPresentation(bool stunned)
         stunVfx.gameObject.SetActive(false);
     }
 }
-    private void UpdateInvisibilityPresentation()
+private void UpdateInvisibilityPresentation()
+{
+    if (invisibility == null || invisibility.Object == null)
+        return;
+
+    bool invisible = invisibility.IsInvisible;
+
+    if (hasInitializedInvisibility &&
+        invisible == lastInvisibleState)
     {
-        if (invisibility == null)
-            return;
-
-        bool invisible = invisibility.IsInvisible;
-
-        if (invisible == lastInvisibleState)
-            return;
-
-        lastInvisibleState = invisible;
-
-        SetInvisibilityPresentation(invisible);
+        return;
     }
 
-    private void SetInvisibilityPresentation(bool invisible)
+    hasInitializedInvisibility = true;
+    lastInvisibleState = invisible;
+
+    SetInvisibilityPresentation(invisible);
+}
+
+private void SetInvisibilityPresentation(bool invisible)
+{
+    if (invisibility == null || invisibility.Object == null)
+        return;
+
+    bool isLocalPlayer =
+        invisibility.Object.InputAuthority ==
+        invisibility.Runner.LocalPlayer;
+
+    // Hide the player's off-screen indicator while invisible.
+    if (targetIndicator != null)
+        targetIndicator.SetHidden(invisible);
+
+    // Hide the regular character model.
+    if (characterVisual != null)
+        characterVisual.SetActive(!invisible);
+
+    // Only the White Lady's owner sees the faint local model.
+    if (localInvisibleVisual != null)
     {
-        bool isLocalPlayer =
-            invisibility.Object.InputAuthority ==
-            invisibility.Runner.LocalPlayer;
+        localInvisibleVisual.SetActive(
+            invisible && isLocalPlayer
+        );
+    }
 
-        if (!invisible)
+    // Keep the existing invisibility potion VFX.
+    if (invisibilityPotionVfx != null)
+    {
+        if (invisible)
         {
-            if (characterVisual != null)
-                characterVisual.SetActive(true);
-
-            if (localInvisibleVisual != null)
-                localInvisibleVisual.SetActive(false);
-
-            return;
-        }
-
-        if (isLocalPlayer)
-        {
-            // White Lady can faintly see herself.
-            if (characterVisual != null)
-                characterVisual.SetActive(false);
-
-            if (localInvisibleVisual != null)
-                localInvisibleVisual.SetActive(true);
+            if (!invisibilityPotionVfx.isPlaying)
+                invisibilityPotionVfx.Play(true);
         }
         else
         {
-            // Other players cannot see White Lady.
-            if (characterVisual != null)
-                characterVisual.SetActive(false);
-
-            if (localInvisibleVisual != null)
-                localInvisibleVisual.SetActive(false);
+            invisibilityPotionVfx.Stop(
+                true,
+                ParticleSystemStopBehavior.StopEmittingAndClear
+            );
         }
     }
+}
 
    public void PlayKickEffects()
 {

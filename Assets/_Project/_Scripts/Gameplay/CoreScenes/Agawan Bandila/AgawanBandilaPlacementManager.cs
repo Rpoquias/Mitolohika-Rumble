@@ -17,10 +17,7 @@ public class AgawanBandilaPlacementManager : MonoBehaviour
 
         if (scoreManager == null)
         {
-            Debug.LogError(
-                "[BANDILA PLACEMENT] " +
-                "ScoreManager is NULL."
-            );
+            
 
             return placements;
         }
@@ -98,13 +95,7 @@ public class AgawanBandilaPlacementManager : MonoBehaviour
                 }
             );
 
-            Debug.Log(
-                $"[BANDILA PLACEMENT] " +
-                $"{results[i].Player} | " +
-                $"Flags: {results[i].Score} | " +
-                $"Reached Tick: {results[i].ReachedTick} | " +
-                $"Placement: {currentPlacement}"
-            );
+           
         }
 
         return placements;

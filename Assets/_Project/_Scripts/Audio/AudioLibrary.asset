@@ -25,11 +25,11 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: 8509df8387c62d64780ef1602e7c67a1, type: 3}
   uiSFX:
   - id: 1
-    clip: {fileID: 8300000, guid: 1b4152de0093e0146846d1cdcdb20c63, type: 3}
+    clip: {fileID: 8300000, guid: 9b0de29a047b5cb4ba8083fa9d05043d, type: 3}
   - id: 2
-    clip: {fileID: 8300000, guid: 1b4152de0093e0146846d1cdcdb20c63, type: 3}
+    clip: {fileID: 8300000, guid: 9b0de29a047b5cb4ba8083fa9d05043d, type: 3}
   - id: 3
-    clip: {fileID: 8300000, guid: 1b4152de0093e0146846d1cdcdb20c63, type: 3}
+    clip: {fileID: 8300000, guid: 9b0de29a047b5cb4ba8083fa9d05043d, type: 3}
   matchSFX:
   - id: 4
     clip: {fileID: 8300000, guid: 2429e38b165e86f4483441acd724b15a, type: 3}

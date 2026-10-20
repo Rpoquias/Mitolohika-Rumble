@@ -21,6 +21,11 @@ public int ActivationCount { get; private set; }
 protected void NotifyActivated()
 {
     ActivationCount++;
+
+    if (_movement != null)
+    {
+        _movement.LoseCollectibleSpeedBoostStack();
+    }
 }
 
         private readonly Collider[] _targetColliders = new Collider[16];
@@ -76,9 +81,7 @@ protected bool PlayAbilityAnimation(string triggerName)
 public void SetCanUseAbility(bool canUse)
 {
     _canUseAbility = canUse;
-     Debug.Log(
-        $"[ABILITY] {name} CanUseAbility = {_canUseAbility}"
-    );
+ 
 }
         public abstract void Activate();
 

@@ -1,5 +1,7 @@
-public enum HitType : byte
+public enum HitType
 {
+    // Keep your existing values.
     Knockback,
-    Stun
+    Stun,
+    PowerfulKick
 }

@@ -15,6 +15,13 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private float height = 5f;
     [SerializeField] private float followSpeed = 10f;
 
+    [Header("Screen Shake")]
+[SerializeField] private float maxShakeOffset = 0.35f;
+
+private float shakeTimer;
+private float shakeDuration;
+private float shakeMagnitude;
+
     [Header("Mouse")]
     [SerializeField] private InputActionReference lookAction;
     [SerializeField] private float mouseSensitivity = 3f;
@@ -34,6 +41,12 @@ public class ThirdPersonCamera : MonoBehaviour
 [SerializeField] private float followSpeedXZ = 15f;
 [SerializeField] private float followSpeedY = 6f;
 
+
+[Header("Camera Collision")]
+[SerializeField] private LayerMask collisionLayers = ~0;
+[SerializeField, Min(0.01f)] private float cameraCollisionRadius = 0.2f;
+[SerializeField, Min(0f)] private float collisionBuffer = 0.1f;
+
 private Vector3 focusPoint;
 private bool focusInitialized;
     private bool characterSelectionMode;
@@ -46,6 +59,7 @@ public Transform CurrentTarget => target;
 
     private float yaw;
     private float pitch = 25f;
+
 
     private void Update()
     {
@@ -92,6 +106,39 @@ public Transform CurrentTarget => target;
 
         UpdateGameplayCamera();
     }
+
+
+private Vector3 ResolveCameraCollision(
+    Vector3 focusPosition,
+    Vector3 desiredPosition)
+{
+    Vector3 direction = desiredPosition - focusPosition;
+    float distanceToCamera = direction.magnitude;
+
+    if (distanceToCamera <= 0.001f)
+        return desiredPosition;
+
+    direction /= distanceToCamera;
+
+    if (Physics.SphereCast(
+        focusPosition,
+        cameraCollisionRadius,
+        direction,
+        out RaycastHit hit,
+        distanceToCamera,
+        collisionLayers,
+        QueryTriggerInteraction.Ignore))
+    {
+        float safeDistance = Mathf.Max(
+            0.05f,
+            hit.distance - collisionBuffer
+        );
+
+        return focusPosition + direction * safeDistance;
+    }
+
+    return desiredPosition;
+}
 
    private void UpdateGameplayCamera()
 {
@@ -170,8 +217,39 @@ public Transform CurrentTarget => target;
         rotation * new Vector3(0f, 0f, -distance) +
         Vector3.up * height;
 
-    transform.position = desiredPosition;
-    transform.LookAt(focusPoint);
+        desiredPosition = ResolveCameraCollision(
+    focusPoint,
+    desiredPosition
+);
+Vector3 shakeOffset = Vector3.zero;
+
+if (shakeTimer > 0f)
+{
+    shakeTimer -= Time.deltaTime;
+
+    float intensity = Mathf.Clamp01(shakeTimer / shakeDuration);
+
+    shakeOffset = Random.insideUnitSphere
+                  * shakeMagnitude
+                  * intensity;
+}
+
+transform.position = desiredPosition + rotation * shakeOffset;
+transform.LookAt(focusPoint);
+}
+
+public void Shake(float duration, float magnitude)
+{
+    if (characterSelectionMode || duration <= 0f || magnitude <= 0f)
+        return;
+
+    // Keep the strongest active shake when impacts overlap.
+    if (magnitude >= shakeMagnitude || shakeTimer <= 0f)
+    {
+        shakeMagnitude = Mathf.Min(magnitude, maxShakeOffset);
+        shakeDuration = duration;
+        shakeTimer = duration;
+    }
 }
    private void UpdateCharacterSelectionCamera()
 {
@@ -267,8 +345,7 @@ public Transform CurrentTarget => target;
 
     if (cameraTarget == null)
     {
-        Debug.LogError(
-            "[ThirdPersonCamera] CameraTarget not found on local player.");
+       
         return;
     }
 
@@ -300,9 +377,7 @@ public void ReturnToLocalPlayer()
 
     if (localTarget == null)
     {
-        Debug.LogError(
-            "[ThirdPersonCamera] Local CameraTarget not found."
-        );
+        
 
         return;
     }
@@ -313,15 +388,17 @@ public void ReturnToLocalPlayer()
     focusInitialized = false;
 }
 
-    private void OnEnable()
-    {
+  private void OnEnable()
+{
+    if (lookAction != null && lookAction.action != null)
         lookAction.action.Enable();
-    }
+}
 
-    private void OnDisable()
-    {
+private void OnDisable()
+{
+    if (lookAction != null && lookAction.action != null)
         lookAction.action.Disable();
-    }
+}
 
     private void OnDestroy()
     {

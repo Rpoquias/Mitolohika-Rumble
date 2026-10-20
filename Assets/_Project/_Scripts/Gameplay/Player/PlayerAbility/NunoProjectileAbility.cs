@@ -18,6 +18,7 @@ public class NunoProjectileAbility : CharacterAbility
         if (!CanActivate())
             return;
 
+        NotifyActivated();
         SpawnProjectile();
         StartCooldown();
     }
@@ -52,10 +53,7 @@ public class NunoProjectileAbility : CharacterAbility
 
         if (projectile == null)
         {
-            Debug.LogError(
-                "[NunoProjectileAbility] " +
-                "Projectile prefab is missing NunoProjectile."
-            );
+        
 
             runner.Despawn(networkObject);
             return;

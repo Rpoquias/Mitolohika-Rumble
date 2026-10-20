@@ -10,63 +10,68 @@ public class MatiraMatibayManager : MonoBehaviour
     [SerializeField] private MatiraMatibayPlacementManager placementManager;
     [SerializeField] private MatiraMatibayEliminationManager eliminationManager;
     [SerializeField] private SpawnPointManager spawnPointManager;
-[Header("Spectator")]
-[SerializeField] private SpectatorController spectatorController;
+[SerializeField] private MatiraMatibayHazardManager hazardManager;
+    [Header("Spectator")]
+    [SerializeField] private SpectatorController spectatorController;
 
     private NetworkRunner runner;
 
     private bool initialized;
     private bool roundEnded;
-private List<RoundPlacement> currentPlacements =
-    new List<RoundPlacement>();
+
+    private List<RoundPlacement> currentPlacements =
+        new List<RoundPlacement>();
+
     // ============================================================
     // EVENTS
     // ============================================================
 
-private void OnEnable()
-{
-    if (roundStateManager != null)
+    private void OnEnable()
     {
-        roundStateManager.OnRoundStarted +=
-            HandleRoundStarted;
+        if (roundStateManager != null)
+        {
+            roundStateManager.OnRoundStarted +=
+                HandleRoundStarted;
 
-        roundStateManager.OnRoundEnded +=
-            HandleRoundEnded;
+            roundStateManager.OnRoundEnded +=
+                HandleRoundEnded;
 
-        roundStateManager.OnRoundReset +=
-            HandleRoundReset;
+            roundStateManager.OnRoundReset +=
+                HandleRoundReset;
 
-        roundStateManager.OnStateChanged +=
-            HandleStateChanged;
+            roundStateManager.OnStateChanged +=
+                HandleStateChanged;
+        }
+
+        if (eliminationManager != null)
+        {
+            eliminationManager.OnWinnerDecided += EndRound;
+        }
     }
 
-    if (eliminationManager != null)
+    private void OnDestroy()
     {
-        eliminationManager.OnWinnerDecided += EndRound;
+        if (roundStateManager != null)
+        {
+            roundStateManager.OnRoundStarted -=
+                HandleRoundStarted;
+
+            roundStateManager.OnRoundEnded -=
+                HandleRoundEnded;
+
+            roundStateManager.OnRoundReset -=
+                HandleRoundReset;
+
+            roundStateManager.OnStateChanged -=
+                HandleStateChanged;
+        }
+
+        if (eliminationManager != null)
+        {
+            eliminationManager.OnWinnerDecided -= EndRound;
+        }
     }
-}
-  private void OnDestroy()
-{
-    if (roundStateManager != null)
-    {
-        roundStateManager.OnRoundStarted -=
-            HandleRoundStarted;
 
-        roundStateManager.OnRoundEnded -=
-            HandleRoundEnded;
-
-        roundStateManager.OnRoundReset -=
-            HandleRoundReset;
-
-        roundStateManager.OnStateChanged -=
-            HandleStateChanged;
-    }
-
-    if (eliminationManager != null)
-    {
-        eliminationManager.OnWinnerDecided -= EndRound;
-    }
-}
     // ============================================================
     // INITIALIZATION
     // ============================================================
@@ -87,167 +92,146 @@ private void OnEnable()
             return;
 
         initialized = true;
-
-        Debug.Log(
-            $"[MATIRA MANAGER] Connected to Runner " +
-            $"{runner.name}"
-        );
     }
 
     // ============================================================
     // ROUND START
     // ============================================================
-private void HandleRoundStarted()
-{
-    if (!initialized)
-        TryInitialize();
 
-    if (runner == null || !runner.IsServer)
-        return;
+    private void HandleRoundStarted()
+    {
+        if (!initialized)
+            TryInitialize();
 
-    Debug.Log(
-        "[MATIRA MANAGER] Matira Matibay started!"
-    );
+        if (runner == null || !runner.IsServer)
+            return;
 
-    roundEnded = false;
+        roundEnded = false;
 
-    placementManager.ResetPlacement();
+        placementManager.ResetPlacement();
 
-    if (eliminationManager != null)
-        eliminationManager.StartTracking();
+        if (eliminationManager != null)
+            eliminationManager.StartTracking();
 
-    arenaShrinkController.StartShrinking();
-}
+        arenaShrinkController.StartShrinking();
+        arenaShrinkController.StartCrumbling();
+        hazardManager?.StartHazards();
+    }
+
     // ============================================================
     // ROUND END
     // ============================================================
 
-public void EndRound(PlayerRef winner)
-{
-    if (!initialized)
-        TryInitialize();
-
-    if (runner == null || !runner.IsServer)
-        return;
-
-    if (!winner.IsValid || winner == PlayerRef.None)
+    public void EndRound(PlayerRef winner)
     {
-        Debug.LogError(
-            "[MATIRA MANAGER] Winner is invalid."
-        );
+        if (!initialized)
+            TryInitialize();
 
-        return;
-    }
+        if (runner == null || !runner.IsServer)
+            return;
 
-    if (roundEnded)
-        return;
-
-    roundEnded = true;
-
-    eliminationManager?.StopTracking();
-
-    arenaShrinkController.StopShrinking();
-
-    placementManager.AssignFinalPlacements(winner);
-
-    currentPlacements.Clear();
-
-    foreach (PlayerRef player in runner.ActivePlayers)
-    {
-        int placement = placementManager.GetPlacement(player);
-
-        if (placement <= 0)
+        if (!winner.IsValid || winner == PlayerRef.None)
         {
-            Debug.LogWarning(
-                $"[MATIRA MANAGER] Missing placement for {player}."
-            );
+           
 
-            continue;
+            return;
         }
 
-        currentPlacements.Add(
-            new RoundPlacement
-            {
-                Player = player,
-                Placement = placement
-            }
-        );
+        if (roundEnded)
+            return;
+
+        roundEnded = true;
+
+        eliminationManager?.StopTracking();
+
+        arenaShrinkController.StopShrinking();
+        arenaShrinkController.StopCrumbling();
+        hazardManager?.StopHazards();
+        placementManager.AssignFinalPlacements(winner);
+
+        currentPlacements.Clear();
+
+        foreach (PlayerRef player in runner.ActivePlayers)
+        {
+            int placement = placementManager.GetPlacement(player);
+
+            if (placement <= 0)
+                continue;
+
+            currentPlacements.Add(
+                new RoundPlacement
+                {
+                    Player = player,
+                    Placement = placement
+                }
+            );
+        }
+
+        roundStateManager.EndRound();
+        
     }
-
-    roundStateManager.EndRound();
-}
-
 
     // ============================================================
     // ROUND ENDED
     // ============================================================
 
     private void HandleRoundEnded()
-{
-    Debug.Log(
-        "[MATIRA MANAGER] " +
-        "Matira Matibay round ended."
-    );
-
-    if (runner == null ||
-        !runner.IsServer)
     {
-        return;
-    }
+        if (runner == null ||
+            !runner.IsServer)
+        {
+            return;
+        }
 
-    if (currentPlacements.Count == 0)
-    {
-        Debug.LogError(
-            "[MATIRA MANAGER] " +
-            "No placements received."
+        if (currentPlacements.Count == 0)
+        {
+           
+
+
+            return;
+        }
+
+        if (MatchFlowManager.Instance == null)
+        {
+           
+            return;
+        }
+
+        MatchFlowManager.Instance.HandleRoundComplete(
+            new List<RoundPlacement>(
+                currentPlacements
+            )
         );
-
-        return;
     }
-
-    if (MatchFlowManager.Instance == null)
-    {
-        Debug.LogError(
-            "[MATIRA MANAGER] " +
-            "MatchFlowManager is missing."
-        );
-
-        return;
-    }
-
-    MatchFlowManager.Instance.HandleRoundComplete(
-        new List<RoundPlacement>(
-            currentPlacements
-        )
-    );
-}
 
     // ============================================================
     // RESET
     // ============================================================
 
-private void HandleRoundReset()
-{
-    if (spectatorController != null)
-        spectatorController.ResetSpectator();
+    private void HandleRoundReset()
+    {
+        if (spectatorController != null)
+            spectatorController.ResetSpectator();
 
-    if (!initialized)
-        TryInitialize();
+        if (!initialized)
+            TryInitialize();
 
-    roundEnded = false;
-    currentPlacements.Clear();
+        roundEnded = false;
+        currentPlacements.Clear();
 
-    if (eliminationManager != null)
-        eliminationManager.ResetEliminations();
+        if (eliminationManager != null)
+            eliminationManager.ResetEliminations();
 
-    if (placementManager != null)
-        placementManager.ResetPlacement();
+        if (placementManager != null)
+            placementManager.ResetPlacement();
 
-    if (arenaShrinkController != null)
-        arenaShrinkController.ResetArena();
+        if (arenaShrinkController != null)
+            arenaShrinkController.ResetArena();
+        hazardManager?.StopHazards();
 
-    ResetAllPlayers();
-}
+        ResetAllPlayers();
+    }
+
     // ============================================================
     // PLAYER RESET
     // ============================================================
@@ -265,10 +249,7 @@ private void HandleRoundReset()
 
         if (spawnPointManager == null)
         {
-            Debug.LogError(
-                "[MATIRA MANAGER] " +
-                "SpawnPointManager is NULL."
-            );
+           
 
             return;
         }
@@ -280,11 +261,6 @@ private void HandleRoundReset()
                     player,
                     out NetworkObject playerObject))
             {
-                Debug.LogWarning(
-                    $"[MATIRA MANAGER] " +
-                    $"No PlayerObject for {player}."
-                );
-
                 continue;
             }
 
@@ -292,37 +268,17 @@ private void HandleRoundReset()
                 playerObject.GetComponent<PlayerElimination>();
 
             if (elimination == null)
-            {
-                Debug.LogWarning(
-                    $"[MATIRA MANAGER] " +
-                    $"{playerObject.name} has no " +
-                    $"PlayerElimination."
-                );
-
                 continue;
-            }
 
-      Transform spawnPoint =
-    spawnPointManager.GetSpawnPoint(player, runner);
+            Transform spawnPoint =
+                spawnPointManager.GetSpawnPoint(player, runner);
 
             if (spawnPoint == null)
-            {
-                Debug.LogWarning(
-                    $"[MATIRA MANAGER] " +
-                    $"No spawn point for {player}."
-                );
-
                 continue;
-            }
 
             elimination.ResetPlayer(
                 spawnPoint.position,
                 spawnPoint.rotation
-            );
-
-            Debug.Log(
-                $"[MATIRA MANAGER] Reset {player} → " +
-                $"{spawnPoint.name}"
             );
         }
     }

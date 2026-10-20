@@ -265,7 +265,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   _ActivationCount: 0
-  knockbackForce: 15
+  knockbackForce: 10
+  upwardLaunchVelocity: 20
+  hitstopSeconds: 0.5
   windupSeconds: 1.4
 --- !u!4 &6608786711669987012 stripped
 Transform:
