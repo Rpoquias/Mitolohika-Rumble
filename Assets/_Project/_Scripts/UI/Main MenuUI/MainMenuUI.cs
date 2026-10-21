@@ -1,7 +1,7 @@
 
+using System.Collections;
 using TMPro;
 using UnityEngine;
-using System.Collections;
 
 public class MainMenuUI : MonoBehaviour
 {
@@ -12,48 +12,124 @@ public class MainMenuUI : MonoBehaviour
     [SerializeField] private GameObject joinLobbyPanel;
 
     [Header("Status")]
+    [SerializeField] private GameObject statusContainer;
     [SerializeField] private TMP_Text statusText;
-    [SerializeField] private float statusDuration = 3f;
+    [SerializeField, Min(0.1f)] private float statusDuration = 3f;
 
     private Coroutine statusCoroutine;
+    private NetworkManager subscribedNetworkManager;
 
-    private void Start()
+    private void OnEnable()
     {
+        SubscribeToNetworkManager();
         ShowPendingStatus();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeFromNetworkManager();
+        StopStatusCoroutine();
+    }
+
+    private void SubscribeToNetworkManager()
+    {
+        NetworkManager manager = NetworkManager.Instance;
+
+        if (manager == null)
+            return;
+
+        if (subscribedNetworkManager == manager)
+        {
+            RefreshConnectionStatus(manager);
+            return;
+        }
+
+        UnsubscribeFromNetworkManager();
+
+        subscribedNetworkManager = manager;
+        subscribedNetworkManager.OnConnectionStatusChanged +=
+            HandleConnectionStatusChanged;
+
+        RefreshConnectionStatus(manager);
+    }
+
+    private void UnsubscribeFromNetworkManager()
+    {
+        if (subscribedNetworkManager == null)
+            return;
+
+        subscribedNetworkManager.OnConnectionStatusChanged -=
+            HandleConnectionStatusChanged;
+
+        subscribedNetworkManager = null;
+    }
+
+    private void RefreshConnectionStatus(NetworkManager manager)
+    {
+        if (manager == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(manager.ConnectionStatus))
+        {
+            ClearStatus();
+            return;
+        }
+
+        ShowNetworkStatus(manager.ConnectionStatus);
     }
 
     public void HostGame()
     {
-        string roomName = roomNameInput.text.Trim();
+        NetworkManager manager = NetworkManager.Instance;
 
-        if (string.IsNullOrEmpty(roomName))
+        if (manager == null)
         {
-            ShowStatus("ROOM NAME EMPTY");
+            ShowTemporaryStatus(
+                "ONLINE SERVICE UNAVAILABLE.\nPlease restart the game.");
             return;
         }
 
-        if (NetworkManager.Instance == null)
+        string roomName = roomNameInput != null
+            ? roomNameInput.text.Trim()
+            : string.Empty;
+
+        if (string.IsNullOrWhiteSpace(roomName))
         {
-            ShowStatus("NETWORK MANAGER UNAVAILABLE");
+            ShowTemporaryStatus(
+                "ROOM NAME IS EMPTY.\nEnter a room name first.");
             return;
         }
 
-        Debug.Log($"[ONLINE] Hosting room: {roomName}");
-        NetworkManager.Instance.Host(roomName);
+        if (manager.IsBusy || manager.Runner != null)
+        {
+            ShowTemporaryStatus(
+                "PLEASE WAIT.\nAnother network operation is in progress.");
+            return;
+        }
+
+        manager.Host(roomName);
     }
 
     public void JoinGame()
     {
-        if (NetworkManager.Instance == null)
+        NetworkManager manager = NetworkManager.Instance;
+
+        if (manager == null)
         {
-            ShowStatus("NETWORK MANAGER UNAVAILABLE");
+            ShowTemporaryStatus(
+                "ONLINE SERVICE UNAVAILABLE.\nPlease restart the game.");
             return;
         }
 
-        Debug.Log("[ONLINE] Opening join lobby.");
+        if (manager.IsBusy || manager.Runner != null)
+        {
+            ShowTemporaryStatus(
+                "PLEASE WAIT.\nAnother network operation is in progress.");
+            return;
+        }
 
         ShowJoinPanel();
-        NetworkManager.Instance.OpenPublicLobby();
+        manager.OpenPublicLobby();
     }
 
     public void ShowJoinPanel()
@@ -62,95 +138,157 @@ public class MainMenuUI : MonoBehaviour
             joinLobbyPanel.SetActive(true);
     }
 
-    public void BackFromJoin()
+    public async void BackFromJoin()
     {
-        if (NetworkManager.Instance != null)
-            NetworkManager.Instance.Disconnect();
-
-        if (statusCoroutine != null)
-        {
-            StopCoroutine(statusCoroutine);
-            statusCoroutine = null;
-        }
-
-        if (statusText != null)
-            statusText.gameObject.SetActive(false);
-
         if (joinLobbyPanel != null)
             joinLobbyPanel.SetActive(false);
+
+        NetworkManager manager = NetworkManager.Instance;
+
+        if (manager != null)
+            await manager.CancelPendingOperation();
+
+        ShowTemporaryStatus("FINDING LOBBY CANCELLED.");
+    }
+
+    public async void BackFromHost()
+    {
+        NetworkManager manager = NetworkManager.Instance;
+
+        if (manager != null)
+            await manager.CancelPendingOperation();
+
+        ShowTemporaryStatus("HOSTING CANCELLED.");
+    }
+
+    private void HandleConnectionStatusChanged(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            ClearStatus();
+            return;
+        }
+
+        ShowNetworkStatus(message);
     }
 
     private void ShowPendingStatus()
     {
-        if (NetworkManager.Instance == null ||
-            statusText == null)
+        NetworkManager manager = NetworkManager.Instance;
+
+        if (manager == null)
             return;
 
-        MainMenuMessage message =
-            NetworkManager.Instance.PendingMainMenuMessage;
-
-        string messageText = null;
-
-        switch (message)
+        switch (manager.PendingMainMenuMessage)
         {
             case MainMenuMessage.HostDisconnected:
-                messageText =
-                    $"HOST DISCONNECTED\n" +
-                    $"{NetworkManager.Instance.LastNetworkError}";
-                break;
+            {
+                string message =
+                    "CONNECTION LOST.\n" +
+                    "The host left or the connection was interrupted.";
+
+                if (!string.IsNullOrWhiteSpace(manager.LastNetworkError))
+                    message += "\n\nDetails: " + manager.LastNetworkError;
+
+                ShowJoinPanel();
+                ShowTemporaryStatus(message);
+                manager.ClearMainMenuMessage();
+                return;
+            }
 
             case MainMenuMessage.ConnectionFailed:
-                messageText = "CONNECTION FAILED";
-                break;
+            {
+                ShowJoinPanel();
 
-            default:
+                ShowTemporaryStatus(
+                    "CONNECTION FAILED.\n" +
+                    "Check your connection and try again.");
+
+                manager.ClearMainMenuMessage();
                 return;
+            }
         }
 
-        // Open the panel BEFORE displaying the status.
-        ShowJoinPanel();
-
-        // Keep disconnect messages visible until dismissed.
-        ShowPersistentStatus(messageText);
-
-        NetworkManager.Instance.ClearMainMenuMessage();
+        RefreshConnectionStatus(manager);
     }
 
-    private void ShowPersistentStatus(string message)
+    private void ShowNetworkStatus(string message)
     {
-        if (statusText == null)
+        if (statusContainer == null || statusText == null)
             return;
 
-        if (statusCoroutine != null)
+        if (IsTerminalStatus(message))
         {
-            StopCoroutine(statusCoroutine);
-            statusCoroutine = null;
+            ShowTemporaryStatus(message);
+            return;
         }
 
-        statusText.text = message;
-        statusText.gameObject.SetActive(true);
+        NetworkManager manager = NetworkManager.Instance;
+
+        if (manager != null && manager.IsBusy)
+        {
+            StopStatusCoroutine();
+
+            statusText.text = message;
+            statusContainer.SetActive(true);
+            return;
+        }
+
+        ShowTemporaryStatus(message);
     }
 
-    private void ShowStatus(string message)
+    private bool IsTerminalStatus(string message)
     {
-        if (statusText == null)
+        return message.IndexOf(
+                   "CANCEL",
+                   System.StringComparison.OrdinalIgnoreCase) >= 0
+            || message.IndexOf(
+                   "FAIL",
+                   System.StringComparison.OrdinalIgnoreCase) >= 0
+            || message.IndexOf(
+                   "LOST",
+                   System.StringComparison.OrdinalIgnoreCase) >= 0
+            || message.IndexOf(
+                   "DISCONNECTED",
+                   System.StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private void ShowTemporaryStatus(string message)
+    {
+        if (statusContainer == null || statusText == null)
             return;
 
-        statusText.text = message;
-        statusText.gameObject.SetActive(true);
+        StopStatusCoroutine();
 
-        if (statusCoroutine != null)
-            StopCoroutine(statusCoroutine);
+        statusText.text = message;
+        statusContainer.SetActive(true);
 
         statusCoroutine = StartCoroutine(HideStatusAfterDelay());
     }
 
+    private void ClearStatus()
+    {
+        StopStatusCoroutine();
+
+        if (statusContainer != null)
+            statusContainer.SetActive(false);
+    }
+
+    private void StopStatusCoroutine()
+    {
+        if (statusCoroutine == null)
+            return;
+
+        StopCoroutine(statusCoroutine);
+        statusCoroutine = null;
+    }
+
     private IEnumerator HideStatusAfterDelay()
     {
-        yield return new WaitForSeconds(statusDuration);
+        yield return new WaitForSecondsRealtime(statusDuration);
 
-        if (statusText != null)
-            statusText.gameObject.SetActive(false);
+        if (statusContainer != null)
+            statusContainer.SetActive(false);
 
         statusCoroutine = null;
     }

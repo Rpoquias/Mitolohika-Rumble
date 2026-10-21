@@ -34,99 +34,144 @@ private const string AGAWAN_BANDILA_SCENE_PATH =
     private bool returningToLobby;
     private bool revealCompleted;
     private bool roundTransitionRunning;
+    private NetworkManager subscribedNetworkManager;
 
-    private void Awake()
+private void Awake()
+{
+    if (Instance != null && Instance != this)
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        Instance = this;
-
-        DontDestroyOnLoad(gameObject);
+        Destroy(gameObject);
+        return;
     }
 
-    private void OnEnable()
-    {
-        if (NetworkManager.Instance != null)
-        {
-            NetworkManager.Instance.OnNetworkSceneLoadDoneEvent +=
-                HandleSceneLoadDone;
-        }
-    }
+    Instance = this;
+}
+private void OnDestroy()
+{
+    if (Instance == this)
+        Instance = null;
+}
 
-    private void OnDisable()
-    {
-        if (NetworkManager.Instance != null)
-        {
-            NetworkManager.Instance.OnNetworkSceneLoadDoneEvent -=
-                HandleSceneLoadDone;
-        }
-    }
+private void OnEnable()
+{
+    NetworkManager.OnInstanceReady += HandleNetworkManagerReady;
+
+    if (NetworkManager.Instance != null)
+        HandleNetworkManagerReady(NetworkManager.Instance);
+}
+
+private void OnDisable()
+{
+    NetworkManager.OnInstanceReady -= HandleNetworkManagerReady;
+    UnsubscribeFromNetworkManager();
+}
+private void HandleNetworkManagerReady(NetworkManager manager)
+{
+    if (manager == null || subscribedNetworkManager == manager)
+        return;
+
+    UnsubscribeFromNetworkManager();
+
+    subscribedNetworkManager = manager;
+    subscribedNetworkManager.OnNetworkSceneLoadDoneEvent +=
+        HandleSceneLoadDone;
+}
+private void UnsubscribeFromNetworkManager()
+{
+    if (subscribedNetworkManager == null)
+        return;
+
+    subscribedNetworkManager.OnNetworkSceneLoadDoneEvent -=
+        HandleSceneLoadDone;
+
+    subscribedNetworkManager = null;
+}
 
     // ============================================================
     // MATCH START
     // ============================================================
 
-    public void StartMatch()
+   
+public void StartMatch()
+{
+
+    returningToLobby = false;
+    roundTransitionRunning = false;
+    lastHandledRound = -1;
+
+    NetworkManager networkManager = NetworkManager.Instance;
+
+    if (networkManager == null)
     {
-        returningToLobby = false;
-        roundTransitionRunning = false;
-        lastHandledRound = -1;
-
-        NetworkManager networkManager =
-            NetworkManager.Instance;
-
-        if (networkManager == null)
-            return;
-
-        NetworkRunner runner =
-            networkManager.Runner;
-
-        if (runner == null || !runner.IsServer)
-            return;
-
-        MatchSession matchSession =
-            networkManager.CurrentMatchSession;
-
-        if (matchSession == null)
-            return;
-
-    NetworkManager.Instance?.SetJoinable(false);
-StartRoundReveal(matchSession, true);
+        return;
     }
+
+    NetworkRunner runner = networkManager.Runner;
+
+    if (runner == null)
+    {
+        return;
+    }
+
+    if (!runner.IsRunning)
+    {
+        return;
+    }
+
+    if (!runner.IsServer)
+    {
+        return;
+    }
+
+    MatchSession matchSession = networkManager.CurrentMatchSession;
+
+    if (matchSession == null)
+    {
+ 
+
+        return;
+    }
+
+    if (!matchSession.IsSpawned)
+    {
+ 
+
+        return;
+    }
+
+    networkManager.SetJoinable(false);
+
+
+    StartRoundReveal(matchSession, true);
+}
+
 
     // ============================================================
     // ROUND COMPLETE
     // ============================================================
+
 
 public void HandleRoundComplete(
     List<RoundPlacement> placements,
     RoundResultDetailType detailType,
     Dictionary<PlayerRef, int> detailValues)
 {
-    NetworkManager networkManager =
-        NetworkManager.Instance;
+    NetworkManager networkManager = NetworkManager.Instance;
 
     if (networkManager == null)
         return;
 
-    NetworkRunner runner =
-        networkManager.Runner;
+    NetworkRunner runner = networkManager.Runner;
 
-    if (runner == null || !runner.IsServer)
+    if (runner == null || !runner.IsRunning || !runner.IsServer)
         return;
 
-    MatchSession matchSession =
-        networkManager.CurrentMatchSession;
+    MatchSession matchSession = networkManager.CurrentMatchSession;
 
-    if (matchSession == null)
+    if (matchSession == null || !matchSession.IsSpawned)
         return;
 
-    int completedRound =
-        matchSession.CurrentRound;
+    int completedRound = matchSession.CurrentRound;
 
     if (lastHandledRound == completedRound)
         return;
@@ -134,29 +179,25 @@ public void HandleRoundComplete(
     if (roundTransitionRunning)
         return;
 
-    lastHandledRound =
-        completedRound;
-
-    if (placements == null ||
-        placements.Count == 0)
+    if (placements == null || placements.Count == 0)
     {
-     
-
+        Debug.LogWarning(
+            "[MATCH FLOW] Round completion ignored: no placements provided.");
         return;
     }
+
+    // Mark the round handled only after validation succeeds.
+    lastHandledRound = completedRound;
 
     foreach (RoundPlacement placement in placements)
     {
         matchSession.RecordPlacement(
             placement.Player,
-            placement.Placement
-        );
+            placement.Placement);
     }
 
     List<RoundPlacement> cachedPlacements =
-        new List<RoundPlacement>(
-            placements
-        );
+        new List<RoundPlacement>(placements);
 
     roundTransitionRunning = true;
 
@@ -165,10 +206,9 @@ public void HandleRoundComplete(
             matchSession,
             cachedPlacements,
             detailType,
-            detailValues
-        )
-    );
+            detailValues));
 }
+
 public void HandleRoundComplete(
     List<RoundPlacement> placements)
 {
@@ -248,10 +288,7 @@ revealCompleted = false;
 
     if (matchRevealUI == null)
     {
-        Debug.LogError(
-            "[MATCH FLOW] MatchRevealUI is missing."
-        );
-
+ 
         roundTransitionRunning = false;
         yield break;
     }
@@ -271,12 +308,7 @@ revealCompleted = false;
         yield break;
     }
 
-    Debug.Log(
-        $"[MATCH FLOW] Next round: " +
-        $"{matchSession.CurrentRound}/" +
-        $"{matchSession.TotalRounds} | " +
-        $"Mode: {matchSession.CurrentGameMode}"
-    );
+
 
     yield return new WaitUntil(
         () => revealCompleted
@@ -314,60 +346,48 @@ LoadCurrentRoundScene();
             );
     }
 
-    private IEnumerator StartRoundRevealCoroutine(
-        MatchSession matchSession,
-        bool startMatch)
+
+private IEnumerator StartRoundRevealCoroutine(
+    MatchSession matchSession,
+    bool startMatch)
+{
+    if (matchRevealUI == null)
     {
-        if (matchRevealUI == null)
-        {
-            Debug.LogError(
-                "[MATCH FLOW] MatchRevealUI is missing."
-            );
 
-            yield break;
-        }
 
-        revealCompleted = false;
-
-        /*
-         * Subscribe BEFORE changing RoundRevealSequence.
-         */
-        matchRevealUI.OnRevealCompleted +=
-            OnRevealCompleted;
-
-        if (startMatch)
-        {
-            /*
-             * This selects the first mode on the SERVER.
-             *
-             * MatchRevealUI only presents that decision
-             * visually.
-             */
-            matchSession.BeginMatch();
-
-      
-        }
-
-        /*
-         * MatchRevealUI sees the new RoundRevealSequence
-         * and starts its animation automatically.
-         */
-        yield return new WaitUntil(
-            () => revealCompleted
-        );
-
-   matchRevealUI.OnRevealCompleted -=
-    OnRevealCompleted;
-
-roundRevealCoroutine = null;
-
-LoadCurrentRoundScene();
+        roundRevealCoroutine = null;
+        yield break;
     }
 
-    private void OnRevealCompleted()
+    if (matchSession == null || !matchSession.IsSpawned)
     {
-        revealCompleted = true;
+
+
+        roundRevealCoroutine = null;
+        yield break;
     }
+
+    revealCompleted = false;
+
+    // Subscribe before changing the replicated reveal sequence.
+    matchRevealUI.OnRevealCompleted += OnRevealCompleted;
+
+    if (startMatch)
+        matchSession.BeginMatch();
+
+    yield return new WaitUntil(() => revealCompleted);
+
+    matchRevealUI.OnRevealCompleted -= OnRevealCompleted;
+    roundRevealCoroutine = null;
+
+    LoadCurrentRoundScene();
+}
+
+
+  private void OnRevealCompleted()
+{
+    revealCompleted = true;
+}
 
     // ============================================================
     // LOAD GAMEPLAY SCENE

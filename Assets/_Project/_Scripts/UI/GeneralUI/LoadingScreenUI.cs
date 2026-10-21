@@ -28,23 +28,26 @@ public static LoadingScreenUI Instance { get; private set; }
 
     private bool isFusionLoading;
     private bool isUnityLoading;
-
-    private void Start()
-    {
-        if (Instance != null && Instance != this)
+private void Awake()
 {
-    Destroy(gameObject);
-    return;
-}
-
-Instance = this;
-        if (loadingPanel != null)
-            loadingPanel.SetActive(false);
-
-        ConfigureSlider();
-        SetLoadingBackground();
-        SubscribeToEvents();
+    if (Instance != null && Instance != this)
+    {
+        Destroy(gameObject);
+        return;
     }
+
+    Instance = this;
+
+    if (loadingPanel != null)
+        loadingPanel.SetActive(false);
+
+    ConfigureSlider();
+    SetLoadingBackground();
+}
+   private void Start()
+{
+    SubscribeToEvents();
+}
 
     private void ConfigureSlider()
     {
@@ -113,7 +116,8 @@ public void SetLoadingBackground(Sprite background = null)
         if (progressBar != null)
             progressBar.value = 0f;
 
-        loadingText.text = "Loading...";
+     if (loadingText != null)
+    loadingText.text = "Loading...";
 
         StopProgressAnimation();
 

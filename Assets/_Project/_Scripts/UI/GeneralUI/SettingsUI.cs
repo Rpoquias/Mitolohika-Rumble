@@ -1,3 +1,4 @@
+
 using UnityEngine;
 
 public class SettingsPanelController : MonoBehaviour
@@ -9,30 +10,45 @@ public class SettingsPanelController : MonoBehaviour
 
     public void ShowAudio()
     {
-        audioPanel.SetActive(true);
-        controlsPanel.SetActive(false);
+        if (audioPanel != null)
+            audioPanel.SetActive(true);
+
+        if (controlsPanel != null)
+            controlsPanel.SetActive(false);
     }
 
     public void ShowControls()
     {
-        audioPanel.SetActive(false);
-        controlsPanel.SetActive(true);
+        if (audioPanel != null)
+            audioPanel.SetActive(false);
+
+        if (controlsPanel != null)
+            controlsPanel.SetActive(true);
     }
 
     public void ShowSettings()
     {
-        settingsPanel.SetActive(true);
-    }
-        public void CloseSettings()
-    {
-        settingsPanel.SetActive(false);
+        if (settingsPanel != null)
+            settingsPanel.SetActive(true);
     }
 
-       public void LeaveLobby()
+    public void CloseSettings()
     {
-        if (NetworkManager.Instance == null)
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+    }
+
+    public void LeaveLobby()
+    {
+        NetworkManager manager = NetworkManager.Instance;
+
+        if (manager == null)
+        {
+            Debug.LogWarning(
+                "Cannot leave lobby: NetworkManager instance not found.");
             return;
+        }
 
-        NetworkManager.Instance.Disconnect();
+        manager.Disconnect();
     }
 }

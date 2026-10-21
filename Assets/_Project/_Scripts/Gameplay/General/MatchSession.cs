@@ -19,6 +19,7 @@ public class MatchSession : NetworkBehaviour
     public event Action OnRoundRevealRequested;
     public event Action OnRoundNumberChanged;
     public event Action OnLobbySettingsChanged;
+    public event Action OnCelebrationReadyChanged;
     #endregion
 
     #region Networked Properties
@@ -39,6 +40,8 @@ public float RemainingRoundTime
         return RoundTimer.RemainingTime(Runner) ?? 0f;
     }
 }
+[Networked, OnChangedRender(nameof(OnCelebrationReadySequenceChanged))]
+public int CelebrationReadySequence { get; set; }
     [Networked] public int UsedGameModeMask { get; set; }
     [Networked] public int OverallWinnerCount { get; set; }
 
@@ -91,14 +94,15 @@ public override void Spawned()
     IsSpawned = true;
     Instance = this;
 
-    if (NetworkManager.Instance != null)
-        NetworkManager.Instance.RegisterMatchSession(this);
+    try
+    {
+        NetworkManager.Instance?.RegisterMatchSession(this);
+    }
+    catch (Exception e)
+    {
+        Debug.LogException(e);
+    }
 
-    Debug.Log(
-        $"<color=#39FF14><b>[MATCH SESSION] OK</b> - " +
-        $"Spawned & registered | Round {CurrentRound}/{TotalRounds} | " +
-        $"Mode: {CurrentGameMode} | Authority: {Object.StateAuthority}</color>"
-    );
 }
 
 public override void Despawned(NetworkRunner runner, bool hasState)
@@ -272,9 +276,6 @@ public void SetCurrentRoundResults(
 {
     if (!HasStateAuthority)
     {
-        Debug.LogWarning(
-            "[MATCH] Only the Host can set round results."
-        );
 
         return;
     }
@@ -340,12 +341,7 @@ public void SetCurrentRoundResults(
 
     RoundResultSequence++;
 
-    Debug.Log(
-        $"[MATCH] Round result updated. " +
-        $"Round {CurrentRound} | " +
-        $"Players: {CurrentRoundResultCount} | " +
-        $"Detail: {CurrentRoundResultDetailType}"
-    );
+
 }
 
 public void SetTotalRounds(int roundCount)
@@ -355,13 +351,11 @@ public void SetTotalRounds(int roundCount)
 
     if (roundCount != 3 && roundCount != 5 && roundCount != 7)
     {
-        Debug.LogWarning($"[MATCH SESSION] Invalid round count: {roundCount}");
         return;
     }
 
     TotalRounds = roundCount;
 
-    Debug.Log($"[MATCH SESSION] Total rounds set to {TotalRounds}");
 }
 private void OnRoundResultSequenceChanged()
 {
@@ -395,13 +389,18 @@ public bool TryGetCurrentRoundResult(
     #endregion
 
     #region Celebration Ready System
-    public void ResetCelebrationReady()
-    {
-        if (!HasStateAuthority) return;
+public void ResetCelebrationReady()
+{
+    if (!HasStateAuthority)
+        return;
 
-        CelebrationReady.Clear();
-        foreach (PlayerRef player in Runner.ActivePlayers) CelebrationReady.Set(player, false);
-    }
+    CelebrationReady.Clear();
+
+    foreach (PlayerRef player in Runner.ActivePlayers)
+        CelebrationReady.Set(player, false);
+
+    CelebrationReadySequence++;
+}
 
     public void RequestCelebrationReady(bool ready)
     {
@@ -412,13 +411,20 @@ public bool TryGetCurrentRoundResult(
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
     private void RPC_SetCelebrationReady(bool ready, RpcInfo info = default) => SetCelebrationReady(info.Source, ready);
 
-    private void SetCelebrationReady(PlayerRef player, bool ready)
-    {
-        if (!HasStateAuthority) return;
+private void SetCelebrationReady(PlayerRef player, bool ready)
+{
+    if (!HasStateAuthority)
+        return;
 
-        CelebrationReady.Set(player, ready);
-        if (MatchFlowManager.Instance != null) MatchFlowManager.Instance.CheckCelebrationReady();
-    }
+    if (IsCelebrationPlayerReady(player) == ready)
+        return;
+
+    CelebrationReady.Set(player, ready);
+    CelebrationReadySequence++;
+
+    if (MatchFlowManager.Instance != null)
+        MatchFlowManager.Instance.CheckCelebrationReady();
+}
 
     public bool IsCelebrationPlayerReady(PlayerRef player) => CelebrationReady.TryGet(player, out NetworkBool ready) && ready;
 
@@ -442,7 +448,16 @@ public bool TryGetCurrentRoundResult(
     #endregion
 
     #region Render & State Callbacks
-    private void OnRoundRevealSequenceChanged() => OnRoundRevealRequested?.Invoke();
+    private void OnCelebrationReadySequenceChanged()
+{
+    OnCelebrationReadyChanged?.Invoke();
+}
+private void OnRoundRevealSequenceChanged()
+{
+
+
+    OnRoundRevealRequested?.Invoke();
+}
     private void OnTotalRoundsChanged() => OnLobbySettingsChanged?.Invoke();
     private void OnCurrentRoundChanged()
 {

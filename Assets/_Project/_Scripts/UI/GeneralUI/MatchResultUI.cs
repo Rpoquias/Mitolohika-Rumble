@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -19,174 +20,160 @@ public class MatchResultUI : MonoBehaviour
     [SerializeField] private MatchResultCardUI resultCardPrefab;
 
     [Header("Timing")]
-    [SerializeField] private float resultDisplayDuration = 3f;
+    [SerializeField, Min(0f)]
+    private float resultDisplayDuration = 3f;
 
     private MatchSession matchSession;
-
-    private readonly List<MatchResultCardUI> resultCards =
-        new List<MatchResultCardUI>();
-
     private Coroutine resultCoroutine;
-
     private int lastHandledSequence = -1;
+    private Coroutine bindCoroutine;
+
+    private readonly List<MatchResultCardUI> resultCards = new();
 
     public event Action OnResultCompleted;
-
-    // ============================================================
-    // UNITY
-    // ============================================================
 
     private void Awake()
     {
         if (rootPanel != null)
-        {
             rootPanel.SetActive(false);
-        }
 
         if (roundInfoObject != null)
-        {
             roundInfoObject.SetActive(true);
-        }
     }
 
-    private void Start()
-    {
-        CreateSessionReference();
-    }
-
-  private void Update()
+private void OnEnable()
 {
-    // Forget the previous session if it has been despawned.
-    if (matchSession != null && !matchSession.IsSpawned)
+    if (bindCoroutine != null)
+        StopCoroutine(bindCoroutine);
+
+    bindCoroutine = StartCoroutine(BindMatchSessionWhenAvailable());
+}
+private void OnDisable()
+{
+    if (bindCoroutine != null)
     {
+        StopCoroutine(bindCoroutine);
+        bindCoroutine = null;
+    }
+
+    UnbindMatchSession();
+    StopResultCoroutine();
+    ClearCards();
+
+    if (rootPanel != null)
+        rootPanel.SetActive(false);
+
+    lastHandledSequence = -1;
+}
+
+    private void BindMatchSession()
+    {
+        MatchSession candidate = MatchSession.Instance;
+
+        if (candidate == null || !candidate.IsSpawned)
+            return;
+
+        if (matchSession == candidate)
+            return;
+
+        UnbindMatchSession();
+
+        matchSession = candidate;
+        matchSession.OnRoundResultRequested += HandleRoundResult;
+
+        // Recover if the result event fired before subscription.
+        CheckForMissedResult();
+    }
+
+    private void UnbindMatchSession()
+    {
+        if (matchSession == null)
+            return;
+
         matchSession.OnRoundResultRequested -= HandleRoundResult;
         matchSession = null;
+    }
 
-        lastHandledSequence = -1;
+private IEnumerator BindMatchSessionWhenAvailable()
+{
+    // MatchSession may not exist yet when this UI is enabled.
+    while (isActiveAndEnabled)
+    {
+        MatchSession candidate = MatchSession.Instance;
 
-        if (resultCoroutine != null)
+        if (candidate != null && candidate.IsSpawned)
         {
-            StopCoroutine(resultCoroutine);
-            resultCoroutine = null;
+            if (matchSession != candidate)
+            {
+                UnbindMatchSession();
+
+                matchSession = candidate;
+                matchSession.OnRoundResultRequested += HandleRoundResult;
+
+                Debug.Log("[MATCH RESULT UI] Bound to MatchSession.");
+            }
+
+            // Recover a result that was published before subscription.
+            CheckForMissedResult();
+
+            bindCoroutine = null;
+            yield break;
         }
 
-        if (rootPanel != null)
-            rootPanel.SetActive(false);
-
-        ClearCards();
+        yield return null;
     }
 
-    if (matchSession == null)
-    {
-        CreateSessionReference();
-        return;
-    }
-
-    // Fallback if the sequence-change event was missed.
-    if (matchSession.RoundResultSequence != lastHandledSequence)
-    {
-        HandleRoundResult();
-    }
-}
-    // ============================================================
-    // MATCH SESSION
-    // ============================================================
-
- private void CreateSessionReference()
-{
-    if (matchSession != null)
-        return;
-
-    MatchSession candidate = MatchSession.Instance;
-
-    if (candidate == null || !candidate.IsSpawned)
-        return;
-
-    matchSession = candidate;
-
-    matchSession.OnRoundResultRequested += HandleRoundResult;
-
-    CheckForMissedResult();
+    bindCoroutine = null;
 }
     private void CheckForMissedResult()
     {
-        if (matchSession == null)
+        if (matchSession == null || !matchSession.IsSpawned)
             return;
 
-        if (matchSession.RoundResultSequence <= 0)
-            return;
+        int sequence = matchSession.RoundResultSequence;
 
-        if (matchSession.RoundResultSequence ==
-            lastHandledSequence)
-        {
+        if (sequence <= 0 || sequence == lastHandledSequence)
             return;
-        }
 
         HandleRoundResult();
     }
 
-    // ============================================================
-    // RESULT
-    // ============================================================
-
     private void HandleRoundResult()
     {
-        if (matchSession == null)
-            return;
-
-        if (matchSession.RoundResultSequence <= 0)
-            return;
-
-        lastHandledSequence =
-            matchSession.RoundResultSequence;
-
-        if (resultCoroutine != null)
+        if (!isActiveAndEnabled ||
+            matchSession == null ||
+            !matchSession.IsSpawned)
         {
-            StopCoroutine(
-                resultCoroutine
-            );
+            return;
         }
 
-        resultCoroutine =
-            StartCoroutine(
-                ShowResultCoroutine()
-            );
+        int sequence = matchSession.RoundResultSequence;
+
+        if (sequence <= 0 || sequence == lastHandledSequence)
+            return;
+
+        lastHandledSequence = sequence;
+
+        StopResultCoroutine();
+        resultCoroutine = StartCoroutine(ShowResultCoroutine());
     }
 
     private IEnumerator ShowResultCoroutine()
     {
         if (rootPanel != null)
-        {
             rootPanel.SetActive(true);
-        }
 
         ClearCards();
 
-        // --------------------------------------------------------
-        // Round number
-        // --------------------------------------------------------
-
         if (roundInfoObject != null)
-        {
             roundInfoObject.SetActive(true);
-        }
 
         if (roundText != null)
-        {
-            roundText.text =
-                $"ROUND {matchSession.CurrentRound} RESULTS";
-        }
+            roundText.text = $"ROUND {matchSession.CurrentRound} RESULTS";
 
-        // --------------------------------------------------------
-        // Get results
-        // --------------------------------------------------------
+        List<MatchSession.RoundResultRecord> results = new();
 
-        List<MatchSession.RoundResultRecord> results =
-            new List<MatchSession.RoundResultRecord>();
-
-        for (int i = 0;
-             i < matchSession.CurrentRoundResultCount;
-             i++)
+        for (int i = 0; i < matchSession.CurrentRoundResultCount; i++)
         {
             if (matchSession.TryGetCurrentRoundResult(
                     i,
@@ -196,122 +183,92 @@ public class MatchResultUI : MonoBehaviour
             }
         }
 
-        results.Sort(
-            (a, b) =>
-                a.placement.CompareTo(
-                    b.placement
-                )
-        );
+        results.Sort((a, b) => a.placement.CompareTo(b.placement));
 
-        // --------------------------------------------------------
-        // Create cards
-        // --------------------------------------------------------
-
-        foreach (
-            MatchSession.RoundResultRecord result
-            in results)
+        if (resultCardPrefab != null && resultContainer != null)
         {
-            MatchResultCardUI card =
-                Instantiate(
+            foreach (MatchSession.RoundResultRecord result in results)
+            {
+                MatchResultCardUI card = Instantiate(
                     resultCardPrefab,
                     resultContainer
                 );
-card.Setup(
-    result.placement,
-    result.player,
-    GetResultDetail(result)
-);
 
-            resultCards.Add(card);
+                card.Setup(
+                    result.placement,
+                    result.player,
+                    GetResultDetail(result)
+                );
+
+                resultCards.Add(card);
+            }
+        }
+        else
+        {
+            Debug.LogWarning(
+                "[MATCH RESULT UI] Result card prefab or container is missing."
+            );
         }
 
-        // --------------------------------------------------------
-        // Display duration
-        // --------------------------------------------------------
+        yield return new WaitForSeconds(resultDisplayDuration);
 
-        yield return new WaitForSeconds(
-            resultDisplayDuration
-        );
+        resultCoroutine = null;
 
         HideImmediately();
-
         OnResultCompleted?.Invoke();
     }
 
-    // ============================================================
-    // CLEANUP
-    // ============================================================
+    private string GetResultDetail(MatchSession.RoundResultRecord result)
+    {
+        switch (matchSession.CurrentRoundResultDetailType)
+        {
+            case RoundResultDetailType.Status:
+                return result.placement == 1 ? "ALIVE" : "ELIMINATED";
+
+            case RoundResultDetailType.HoldTime:
+                return $"{result.detailValue}s";
+
+            case RoundResultDetailType.Flags:
+                return $"{result.detailValue} FLAG" +
+                       (result.detailValue == 1 ? "" : "S");
+
+            default:
+                return "";
+        }
+    }
+
+    private void StopResultCoroutine()
+    {
+        if (resultCoroutine == null)
+            return;
+
+        StopCoroutine(resultCoroutine);
+        resultCoroutine = null;
+    }
 
     private void ClearCards()
     {
-        foreach (MatchResultCardUI card
-                 in resultCards)
+        foreach (MatchResultCardUI card in resultCards)
         {
             if (card != null)
-            {
-                Destroy(
-                    card.gameObject
-                );
-            }
+                Destroy(card.gameObject);
         }
 
         resultCards.Clear();
     }
 
-private string GetResultDetail(
-    MatchSession.RoundResultRecord result)
-{
-    switch (
-        matchSession.CurrentRoundResultDetailType)
-    {
-        case RoundResultDetailType.Status:
-
-            return result.placement == 1
-                ? "ALIVE"
-                : "ELIMINATED";
-
-        case RoundResultDetailType.HoldTime:
-
-            return $"{result.detailValue}s";
-
-        case RoundResultDetailType.Flags:
-
-            return
-                $"{result.detailValue} FLAG" +
-                (result.detailValue == 1
-                    ? ""
-                    : "S");
-
-        default:
-
-            return "";
-    }
-}
     public void HideImmediately()
     {
-        if (resultCoroutine != null)
-        {
-            StopCoroutine(
-                resultCoroutine
-            );
-
-            resultCoroutine = null;
-        }
+        StopResultCoroutine();
 
         if (rootPanel != null)
-        {
             rootPanel.SetActive(false);
-        }
 
         ClearCards();
     }
 
     private void OnDestroy()
     {
-        if (matchSession != null)
-        {
-            matchSession.OnRoundResultRequested -=
-                HandleRoundResult;
-        }
+        UnbindMatchSession();
     }
 }

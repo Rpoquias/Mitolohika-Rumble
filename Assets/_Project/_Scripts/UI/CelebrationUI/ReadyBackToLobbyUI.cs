@@ -1,6 +1,8 @@
+
 using Fusion;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class ReadyBackToLobbyUI : MonoBehaviour
@@ -10,97 +12,179 @@ public class ReadyBackToLobbyUI : MonoBehaviour
     [SerializeField] private TMP_Text readyButtonText;
     [SerializeField] private TMP_Text readyCountText;
 
-    private void Start()
+    private MatchSession matchSession;
+    private NetworkManager networkManager;
+
+    private void OnEnable()
     {
         if (readyButton != null)
+            readyButton.onClick.AddListener(HandleReadyPressed);
+
+        networkManager = NetworkManager.Instance;
+
+        if (networkManager != null)
         {
-            readyButton.onClick.AddListener(
-                HandleReadyPressed
-            );
+            networkManager.OnPlayerJoinedEvent += HandlePlayerChanged;
+            networkManager.OnPlayerLeftEvent += HandlePlayerChanged;
+            networkManager.OnNetworkSceneLoadDoneEvent += HandleSceneLoaded;
         }
+
+        BindMatchSession();
+        RefreshUI();
     }
 
-    private void Update()
+    private void OnDisable()
     {
-        MatchSession matchSession =
-            MatchSession.Instance;
+        if (readyButton != null)
+            readyButton.onClick.RemoveListener(HandleReadyPressed);
 
+        if (networkManager != null)
+        {
+            networkManager.OnPlayerJoinedEvent -= HandlePlayerChanged;
+            networkManager.OnPlayerLeftEvent -= HandlePlayerChanged;
+            networkManager.OnNetworkSceneLoadDoneEvent -= HandleSceneLoaded;
+        }
+
+        UnbindMatchSession();
+
+        networkManager = null;
+    }
+
+    private void BindMatchSession()
+    {
+        MatchSession currentSession = MatchSession.Instance;
+
+        if (currentSession == matchSession)
+            return;
+
+        UnbindMatchSession();
+
+        if (currentSession == null || !currentSession.IsSpawned)
+            return;
+
+        matchSession = currentSession;
+        matchSession.OnCelebrationReadyChanged += HandleReadyChanged;
+    }
+
+    private void UnbindMatchSession()
+    {
         if (matchSession == null)
             return;
 
-        UpdateReadyCount(matchSession);
-        UpdateButton(matchSession);
+        matchSession.OnCelebrationReadyChanged -= HandleReadyChanged;
+        matchSession = null;
     }
 
- private void UpdateReadyCount(
-    MatchSession matchSession)
-{
-    if (readyCountText == null)
-        return;
-
-    int readyCount =
-        matchSession.GetCelebrationReadyCount();
-
-    int playerCount = 0;
-
-    foreach (PlayerRef player in
-             matchSession.Runner.ActivePlayers)
+    private void HandleReadyChanged()
     {
-        playerCount++;
+        RefreshUI();
     }
 
-    readyCountText.text =
-        $"{readyCount}/{playerCount} Players Ready";
-}
-    private void UpdateButton(
-        MatchSession matchSession)
+    private void HandlePlayerChanged(PlayerRef player)
+    {
+        RefreshUI();
+    }
+
+    private void HandleSceneLoaded(Scene scene)
+    {
+        BindMatchSession();
+        RefreshUI();
+    }
+
+    private void RefreshUI()
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        if (matchSession == null || !matchSession.IsSpawned)
+            BindMatchSession();
+
+        if (matchSession == null || !matchSession.IsSpawned)
+        {
+            if (readyButton != null)
+                readyButton.interactable = false;
+
+            return;
+        }
+
+        NetworkRunner runner = matchSession.Runner;
+
+        if (runner == null || !runner.IsRunning)
+        {
+            if (readyButton != null)
+                readyButton.interactable = false;
+
+            return;
+        }
+
+        UpdateReadyCount(runner);
+        UpdateButton(runner);
+    }
+
+    private void UpdateReadyCount(NetworkRunner runner)
+    {
+        if (readyCountText == null)
+            return;
+
+        int playerCount = 0;
+
+        foreach (PlayerRef player in runner.ActivePlayers)
+            playerCount++;
+
+        int readyCount = matchSession.GetCelebrationReadyCount();
+
+        readyCountText.text =
+            $"{readyCount}/{playerCount} Players Ready";
+    }
+
+    private void UpdateButton(NetworkRunner runner)
     {
         if (readyButton == null)
             return;
 
-        bool isReady =
-            matchSession.IsCelebrationPlayerReady(
-                matchSession.Runner.LocalPlayer
-            );
+        bool isReady = matchSession.IsCelebrationPlayerReady(
+            runner.LocalPlayer);
 
-        readyButton.interactable =
-            !isReady;
+        readyButton.interactable = !isReady;
 
         if (readyButtonText != null)
         {
-            readyButtonText.text =
-                isReady
-                    ? "READY!"
-                    : "RETURN TO LOBBY";
+            readyButtonText.text = isReady
+                ? "READY!"
+                : "RETURN TO LOBBY";
         }
     }
 
     private void HandleReadyPressed()
     {
-        MatchSession matchSession =
-            MatchSession.Instance;
-
-        if (matchSession == null)
+        if (matchSession == null || !matchSession.IsSpawned)
         {
-            Debug.LogError(
-                "[READY BACK TO LOBBY] MatchSession is missing."
-            );
+            BindMatchSession();
+            RefreshUI();
+        }
+
+        if (matchSession == null || !matchSession.IsSpawned)
+        {
+            Debug.LogWarning(
+                "[READY BACK TO LOBBY] MatchSession is unavailable.");
 
             return;
         }
 
-        matchSession.RequestCelebrationReady(
-            true
-        );
-    }
+        NetworkRunner runner = matchSession.Runner;
 
-    private void OnDestroy()
-    {
-        if (readyButton != null)
-        {
-            readyButton.onClick.RemoveListener(
-                HandleReadyPressed
-            );
-        }
+        if (runner == null || !runner.IsRunning)
+            return;
+
+        if (matchSession.IsCelebrationPlayerReady(runner.LocalPlayer))
+            return;
+
+        // Prevent repeated requests while waiting for replicated state.
+        readyButton.interactable = false;
+
+        if (readyButtonText != null)
+            readyButtonText.text = "READY!";
+
+        matchSession.RequestCelebrationReady(true);
     }
 }

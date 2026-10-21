@@ -1,7 +1,11 @@
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class MatchRevealUI : MonoBehaviour
 {
@@ -22,144 +26,228 @@ public class MatchRevealUI : MonoBehaviour
     [SerializeField] private TMP_Text roundText;
     [SerializeField] private TMP_Text modeText;
     [SerializeField] private TMP_Text locationText;
+
     [Header("Round Reveal Visuals")]
-[SerializeField] private UnityEngine.UI.Image modeBackgroundImage;
-[SerializeField] private UnityEngine.UI.Image modeIconImage;
+    [SerializeField] private Image modeBackgroundImage;
+    [SerializeField] private Image modeIconImage;
 
     [Header("Timing")]
-    [SerializeField] private float randomPickDuration = 0.7f;
-    [SerializeField] private float modePickDuration = 2.0f;
-    [SerializeField] private float roundRevealDuration = 1.5f;
+    [SerializeField, Min(0f)] private float randomPickDuration = 0.7f;
+    [SerializeField, Min(0f)] private float modePickDuration = 2f;
+    [SerializeField, Min(0f)] private float roundRevealDuration = 1.5f;
 
-    private readonly List<MatchModeCardUI> modeCards =
-        new List<MatchModeCardUI>();
+    private readonly List<MatchModeCardUI> modeCards = new();
 
-public event System.Action OnRevealCompleted;
     private MatchSession matchSession;
     private Coroutine revealCoroutine;
-
     private int lastHandledSequence = -1;
 
+    public event Action OnRevealCompleted;
+private NetworkManager subscribedNetworkManager;
     public float TotalRevealDuration =>
-        randomPickDuration +
-        modePickDuration +
-        roundRevealDuration;
+        randomPickDuration + modePickDuration + roundRevealDuration;
 
-    private void Start()
+    private void Awake()
     {
-        rootPanel.SetActive(false);
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
 
         CreateModeCards();
-
-        if (NetworkManager.Instance != null)
-        {
-            NetworkManager.Instance
-                .OnNetworkSceneLoadStartEvent +=
-                HideImmediately;
-        }
     }
-public Sprite GetLoadingBackground(GameModeType gameMode)
+private void OnEnable()
 {
-    GameModeData modeData = GetGameModeData(gameMode);
-
-    return modeData != null
-        ? modeData.LoadingBackground
-        : null;
+    SubscribeToNetworkManager();
 }
-  private void Update()
+
+private void OnDisable()
 {
-    
-    // Discard a session that has despawned.
-    if (matchSession != null && !matchSession.IsSpawned)
+    UnsubscribeFromNetworkManager();
+    UnbindMatchSession();
+    StopRevealCoroutine();
+
+    if (rootPanel != null)
+        rootPanel.SetActive(false);
+
+    ResetCards();
+    lastHandledSequence = -1;
+}
+
+    // ------------------------------------------------------------
+    // SESSION BINDING
+    // ------------------------------------------------------------
+
+private void HandleMatchSessionRegistered(MatchSession session)
+{
+    if (session == null || !session.IsSpawned)
+        return;
+
+    if (matchSession == session)
+        return;
+
+    UnbindMatchSession();
+
+    matchSession = session;
+    matchSession.OnRoundRevealRequested += HandleRoundReveal;
+
+    CheckForMissedReveal();
+}
+    private void BindMatchSession()
+{
+
+    MatchSession candidate = MatchSession.Instance;
+
+
+
+    if (candidate == null || !candidate.IsSpawned)
+        return;
+
+    if (matchSession == candidate)
+        return;
+
+    UnbindMatchSession();
+
+    matchSession = candidate;
+    matchSession.OnRoundRevealRequested += HandleRoundReveal;
+
+
+    CheckForMissedReveal();
+}
+
+    private void UnbindMatchSession()
     {
-        matchSession.OnRoundRevealRequested -= HandleRoundReveal;
-        matchSession = null;
-        lastHandledSequence = -1;
-
-        HideImmediately();
-    }
-
-    
-
-    // Find the current spawned session.
-    if (matchSession == null)
-    {
-        MatchSession candidate = MatchSession.Instance;
-
-        if (candidate == null || !candidate.IsSpawned)
+        if (matchSession == null)
             return;
 
-        matchSession = candidate;
-
-        matchSession.OnRoundRevealRequested += HandleRoundReveal;
-
-        CheckForMissedReveal();
-        return;
+        matchSession.OnRoundRevealRequested -= HandleRoundReveal;
+        matchSession = null;
     }
 
-    // Only access networked properties on a spawned session.
-    if (!matchSession.IsSpawned)
-        return;
-        
-
-    if (matchSession.RoundRevealSequence != lastHandledSequence)
+    private void CheckForMissedReveal()
     {
-        CheckForMissedReveal();
-    }
-}
+        if (matchSession == null || !matchSession.IsSpawned)
+            return;
 
-private void UpdateSelectedModeVisuals(GameModeData modeData)
+        int sequence = matchSession.RoundRevealSequence;
+
+        if (sequence <= 0 || sequence == lastHandledSequence)
+            return;
+
+        HandleRoundReveal();
+    }
+
+    // ------------------------------------------------------------
+    // NETWORK SCENE EVENTS
+    // ------------------------------------------------------------
+
+
+private void SubscribeToNetworkManager()
 {
-    if (modeData == null)
+    NetworkManager networkManager = NetworkManager.Instance;
+
+    if (networkManager == null)
+    {
+        // Wait for NetworkManager to initialize.
+        NetworkManager.OnInstanceReady -= HandleNetworkManagerReady;
+        NetworkManager.OnInstanceReady += HandleNetworkManagerReady;
+
+
+        return;
+    }
+
+    SubscribeToNetworkManagerEvents(networkManager);
+}
+private void HandleNetworkManagerReady(
+    NetworkManager networkManager)
+{
+    NetworkManager.OnInstanceReady -= HandleNetworkManagerReady;
+
+    if (!isActiveAndEnabled || networkManager == null)
         return;
 
-    if (modeBackgroundImage != null)
+    SubscribeToNetworkManagerEvents(networkManager);
+}
+
+
+private void SubscribeToNetworkManagerEvents(
+    NetworkManager networkManager)
+{
+    if (subscribedNetworkManager == networkManager)
     {
-        modeBackgroundImage.sprite = modeData.ModeBackground;
-        modeBackgroundImage.enabled = modeData.ModeBackground != null;
+        BindMatchSession();
+        return;
     }
 
-    if (modeIconImage != null)
+    UnsubscribeFromNetworkManager();
+
+    subscribedNetworkManager = networkManager;
+
+    subscribedNetworkManager.OnNetworkSceneLoadStartEvent
+        += HideImmediately;
+
+    subscribedNetworkManager.OnNetworkSceneLoadDoneEvent
+        += HandleSceneLoadDone;
+
+    subscribedNetworkManager.OnMatchSessionRegistered
+        += HandleMatchSessionRegistered;
+
+
+    // Handles a session that already exists.
+    BindMatchSession();
+}
+
+private void UnsubscribeFromNetworkManager()
+{
+    // Remove the pending initialization subscription.
+    NetworkManager.OnInstanceReady -= HandleNetworkManagerReady;
+
+    // Unsubscribe from the exact manager we subscribed to.
+    if (subscribedNetworkManager != null)
     {
-        modeIconImage.sprite = modeData.ModeIcon;
-        modeIconImage.enabled = modeData.ModeIcon != null;
+        subscribedNetworkManager.OnNetworkSceneLoadStartEvent
+            -= HideImmediately;
+
+        subscribedNetworkManager.OnNetworkSceneLoadDoneEvent
+            -= HandleSceneLoadDone;
+
+        subscribedNetworkManager.OnMatchSessionRegistered
+            -= HandleMatchSessionRegistered;
+
+        subscribedNetworkManager = null;
     }
 }
+    private void HandleSceneLoadDone(Scene scene)
+    {
+        BindMatchSession();
+        CheckForMissedReveal();
+    }
+
+    // ------------------------------------------------------------
+    // MODE CARDS
+    // ------------------------------------------------------------
+
     private void CreateModeCards()
     {
         ClearModeCards();
 
-        if (modeCardPrefab == null)
+        if (modeCardPrefab == null || modeCardContainer == null)
         {
-          
 
             return;
         }
 
-        if (modeCardContainer == null)
+        foreach (GameModeData data in gameModes)
         {
-           
-
-            return;
-        }
-
-        foreach (GameModeData modeData in gameModes)
-        {
-            if (modeData == null)
+            if (data == null)
                 continue;
 
-            MatchModeCardUI card =
-                Instantiate(
-                    modeCardPrefab,
-                    modeCardContainer
-                );
+            MatchModeCardUI card = Instantiate(
+                modeCardPrefab,
+                modeCardContainer
+            );
 
-            card.Setup(modeData);
-
+            card.Setup(data);
             modeCards.Add(card);
         }
-
-   
     }
 
     private void ClearModeCards()
@@ -167,309 +255,10 @@ private void UpdateSelectedModeVisuals(GameModeData modeData)
         foreach (MatchModeCardUI card in modeCards)
         {
             if (card != null)
-            {
                 Destroy(card.gameObject);
-            }
         }
 
         modeCards.Clear();
-    }
-
- private void CheckForMissedReveal()
-{
-    if (matchSession == null || !matchSession.IsSpawned)
-        return;
-
-    if (matchSession.RoundRevealSequence <= 0)
-        return;
-
-    if (matchSession.RoundRevealSequence == lastHandledSequence)
-        return;
-
-    HandleRoundReveal();
-}
-private void HandleRoundReveal()
-{
-    if (matchSession == null || !matchSession.IsSpawned)
-        return;
-
-    if (matchSession.RoundRevealSequence <= 0)
-        return;
-
-    lastHandledSequence = matchSession.RoundRevealSequence;
-
-    if (revealCoroutine != null)
-    {
-        StopCoroutine(revealCoroutine);
-        revealCoroutine = null;
-    }
-
-    AudioManager.Instance?.PlayMusic(MusicID.RoundReveal);
-
-    revealCoroutine = StartCoroutine(PlayRevealSequence());
-}
-
-  private IEnumerator PlayRevealSequence()
-{
-  if (matchSession == null || !matchSession.IsSpawned)
-{
-    rootPanel.SetActive(false);
-    revealCoroutine = null;
-    yield break;
-}
-
-    rootPanel.SetActive(true);
-
-    ResetCards();
-
-    // 1. Random mode pick
-    randomPickPanel.SetActive(true);
-    modePickPanel.SetActive(false);
-    roundRevealPanel.SetActive(false);
-
-    yield return new WaitForSeconds(randomPickDuration);
-
-    if (matchSession == null || !matchSession.IsSpawned)
-    {
-        revealCoroutine = null;
-        yield break;
-    }
-
-    // 2. Mode selection
-    randomPickPanel.SetActive(false);
-    modePickPanel.SetActive(true);
-
-    List<GameModeData> availableModes = GetAvailableModes();
-
-    yield return StartCoroutine(
-        AnimateModeSelection(availableModes)
-    );
-
-    if (matchSession == null || !matchSession.IsSpawned)
-    {
-        revealCoroutine = null;
-        yield break;
-    }
-
-    // 3. Round reveal
-    modePickPanel.SetActive(false);
-    roundRevealPanel.SetActive(true);
-
-GameModeData selectedMode = GetGameModeData(
-    matchSession.CurrentGameMode
-);
-
-if (selectedMode != null)
-{
-    modeText.text = selectedMode.DisplayName;
-    locationText.text = selectedMode.LocationName;
-
-    UpdateSelectedModeVisuals(selectedMode);
-}
-
-    roundText.text = $"ROUND {matchSession.CurrentRound}";
-
-    yield return new WaitForSeconds(roundRevealDuration);
-
-    if (matchSession == null || !matchSession.IsSpawned)
-    {
-        revealCoroutine = null;
-        yield break;
-    }
-
-    rootPanel.SetActive(false);
-
-    revealCoroutine = null;
-
-    OnRevealCompleted?.Invoke();
-}
-
-    private IEnumerator AnimateModeSelection(
-        List<GameModeData> availableModes)
-    {
-         if (matchSession == null || !matchSession.IsSpawned)
-        yield break;
-
-    if (availableModes.Count == 0)
-    {
-       
-
-        yield break;
-    }
-    
-
-        GameModeData selectedMode =
-            GetGameModeData(
-                matchSession.CurrentGameMode
-            );
-
-        if (selectedMode == null)
-        {
-            yield break;
-        }
-
-        int selectedIndex =
-            availableModes.IndexOf(
-                selectedMode
-            );
-
-        if (selectedIndex < 0)
-        {
-          
-            yield break;
-        }
-
-        int startIndex =
-            Random.Range(
-                0,
-                availableModes.Count
-            );
-
-        int loops =
-            availableModes.Count * 2;
-
-        int totalSteps =
-            loops +
-            (
-                selectedIndex -
-                startIndex +
-                availableModes.Count
-            ) % availableModes.Count;
-
-    for (int i = 0; i <= totalSteps; i++)
-{
-    if (matchSession == null || !matchSession.IsSpawned)
-        yield break;
-
-    int index = (startIndex + i) % availableModes.Count;
-
-    HighlightMode(availableModes[index]);
-
-    float progress = (float)i / Mathf.Max(1, totalSteps);
-
-    float delay = Mathf.Lerp(0.08f, 0.24f, progress);
-
-    yield return new WaitForSeconds(delay);
-}
-
-        HighlightMode(
-            selectedMode
-        );
-
-        yield return new WaitForSeconds(
-            0.4f
-        );
-
-        HighlightMode(null);
-    }
-
-    private void HighlightMode(
-        GameModeData selectedMode)
-    {
-        foreach (MatchModeCardUI card in modeCards)
-        {
-            if (card.ModeData == null)
-                continue;
-
-            card.SetHighlighted(
-                card.ModeData == selectedMode
-            );
-        }
-    }
-public void PlayCurrentRound()
-{
-    MatchSession candidate = MatchSession.Instance;
-
-    if (candidate == null || !candidate.IsSpawned)
-    {
-       
-
-        return;
-    }
-
-    if (matchSession != candidate)
-    {
-        if (matchSession != null)
-        {
-            matchSession.OnRoundRevealRequested -= HandleRoundReveal;
-        }
-
-        matchSession = candidate;
-        matchSession.OnRoundRevealRequested += HandleRoundReveal;
-    }
-
-    if (matchSession.RoundRevealSequence <= 0)
-    {
-       
-
-        return;
-    }
-
-    HandleRoundReveal();
-}
-    private List<GameModeData>
-        GetAvailableModes()
-    {
-        List<GameModeData> availableModes =
-            new List<GameModeData>();
-
-        int usedMask =
-            matchSession.UsedGameModeMask;
-
-        foreach (GameModeData modeData in gameModes)
-        {
-            if (modeData == null)
-                continue;
-
-            int bit =
-                1 << (int)modeData.GameMode;
-
-            bool available =
-                (usedMask & bit) == 0;
-
-            if (available)
-            {
-                availableModes.Add(
-                    modeData
-                );
-            }
-        }
-
-        // The currently selected mode was
-        // already marked as used by MatchSession.
-        // Add it back so the roulette can land on it.
-        GameModeData selectedMode =
-            GetGameModeData(
-                matchSession.CurrentGameMode
-            );
-
-        if (selectedMode != null &&
-            !availableModes.Contains(selectedMode))
-        {
-            availableModes.Add(
-                selectedMode
-            );
-        }
-
-        return availableModes;
-    }
-
-    private GameModeData GetGameModeData(
-        GameModeType gameMode)
-    {
-        foreach (GameModeData data in gameModes)
-        {
-            if (data == null)
-                continue;
-
-            if (data.GameMode == gameMode)
-            {
-                return data;
-            }
-        }
-
-        
-        return null;
     }
 
     private void ResetCards()
@@ -477,42 +266,321 @@ public void PlayCurrentRound()
         foreach (MatchModeCardUI card in modeCards)
         {
             if (card != null)
-            {
                 card.ResetVisual();
-            }
         }
+    }
+
+    private void UpdateModeAvailability()
+    {
+        if (matchSession == null || !matchSession.IsSpawned)
+            return;
+
+        int usedMask = matchSession.UsedGameModeMask;
+        int currentModeBit = 1 << (int)matchSession.CurrentGameMode;
+
+        // Keep the mode selected for this round bright.
+        int previouslyPlayedMask = usedMask & ~currentModeBit;
+
+        foreach (MatchModeCardUI card in modeCards)
+        {
+            if (card == null || card.ModeData == null)
+                continue;
+
+            int modeBit = 1 << (int)card.ModeData.GameMode;
+            bool alreadyPlayed = (previouslyPlayedMask & modeBit) != 0;
+
+            card.SetAvailable(!alreadyPlayed);
+        }
+    }
+
+    private List<GameModeData> GetAvailableModes()
+    {
+        List<GameModeData> availableModes = new();
+
+        if (matchSession == null || !matchSession.IsSpawned)
+            return availableModes;
+
+        int usedMask = matchSession.UsedGameModeMask;
+
+        foreach (GameModeData data in gameModes)
+        {
+            if (data == null)
+                continue;
+
+            int bit = 1 << (int)data.GameMode;
+
+            if ((usedMask & bit) == 0)
+                availableModes.Add(data);
+        }
+
+        // The server marks the selected mode as used before
+        // the reveal animation finishes, so allow it in the roulette.
+        GameModeData selectedMode =
+            GetGameModeData(matchSession.CurrentGameMode);
+
+        if (selectedMode != null &&
+            !availableModes.Contains(selectedMode))
+        {
+            availableModes.Add(selectedMode);
+        }
+
+        return availableModes;
+    }
+
+    private GameModeData GetGameModeData(GameModeType gameMode)
+    {
+        foreach (GameModeData data in gameModes)
+        {
+            if (data != null && data.GameMode == gameMode)
+                return data;
+        }
+
+        return null;
+    }
+
+    private void HighlightMode(GameModeData selectedMode)
+    {
+        foreach (MatchModeCardUI card in modeCards)
+        {
+            if (card == null || card.ModeData == null)
+                continue;
+
+            card.SetHighlighted(card.ModeData == selectedMode);
+        }
+    }
+
+    // ------------------------------------------------------------
+    // REVEAL SEQUENCE
+    // ------------------------------------------------------------
+
+    private void HandleRoundReveal()
+    {
+        if (!isActiveAndEnabled ||
+            matchSession == null ||
+            !matchSession.IsSpawned)
+        {
+            return;
+        }
+
+        int sequence = matchSession.RoundRevealSequence;
+
+        if (sequence <= 0 || sequence == lastHandledSequence)
+            return;
+
+        lastHandledSequence = sequence;
+
+        StopRevealCoroutine();
+
+        AudioManager.Instance?.PlayMusic(MusicID.RoundReveal);
+        revealCoroutine = StartCoroutine(PlayRevealSequence());
+    }
+
+    private IEnumerator PlayRevealSequence()
+    {
+        if (!IsSessionValid())
+        {
+            HideImmediately();
+            yield break;
+        }
+
+        if (rootPanel != null)
+            rootPanel.SetActive(true);
+
+        ResetCards();
+        UpdateModeAvailability();
+
+        if (randomPickPanel != null)
+            randomPickPanel.SetActive(true);
+
+        if (modePickPanel != null)
+            modePickPanel.SetActive(false);
+
+        if (roundRevealPanel != null)
+            roundRevealPanel.SetActive(false);
+
+        yield return new WaitForSeconds(randomPickDuration);
+
+        if (!IsSessionValid())
+        {
+            FinishRevealWithoutCompletion();
+            yield break;
+        }
+
+        if (randomPickPanel != null)
+            randomPickPanel.SetActive(false);
+
+        if (modePickPanel != null)
+            modePickPanel.SetActive(true);
+
+        List<GameModeData> availableModes = GetAvailableModes();
+
+        yield return StartCoroutine(
+            AnimateModeSelection(availableModes)
+        );
+
+        if (!IsSessionValid())
+        {
+            FinishRevealWithoutCompletion();
+            yield break;
+        }
+
+        if (modePickPanel != null)
+            modePickPanel.SetActive(false);
+
+        if (roundRevealPanel != null)
+            roundRevealPanel.SetActive(true);
+
+        GameModeData selectedMode =
+            GetGameModeData(matchSession.CurrentGameMode);
+
+        if (selectedMode != null)
+        {
+            if (modeText != null)
+                modeText.text = selectedMode.DisplayName;
+
+            if (locationText != null)
+                locationText.text = selectedMode.LocationName;
+
+            UpdateSelectedModeVisuals(selectedMode);
+        }
+
+        if (roundText != null)
+            roundText.text = $"ROUND {matchSession.CurrentRound}";
+
+        yield return new WaitForSeconds(roundRevealDuration);
+
+        if (!IsSessionValid())
+        {
+            FinishRevealWithoutCompletion();
+            yield break;
+        }
+
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
+
+
+revealCoroutine = null;
+OnRevealCompleted?.Invoke();
+    }
+
+    private IEnumerator AnimateModeSelection(
+        List<GameModeData> availableModes)
+    {
+        if (!IsSessionValid() || availableModes.Count == 0)
+            yield break;
+
+        GameModeData selectedMode =
+            GetGameModeData(matchSession.CurrentGameMode);
+
+        int selectedIndex = availableModes.IndexOf(selectedMode);
+
+        if (selectedIndex < 0)
+            yield break;
+
+        int startIndex = UnityEngine.Random.Range(
+            0,
+            availableModes.Count
+        );
+
+        int loops = availableModes.Count * 2;
+
+        int totalSteps = loops +
+            (selectedIndex - startIndex + availableModes.Count)
+            % availableModes.Count;
+
+        for (int i = 0; i <= totalSteps; i++)
+        {
+            if (!IsSessionValid())
+                yield break;
+
+            int index = (startIndex + i) % availableModes.Count;
+            HighlightMode(availableModes[index]);
+
+            float progress = (float)i / Mathf.Max(1, totalSteps);
+            float delay = Mathf.Lerp(0.08f, 0.24f, progress);
+
+            yield return new WaitForSeconds(delay);
+        }
+
+        HighlightMode(selectedMode);
+        yield return new WaitForSeconds(0.4f);
+        HighlightMode(null);
+    }
+
+    private void UpdateSelectedModeVisuals(GameModeData data)
+    {
+        if (data == null)
+            return;
+
+        if (modeBackgroundImage != null)
+        {
+            modeBackgroundImage.sprite = data.ModeBackground;
+            modeBackgroundImage.enabled = data.ModeBackground != null;
+        }
+
+        if (modeIconImage != null)
+        {
+            modeIconImage.sprite = data.ModeIcon;
+            modeIconImage.enabled = data.ModeIcon != null;
+        }
+    }
+
+    private bool IsSessionValid()
+    {
+        return matchSession != null && matchSession.IsSpawned;
+    }
+
+    private void FinishRevealWithoutCompletion()
+    {
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
+
+        revealCoroutine = null;
+    }
+
+    private void StopRevealCoroutine()
+    {
+        if (revealCoroutine == null)
+            return;
+
+        StopCoroutine(revealCoroutine);
+        revealCoroutine = null;
+    }
+
+    // ------------------------------------------------------------
+    // PUBLIC METHODS
+    // ------------------------------------------------------------
+
+    public Sprite GetLoadingBackground(GameModeType gameMode)
+    {
+        GameModeData data = GetGameModeData(gameMode);
+
+        return data != null ? data.LoadingBackground : null;
+    }
+
+    public void PlayCurrentRound()
+    {
+        BindMatchSession();
+
+        if (!IsSessionValid() ||
+            matchSession.RoundRevealSequence <= 0)
+        {
+            return;
+        }
+
+        // Explicitly requested replay, even if this sequence
+        // has already been displayed.
+        lastHandledSequence = -1;
+        HandleRoundReveal();
     }
 
     public void HideImmediately()
     {
-        if (revealCoroutine != null)
-        {
-            StopCoroutine(
-                revealCoroutine
-            );
+        StopRevealCoroutine();
 
-            revealCoroutine = null;
-        }
-
-        rootPanel.SetActive(false);
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
 
         ResetCards();
-    }
-
-    private void OnDestroy()
-    {
-        if (matchSession != null)
-        {
-            matchSession
-                .OnRoundRevealRequested -=
-                HandleRoundReveal;
-        }
-
-        if (NetworkManager.Instance != null)
-        {
-            NetworkManager.Instance
-                .OnNetworkSceneLoadStartEvent -=
-                HideImmediately;
-        }
     }
 }
