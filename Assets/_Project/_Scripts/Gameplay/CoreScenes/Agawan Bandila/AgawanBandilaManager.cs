@@ -13,60 +13,58 @@ public class AgawanBandilaManager : MonoBehaviour
     [Header("Round")]
     [SerializeField] private RoundStateManager roundStateManager;
     [SerializeField] private float roundDuration = 90f;
-[Header("Events")]
-[SerializeField]
-private AgawanBandilaEventManager eventManager;
+
+    [Header("Events")]
+    [SerializeField] private AgawanBandilaEventManager eventManager;
+
     private bool basesAssigned;
     private bool roundActive;
     private bool roundEnding;
 
-    private readonly List<Vector3> flagStartPositions =
-        new List<Vector3>();
+    // Cached while a round is running so Update() does no lookups.
+    private MatchSession _matchSession;
 
-    private readonly List<Quaternion> flagStartRotations =
-        new List<Quaternion>();
+    private readonly List<Vector3> flagStartPositions = new List<Vector3>();
+    private readonly List<Quaternion> flagStartRotations = new List<Quaternion>();
 
+    // Don't disable this component in Awake: Start would never run.
     private void Start()
     {
         CacheFlagStartPositions();
 
+        if (bases != null)
+        {
+            for (int i = 0; i < bases.Length; i++)
+            {
+                if (bases[i] == null)
+                    continue;
+
+                bases[i].Bind(this);
+                bases[i].StoredFlagsChanged += HandleStoredFlagsChanged;
+            }
+        }
+
         if (roundStateManager != null)
         {
-            roundStateManager.OnRoundStarted +=
-                HandleRoundStarted;
-
-            roundStateManager.OnRoundReset +=
-                HandleRoundReset;
+            roundStateManager.OnRoundStarted += HandleRoundStarted;
+            roundStateManager.OnRoundReset += HandleRoundReset;
         }
     }
 
     private void Update()
     {
-        if (!roundActive)
+        // roundActive is only ever true on the server.
+        if (!roundActive || _matchSession == null)
             return;
 
-        NetworkRunner runner =
-            NetworkManager.Instance != null
-                ? NetworkManager.Instance.Runner
-                : null;
-
-        if (runner == null ||
-            !runner.IsRunning ||
-            !runner.IsServer)
-        {
-            return;
-        }
-
-        MatchSession matchSession =
-            NetworkManager.Instance.CurrentMatchSession;
-
-        if (matchSession == null)
-            return;
-
-        if (matchSession.IsRoundTimerExpired())
-        {
+        if (_matchSession.IsRoundTimerExpired())
             EndRound();
-        }
+    }
+
+    private void HandleStoredFlagsChanged(PlayerRef owner)
+    {
+        if (scoreManager != null)
+            scoreManager.NotifyStoredFlagsChanged(owner);
     }
 
     private void HandleRoundStarted()
@@ -81,59 +79,42 @@ private AgawanBandilaEventManager eventManager;
             return;
 
         MatchSession matchSession =
-            NetworkManager.Instance != null
-                ? NetworkManager.Instance.CurrentMatchSession
-                : null;
+            NetworkManager.Instance.CurrentMatchSession;
 
         if (matchSession == null)
         {
-            Debug.LogError(
-                "[BANDILA MANAGER] MatchSession is missing."
-            );
-
+            Debug.LogError("[BANDILA MANAGER] MatchSession is missing.");
             return;
         }
 
-        matchSession.StartRoundTimer(
-            roundDuration
-        );
-roundActive = true;
-roundEnding = false;
+        _matchSession = matchSession;
+        _matchSession.StartRoundTimer(roundDuration);
 
-if (scoreManager != null)
-{
-    scoreManager.StartScoring();
-}
+        roundActive = true;
+        roundEnding = false;
 
-if (eventManager != null)
-{
-    eventManager.StartRoundEvents();
-}
+        if (scoreManager != null)
+            scoreManager.StartScoring();
+
+        if (eventManager != null)
+            eventManager.StartRoundEvents();
     }
 
     private void EndRound()
     {
-        if (!HasServer())
+        if (!HasServer() || !roundActive || roundEnding)
             return;
 
-        if (!roundActive)
-            return;
+        roundEnding = true;
+        roundActive = false;
 
-        if (roundEnding)
-            return;
+        if (eventManager != null)
+            eventManager.StopRoundEvents();
 
-      roundEnding = true;
-roundActive = false;
+        if (_matchSession != null)
+            _matchSession.StopRoundTimer();
 
-if (eventManager != null)
-{
-    eventManager.StopRoundEvents();
-}
-        MatchSession matchSession =
-            NetworkManager.Instance.CurrentMatchSession;
-
-        if (matchSession != null)
-            matchSession.StopRoundTimer();
+        _matchSession = null;
 
         if (scoreManager != null)
             scoreManager.StopScoring();
@@ -145,19 +126,14 @@ if (eventManager != null)
             new Dictionary<PlayerRef, int>();
 
         foreach (PlayerRef player in NetworkManager.Instance.Runner.ActivePlayers)
-        {
             flagCounts[player] = scoreManager.GetScore(player);
-        }
 
         // End the round once.
         roundStateManager.EndRound();
 
         if (MatchFlowManager.Instance == null)
         {
-            Debug.LogError(
-                "[BANDILA] MatchFlowManager is missing."
-            );
-
+            Debug.LogError("[BANDILA] MatchFlowManager is missing.");
             return;
         }
 
@@ -170,13 +146,9 @@ if (eventManager != null)
 
     private void AssignBases()
     {
-        NetworkRunner runner =
-            NetworkManager.Instance.Runner;
+        NetworkRunner runner = NetworkManager.Instance.Runner;
 
-        if (runner == null || !runner.IsRunning)
-            return;
-
-        if (!runner.IsServer)
+        if (runner == null || !runner.IsRunning || !runner.IsServer)
             return;
 
         if (basesAssigned)
@@ -184,102 +156,82 @@ if (eventManager != null)
 
         if (bases == null || bases.Length == 0)
         {
-            Debug.LogError(
-                "[BANDILA MANAGER] No bases assigned."
-            );
-
+            Debug.LogError("[BANDILA MANAGER] No bases assigned.");
             return;
         }
 
-        List<PlayerRef> players =
-            new List<PlayerRef>();
+        List<PlayerRef> players = new List<PlayerRef>();
 
         foreach (PlayerRef player in runner.ActivePlayers)
-        {
             players.Add(player);
-        }
 
         if (players.Count == 0)
             return;
 
-        players.Sort(
-            (a, b) =>
-                a.PlayerId.CompareTo(b.PlayerId)
-        );
+        players.Sort((a, b) => a.PlayerId.CompareTo(b.PlayerId));
 
-        int assignmentCount =
-            Mathf.Min(
-                players.Count,
-                bases.Length
-            );
+        int assignmentCount = Mathf.Min(players.Count, bases.Length);
 
         for (int i = 0; i < assignmentCount; i++)
         {
-            if (bases[i] == null)
-                continue;
-
-            bases[i].SetOwner(players[i]);
+            if (bases[i] != null)
+                bases[i].SetOwner(players[i]);
         }
 
         basesAssigned = true;
     }
 
-    public bool IsPlayerCarryingFlag(
-        PlayerRef player)
+    // ---------- Queries used by flags, bases and score ----------
+
+    public bool TryGetCarriedFlag(PlayerRef player, out BandilaController carried)
     {
-        if (flags == null)
-            return false;
-
-        for (int i = 0; i < flags.Length; i++)
+        if (flags != null)
         {
-            BandilaController flag =
-                flags[i];
+            for (int i = 0; i < flags.Length; i++)
+            {
+                BandilaController f = flags[i];
 
-            if (flag == null)
-                continue;
-
-            if (!flag.IsCarried)
-                continue;
-
-            if (flag.CurrentHolder == player)
-                return true;
+                if (f != null && f.IsCarried && f.CurrentHolder == player)
+                {
+                    carried = f;
+                    return true;
+                }
+            }
         }
 
+        carried = null;
         return false;
     }
 
-    public BandilaBaseController GetBaseForPlayer(
-        PlayerRef player)
+    public bool IsPlayerCarryingFlag(PlayerRef player)
+    {
+        return TryGetCarriedFlag(player, out _);
+    }
+
+    public BandilaBaseController GetBaseForPlayer(PlayerRef player)
     {
         if (bases == null)
             return null;
 
         for (int i = 0; i < bases.Length; i++)
         {
-            BandilaBaseController flagBase =
-                bases[i];
+            BandilaBaseController flagBase = bases[i];
 
-            if (flagBase == null)
-                continue;
-
-            if (flagBase.CurrentOwner == player)
+            if (flagBase != null && flagBase.CurrentOwner == player)
                 return flagBase;
         }
 
         return null;
     }
 
-    public int GetStoredFlagCount(
-        PlayerRef player)
+    public int GetStoredFlagCount(PlayerRef player)
     {
-        BandilaBaseController flagBase =
-            GetBaseForPlayer(player);
+        BandilaBaseController flagBase = GetBaseForPlayer(player);
 
-        if (flagBase == null)
-            return 0;
-
-        return flagBase.StoredFlagCount;
+        return flagBase != null ? flagBase.StoredFlagCount : 0;
     }
+
+    // ---------- Reset ----------
 
     private void CacheFlagStartPositions()
     {
@@ -298,13 +250,8 @@ if (eventManager != null)
                 continue;
             }
 
-            flagStartPositions.Add(
-                flags[i].transform.position
-            );
-
-            flagStartRotations.Add(
-                flags[i].transform.rotation
-            );
+            flagStartPositions.Add(flags[i].transform.position);
+            flagStartRotations.Add(flags[i].transform.rotation);
         }
     }
 
@@ -314,9 +261,7 @@ if (eventManager != null)
         ResetBases();
 
         if (scoreManager != null)
-        {
             scoreManager.ResetScores();
-        }
     }
 
     private void ResetFlags()
@@ -331,7 +276,9 @@ if (eventManager != null)
 
             if (i >= flagStartPositions.Count ||
                 i >= flagStartRotations.Count)
+            {
                 continue;
+            }
 
             flags[i].ResetFlag(
                 flagStartPositions[i],
@@ -357,54 +304,51 @@ if (eventManager != null)
         basesAssigned = false;
     }
 
-private void HandleRoundReset()
-{
-    if (!HasServer())
-        return;
-
-    if (eventManager != null)
+    private void HandleRoundReset()
     {
-        eventManager.StopRoundEvents();
+        if (!HasServer())
+            return;
+
+        if (eventManager != null)
+            eventManager.StopRoundEvents();
+
+        if (_matchSession != null)
+            _matchSession.StopRoundTimer();
+        else if (NetworkManager.Instance.CurrentMatchSession != null)
+            NetworkManager.Instance.CurrentMatchSession.StopRoundTimer();
+
+        _matchSession = null;
+        roundActive = false;
+        roundEnding = false;
     }
 
-    MatchSession matchSession =
-        NetworkManager.Instance.CurrentMatchSession;
-
-    if (matchSession != null)
-    {
-        matchSession.StopRoundTimer();
-    }
-
-    roundActive = false;
-    roundEnding = false;
-}
     private bool HasServer()
     {
-        NetworkManager networkManager =
-            NetworkManager.Instance;
+        NetworkManager networkManager = NetworkManager.Instance;
 
         if (networkManager == null)
             return false;
 
-        NetworkRunner runner =
-            networkManager.Runner;
+        NetworkRunner runner = networkManager.Runner;
 
-        if (runner == null ||
-            !runner.IsRunning)
-            return false;
-
-        return runner.IsServer;
+        return runner != null && runner.IsRunning && runner.IsServer;
     }
 
     private void OnDestroy()
     {
+        if (bases != null)
+        {
+            for (int i = 0; i < bases.Length; i++)
+            {
+                if (bases[i] != null)
+                    bases[i].StoredFlagsChanged -= HandleStoredFlagsChanged;
+            }
+        }
+
         if (roundStateManager != null)
         {
-            roundStateManager.OnRoundStarted -=
-                HandleRoundStarted;
-
-            roundStateManager.OnRoundReset -=
-                HandleRoundReset;
+            roundStateManager.OnRoundStarted -= HandleRoundStarted;
+            roundStateManager.OnRoundReset -= HandleRoundReset;
         }
     }
 }

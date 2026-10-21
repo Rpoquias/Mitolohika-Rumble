@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Fusion;
 using UnityEngine;
 
@@ -8,58 +7,50 @@ public class AgawanBandilaPlacementManager : MonoBehaviour
     [Header("References")]
     [SerializeField] private AgawanBandilaScoreManager scoreManager;
 
-    private readonly List<RoundPlacement> placements =
-        new List<RoundPlacement>();
+    private struct PlayerResult
+    {
+        public PlayerRef Player;
+        public int Score;
+        public int ScoreTick;
+    }
 
+    // Highest score first; on a tie, whoever reached it first.
+    private static int CompareResults(PlayerResult a, PlayerResult b)
+    {
+        int byScore = b.Score.CompareTo(a.Score);
+
+        return byScore != 0
+            ? byScore
+            : a.ScoreTick.CompareTo(b.ScoreTick);
+    }
+
+    // Returns a NEW list every call, so callers (MatchFlowManager)
+    // can keep it safely across rounds.
     public List<RoundPlacement> BuildFinalPlacements()
     {
-        placements.Clear();
+        List<RoundPlacement> placements = new List<RoundPlacement>();
 
-        if (scoreManager == null)
-        {
-            
-
+        if (scoreManager == null || NetworkManager.Instance == null)
             return placements;
-        }
 
-        NetworkRunner runner =
-            NetworkManager.Instance.Runner;
+        NetworkRunner runner = NetworkManager.Instance.Runner;
 
-        if (runner == null ||
-            !runner.IsRunning ||
-            !runner.IsServer)
-        {
+        if (runner == null || !runner.IsRunning || !runner.IsServer)
             return placements;
-        }
 
-        List<PlayerResult> results =
-            new List<PlayerResult>();
+        List<PlayerResult> results = new List<PlayerResult>(4);
 
         foreach (PlayerRef player in runner.ActivePlayers)
         {
-            int score =
-                scoreManager.GetScore(player);
-
-            int reachedTick =
-                scoreManager.GetFirstReachedTick(
-                    player,
-                    score
-                );
-
-            results.Add(
-                new PlayerResult
-                {
-                    Player = player,
-                    Score = score,
-                    ReachedTick = reachedTick
-                }
-            );
+            results.Add(new PlayerResult
+            {
+                Player = player,
+                Score = scoreManager.GetScore(player),
+                ScoreTick = scoreManager.GetScoreTick(player)
+            });
         }
 
-        results = results
-            .OrderByDescending(result => result.Score)
-            .ThenBy(result => result.ReachedTick)
-            .ToList();
+        results.Sort(CompareResults);
 
         int currentPlacement = 1;
 
@@ -67,44 +58,23 @@ public class AgawanBandilaPlacementManager : MonoBehaviour
         {
             if (i > 0)
             {
-                PlayerResult previous =
-                    results[i - 1];
+                PlayerResult previous = results[i - 1];
+                PlayerResult current = results[i];
 
-                PlayerResult current =
-                    results[i];
-
-                bool sameScore =
-                    current.Score == previous.Score;
-
-                bool sameReachedTick =
-                    current.ReachedTick ==
-                    previous.ReachedTick;
-
-                if (!sameScore ||
-                    !sameReachedTick)
+                if (current.Score != previous.Score ||
+                    current.ScoreTick != previous.ScoreTick)
                 {
                     currentPlacement = i + 1;
                 }
             }
 
-            placements.Add(
-                new RoundPlacement
-                {
-                    Player = results[i].Player,
-                    Placement = currentPlacement
-                }
-            );
-
-           
+            placements.Add(new RoundPlacement
+            {
+                Player = results[i].Player,
+                Placement = currentPlacement
+            });
         }
 
         return placements;
-    }
-
-    private struct PlayerResult
-    {
-        public PlayerRef Player;
-        public int Score;
-        public int ReachedTick;
     }
 }

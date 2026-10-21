@@ -1,4 +1,3 @@
-
 using Fusion;
 using UnityEngine;
 
@@ -10,47 +9,39 @@ public class AgawanBandilaEventVFX : NetworkBehaviour
     [SerializeField] private GameObject blackHoleVFX;
 
     // 0 = None, 1 = Speed Surge, 2 = Slow Motion, 3 = Black Hole.
-    [Networked] private int ActiveEventId { get; set; }
-
-    private int _lastDisplayedEventId = -1;
+    [Networked, OnChangedRender(nameof(ApplyVFX))]
+    private int ActiveEventId { get; set; }
 
     public override void Spawned()
     {
-        _lastDisplayedEventId = -1;
-        RefreshVFX();
+        ApplyVFX();
     }
 
-    private void Update()
-    {
-        RefreshVFX();
-    }
-
-    public void SetEvent(int eventId, float duration)
+    public void SetEvent(int eventId)
     {
         if (Object == null || !Object.HasStateAuthority)
             return;
 
+        if (ActiveEventId == eventId)
+            return;
+
         ActiveEventId = eventId;
+
+        // Apply immediately on the authority; harmless if OnChangedRender
+        // also fires here (SetActive is guarded by activeSelf).
+        ApplyVFX();
     }
 
-    private void RefreshVFX()
+    private void ApplyVFX()
     {
-        if (Object == null || !Object.IsValid)
-            return;
+        int id = ActiveEventId;
 
-        int eventId = ActiveEventId;
-
-        if (eventId == _lastDisplayedEventId)
-            return;
-
-        _lastDisplayedEventId = eventId;
-
-        SetVFXActive(speedSurgeVFX, eventId == 1);
-        SetVFXActive(slowMotionVFX, eventId == 2);
-        SetVFXActive(blackHoleVFX, eventId == 3);
+        SetActive(speedSurgeVFX, id == 1);
+        SetActive(slowMotionVFX, id == 2);
+        SetActive(blackHoleVFX, id == 3);
     }
 
-    private void SetVFXActive(GameObject vfx, bool active)
+    private static void SetActive(GameObject vfx, bool active)
     {
         if (vfx != null && vfx.activeSelf != active)
             vfx.SetActive(active);
@@ -58,8 +49,8 @@ public class AgawanBandilaEventVFX : NetworkBehaviour
 
     public override void Despawned(NetworkRunner runner, bool hasState)
     {
-        SetVFXActive(speedSurgeVFX, false);
-        SetVFXActive(slowMotionVFX, false);
-        SetVFXActive(blackHoleVFX, false);
+        SetActive(speedSurgeVFX, false);
+        SetActive(slowMotionVFX, false);
+        SetActive(blackHoleVFX, false);
     }
 }

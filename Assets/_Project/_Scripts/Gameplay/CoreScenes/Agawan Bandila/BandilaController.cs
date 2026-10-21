@@ -20,179 +20,208 @@ public class BandilaController : NetworkBehaviour
     [SerializeField] private LayerMask playerLayer;
 
     [Header("Carry")]
-    [SerializeField] private Vector3 carryOffset =
-        new Vector3(0f, 1.8f, 0f);
-[Header("Audio")]
-[SerializeField] private SFXID pickupSFX = SFXID.BandilaPickup;
-[SerializeField] private SFXID dropSFX = SFXID.BandilaDrop;
-[SerializeField] private SFXID storedSFX = SFXID.BandilaStored;
+    [SerializeField] private Vector3 carryOffset = new Vector3(0f, 1.8f, 0f);
 
-[Header("Visuals & Invisibility")]
-[SerializeField] private Renderer[] modelRenderers;
-[SerializeField] private GameObject valuableVFX;
-[SerializeField] private Target targetIndicator;
-[Header("Idle Animation")]
-[SerializeField] private float rotationSpeed = 60f;
-[SerializeField] private Transform modelRoot;
-private bool lastHiddenState;
-private bool _hasSpawned;
-private bool hasInitializedVisualState;
-[Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-private void RPC_PlayFlagSFX(SFXID sfxID, Vector3 position)
-{
-    if (AudioManager.Instance == null)
-        return;
+    [Header("Audio")]
+    [SerializeField] private SFXID pickupSFX = SFXID.BandilaPickup;
+    [SerializeField] private SFXID dropSFX = SFXID.BandilaDrop;
+    [SerializeField] private SFXID storedSFX = SFXID.BandilaStored;
 
-    AudioManager.Instance.PlaySFXAtPosition(sfxID, position);
-}
-    [Networked]
-    private FlagState State { get; set; }
+    [Header("Visuals & Invisibility")]
+    [SerializeField] private Renderer[] modelRenderers;
+    [SerializeField] private GameObject valuableVFX;
+    [SerializeField] private Target targetIndicator;
 
-    [Networked]
-    private PlayerRef Holder { get; set; }
+    [Header("Idle Animation")]
+    [SerializeField] private float rotationSpeed = 60f;
+    [SerializeField] private Transform modelRoot;
 
-    [Networked]
-    private PlayerRef StoredOwner { get; set; }
+    [Networked] private FlagState State { get; set; }
+    [Networked] private PlayerRef Holder { get; set; }
+    [Networked] private PlayerRef StoredOwner { get; set; }
+    [Networked] private TickTimer PickupLockTimer { get; set; }
+    [Networked] private TickTimer PreviousHolderLockTimer { get; set; }
 
-    [Networked]
-    private TickTimer PickupLockTimer { get; set; }
+    // Server-side holder references.
+    private PlayerMovement _holderMovement;
+    private PlayerBumpAttack _holderBump;
+    private PlayerRef _previousHolder = PlayerRef.None;
 
-    [Networked]
-    private TickTimer PreviousHolderLockTimer { get; set; }
+    private Rigidbody _rb;
+    private NetworkTransform _netTransform;
 
-private PlayerMovement _holderMovement;
-private PlayerBumpAttack _holderBump;
-private Rigidbody _rb;
+    // Render caches.
+    private bool lastHiddenState;
+    private bool hasInitializedVisualState;
+    private PlayerRef _cachedHolder = PlayerRef.None;
+    private InvisibilityAbility _cachedAbility;
+    private bool _cachedHolderIsLocal;
+    private bool _holderCacheValid;
 
-    private readonly Collider[] _pickupHits =
-        new Collider[16];
+    private readonly Collider[] _pickupHits = new Collider[16];
 
     public FlagState CurrentState => State;
-
     public PlayerRef CurrentHolder => Holder;
-
     public PlayerRef CurrentOwner => StoredOwner;
-    
-    public bool IsCarried =>
-        State == FlagState.Carried;
 
-    public bool IsStored =>
-        State == FlagState.Stored;
+    public bool IsCarried => State == FlagState.Carried;
+    public bool IsStored => State == FlagState.Stored;
+    public bool IsFree => State == FlagState.Free;
 
-    public bool IsFree =>
-        State == FlagState.Free;
-private void Update()
-{
-    if (!_hasSpawned)
-        return;
-
-    if (State != FlagState.Free || modelRoot == null)
-        return;
-
-    modelRoot.Rotate(
-        0f,
-        rotationSpeed * Time.deltaTime,
-        0f,
-        Space.Self
-    );
-}
-public override void Spawned()
-{
-    _rb = GetComponent<Rigidbody>();
-    _hasSpawned = true;
-
-    if (!HasStateAuthority)
-        return;
-
-    State = FlagState.Free;
-    Holder = PlayerRef.None;
-    StoredOwner = PlayerRef.None;
-
-    PickupLockTimer = TickTimer.None;
-    PreviousHolderLockTimer = TickTimer.None;
-
-    SetCarriedPhysics(false);
-}
-
-
-public override void Render()
-{
-    if (Object == null || Runner == null)
-        return;
-
-    bool shouldHide = false;
-
-    if (State == FlagState.Carried &&
-        Holder != PlayerRef.None &&
-        Runner.TryGetPlayerObject(
-            Holder,
-            out NetworkObject playerObject))
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    private void RPC_PlayFlagSFX(SFXID sfxID, Vector3 position)
     {
-        InvisibilityAbility ability =
-            playerObject.GetComponent<InvisibilityAbility>();
+        if (AudioManager.Instance == null)
+            return;
 
-        bool holderIsInvisible =
-            ability != null && ability.IsInvisible;
-
-        bool isLocalHolder =
-            playerObject.InputAuthority == Runner.LocalPlayer;
-
-        // Hide the flag only from other players.
-        shouldHide = holderIsInvisible && !isLocalHolder;
+        AudioManager.Instance.PlaySFXAtPosition(sfxID, position);
     }
 
-    if (hasInitializedVisualState &&
-        shouldHide == lastHiddenState)
+    public override void Spawned()
     {
-        return;
+        _rb = GetComponent<Rigidbody>();
+        _netTransform = GetComponent<NetworkTransform>();
+
+        hasInitializedVisualState = false;
+        _holderCacheValid = false;
+
+        if (!HasStateAuthority)
+            return;
+
+        State = FlagState.Free;
+        Holder = PlayerRef.None;
+        StoredOwner = PlayerRef.None;
+
+        PickupLockTimer = TickTimer.None;
+        PreviousHolderLockTimer = TickTimer.None;
+
+        SetCarriedPhysics(false);
     }
 
-    hasInitializedVisualState = true;
-    lastHiddenState = shouldHide;
-
-    SetModelVisible(!shouldHide);
-}
-
-
-private void SetModelVisible(bool visible)
-{
-    if (modelRenderers != null)
+    public override void Despawned(NetworkRunner runner, bool hasState)
     {
-        foreach (Renderer modelRenderer in modelRenderers)
+        UnsubscribeFromHolder();
+        _holderCacheValid = false;
+        _cachedAbility = null;
+    }
+
+    // Moves the flag without interpolation, so clients don't see it slide.
+    public void TeleportTo(Vector3 position, Quaternion rotation)
+    {
+        if (_netTransform != null)
+            _netTransform.Teleport(position, rotation);
+        else
+            transform.SetPositionAndRotation(position, rotation);
+    }
+
+    // ---------- Visuals (all peers) ----------
+
+    public override void Render()
+    {
+        if (Object == null || Runner == null)
+            return;
+
+        // Idle spin (replaces the old Update()).
+        if (State == FlagState.Free && modelRoot != null)
         {
-            if (modelRenderer != null)
-                modelRenderer.enabled = visible;
+            modelRoot.Rotate(
+                0f,
+                rotationSpeed * Time.deltaTime,
+                0f,
+                Space.Self
+            );
+        }
+
+        bool shouldHide = false;
+
+        if (State == FlagState.Carried && Holder != PlayerRef.None)
+        {
+            RefreshHolderCache();
+
+            // Hide the flag only from other players.
+            shouldHide =
+                _cachedAbility != null &&
+                _cachedAbility.IsInvisible &&
+                !_cachedHolderIsLocal;
+        }
+
+        if (hasInitializedVisualState && shouldHide == lastHiddenState)
+            return;
+
+        hasInitializedVisualState = true;
+        lastHiddenState = shouldHide;
+
+        SetModelVisible(!shouldHide);
+    }
+
+    // Only looks the holder up again when the holder changes
+    // (or the cached ability was destroyed).
+    private void RefreshHolderCache()
+    {
+        if (_holderCacheValid &&
+            _cachedHolder == Holder &&
+            _cachedAbility != null)
+        {
+            return;
+        }
+
+        _cachedHolder = Holder;
+        _cachedAbility = null;
+        _cachedHolderIsLocal = false;
+        _holderCacheValid = false;
+
+        if (!Runner.TryGetPlayerObject(Holder, out NetworkObject playerObject) ||
+            playerObject == null)
+        {
+            return;
+        }
+
+        _cachedAbility = playerObject.GetComponent<InvisibilityAbility>();
+        _cachedHolderIsLocal = playerObject.InputAuthority == Runner.LocalPlayer;
+        _holderCacheValid = true;
+    }
+
+    private void SetModelVisible(bool visible)
+    {
+        if (modelRenderers != null)
+        {
+            for (int i = 0; i < modelRenderers.Length; i++)
+            {
+                if (modelRenderers[i] != null)
+                    modelRenderers[i].enabled = visible;
+            }
+        }
+
+        if (valuableVFX != null)
+            valuableVFX.SetActive(visible);
+
+        if (targetIndicator != null)
+            targetIndicator.SetHidden(!visible);
+    }
+
+    private void SetCarriedPhysics(bool carried)
+    {
+        if (_rb == null)
+            return;
+
+        if (carried)
+        {
+            // Clear velocity before making the body kinematic.
+            if (!_rb.isKinematic)
+            {
+                _rb.linearVelocity = Vector3.zero;
+                _rb.angularVelocity = Vector3.zero;
+            }
+
+            _rb.isKinematic = true;
+        }
+        else
+        {
+            _rb.isKinematic = false;
         }
     }
 
-    if (valuableVFX != null)
-        valuableVFX.SetActive(visible);
-
-    if (targetIndicator != null)
-        targetIndicator.SetHidden(!visible);
-}
-
-private void SetCarriedPhysics(bool carried)
-{
-    if (_rb == null)
-        return;
-
-    if (carried)
-    {
-        // Clear velocity before making the body kinematic.
-        if (!_rb.isKinematic)
-        {
-            _rb.linearVelocity = Vector3.zero;
-            _rb.angularVelocity = Vector3.zero;
-        }
-
-        _rb.isKinematic = true;
-    }
-    else
-    {
-        _rb.isKinematic = false;
-    }
-}
+    // ---------- Server logic ----------
 
     public override void FixedUpdateNetwork()
     {
@@ -216,14 +245,13 @@ private void SetCarriedPhysics(bool carried)
 
     private void TryFindPlayerToPickup()
     {
-        int hitCount =
-            Runner.GetPhysicsScene().OverlapSphere(
-                transform.position,
-                pickupRadius,
-                _pickupHits,
-                playerLayer,
-                QueryTriggerInteraction.Ignore
-            );
+        int hitCount = Runner.GetPhysicsScene().OverlapSphere(
+            transform.position,
+            pickupRadius,
+            _pickupHits,
+            playerLayer,
+            QueryTriggerInteraction.Ignore
+        );
 
         for (int i = 0; i < hitCount; i++)
         {
@@ -235,17 +263,13 @@ private void SetCarriedPhysics(bool carried)
             PlayerMovement movement =
                 hit.GetComponentInParent<PlayerMovement>();
 
-            if (movement == null)
+            if (movement == null ||
+                !movement.HasStateAuthority ||
+                !movement.CanMove ||
+                movement.IsStunned)
+            {
                 continue;
-
-            if (!movement.HasStateAuthority)
-                continue;
-
-            if (!movement.CanMove)
-                continue;
-
-            if (movement.IsStunned)
-                continue;
+            }
 
             NetworkObject playerObject =
                 movement.GetComponent<NetworkObject>();
@@ -253,17 +277,16 @@ private void SetCarriedPhysics(bool carried)
             if (playerObject == null)
                 continue;
 
-         PlayerRef player =
-    playerObject.InputAuthority;
+            PlayerRef player = playerObject.InputAuthority;
 
-if (IsPreviousHolderLocked(player))
-    continue;
+            if (IsPreviousHolderLocked(player))
+                continue;
 
-if (IsCarryingAnotherFlag(player))
-    continue;
+            if (IsCarryingAnotherFlag(player))
+                continue;
 
-Pickup(player);
-return;
+            Pickup(player);
+            return;
         }
     }
 
@@ -272,120 +295,90 @@ return;
         if (PreviousHolderLockTimer.ExpiredOrNotRunning(Runner))
             return false;
 
-        return player == GetPreviousHolder();
+        return player == _previousHolder;
     }
 
-    private PlayerRef _previousHolder =
-        PlayerRef.None;
-
-    private PlayerRef GetPreviousHolder()
+    // Caller (TryFindPlayerToPickup) already checked IsCarryingAnotherFlag.
+    private void Pickup(PlayerRef player)
     {
-        return _previousHolder;
+        if (State != FlagState.Free)
+            return;
+
+        if (!Runner.TryGetPlayerObject(player, out NetworkObject playerObject))
+            return;
+
+        StoredOwner = PlayerRef.None;
+        AttachToHolder(player, playerObject);
     }
 
-  private void Pickup(PlayerRef player)
-{
-    if (State != FlagState.Free)
-        return;
-
-    if (IsCarryingAnotherFlag(player))
-        return;
-
-    if (!Runner.TryGetPlayerObject(
-            player,
-            out NetworkObject playerObject))
+    private void AttachToHolder(PlayerRef player, NetworkObject playerObject)
     {
-        return;
+        State = FlagState.Carried;
+        Holder = player;
+
+        SetCarriedPhysics(true);
+
+        _holderMovement = playerObject.GetComponent<PlayerMovement>();
+        _holderBump = playerObject.GetComponent<PlayerBumpAttack>();
+
+        SubscribeToHolder(_holderMovement);
+        SetHolderBumpBlocked(true);
+
+        UpdateCarriedPosition();
+
+        RPC_PlayFlagSFX(pickupSFX, transform.position);
     }
 
-    State = FlagState.Carried;
-    Holder = player;
-
-    StoredOwner = PlayerRef.None;
-    SetCarriedPhysics(true);
-    
-_holderMovement =
-    playerObject.GetComponent<PlayerMovement>();
-
-_holderBump =
-    playerObject.GetComponent<PlayerBumpAttack>();
-
-SubscribeToHolder(_holderMovement);
-
-SetHolderBumpBlocked(true);
-
-UpdateCarriedPosition();
-
-RPC_PlayFlagSFX(pickupSFX, transform.position);
-
-}
     private void UpdateCarriedPosition()
     {
-        if (Holder == PlayerRef.None)
-        {
-            Drop();
-            return;
-        }
-
-        if (!Runner.TryGetPlayerObject(
-                Holder,
-                out NetworkObject playerObject))
+        if (Holder == PlayerRef.None ||
+            !Runner.TryGetPlayerObject(Holder, out NetworkObject playerObject) ||
+            playerObject == null)
         {
             Drop();
             return;
         }
 
         transform.SetPositionAndRotation(
-            playerObject.transform.position +
-            carryOffset,
+            playerObject.transform.position + carryOffset,
             transform.rotation
         );
     }
-public void Drop()
-{
-    if (!HasStateAuthority)
-        return;
 
-    if (State != FlagState.Carried)
-        return;
+    public void Drop()
+    {
+        if (!HasStateAuthority || State != FlagState.Carried)
+            return;
 
-    PlayerRef previousHolder = Holder;
+        PlayerRef previousHolder = Holder;
 
-    // Restore the holder's bump attack.
-    SetHolderBumpBlocked(false);
+        SetHolderBumpBlocked(false);
+        UnsubscribeFromHolder();
 
-    // Stop listening for hits from the previous holder.
-    UnsubscribeFromHolder();
+        Holder = PlayerRef.None;
+        State = FlagState.Free;
 
-    // Release the flag.
-    Holder = PlayerRef.None;
-    State = FlagState.Free;
-SetCarriedPhysics(false);
-if (_rb != null)
-{
-    _rb.linearVelocity = Vector3.zero;
-    _rb.angularVelocity = Vector3.zero;
-}
+        SetCarriedPhysics(false);
 
-    _holderMovement = null;
-    _holderBump = null;
+        if (_rb != null)
+        {
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
 
-    _previousHolder = previousHolder;
+        _holderMovement = null;
+        _holderBump = null;
+        _previousHolder = previousHolder;
 
-    PickupLockTimer = TickTimer.CreateFromSeconds(
-        Runner,
-        pickupLockDuration
-    );
+        PickupLockTimer =
+            TickTimer.CreateFromSeconds(Runner, pickupLockDuration);
 
-    PreviousHolderLockTimer = TickTimer.CreateFromSeconds(
-        Runner,
-        previousHolderLockDuration
-    );
+        PreviousHolderLockTimer =
+            TickTimer.CreateFromSeconds(Runner, previousHolderLockDuration);
 
-    RPC_PlayFlagSFX(dropSFX, transform.position);
+        RPC_PlayFlagSFX(dropSFX, transform.position);
+    }
 
-   
-}
     private void HandleHolderHit()
     {
         if (!HasStateAuthority)
@@ -394,145 +387,115 @@ if (_rb != null)
         Drop();
     }
 
-    private void SubscribeToHolder(
-        PlayerMovement movement)
+    private void SubscribeToHolder(PlayerMovement movement)
     {
-        if (movement == null)
-            return;
-
-        movement.OnHitReceived +=
-            HandleHolderHit;
+        if (movement != null)
+            movement.OnHitReceived += HandleHolderHit;
     }
 
     private void UnsubscribeFromHolder()
     {
-        if (_holderMovement == null)
+        if (_holderMovement != null)
+            _holderMovement.OnHitReceived -= HandleHolderHit;
+    }
+
+    // Returns true only if the flag was actually stored.
+    public bool StoreAtBase(PlayerRef player)
+    {
+        if (!HasStateAuthority ||
+            State != FlagState.Carried ||
+            Holder != player)
+        {
+            return false;
+        }
+
+        SetHolderBumpBlocked(false);
+        UnsubscribeFromHolder();
+
+        Holder = PlayerRef.None;
+        _holderMovement = null;
+        _holderBump = null;
+
+        State = FlagState.Stored;
+        StoredOwner = player;
+
+        SetCarriedPhysics(true);
+
+        PickupLockTimer = TickTimer.None;
+        PreviousHolderLockTimer = TickTimer.None;
+
+        RPC_PlayFlagSFX(storedSFX, transform.position);
+
+        return true;
+    }
+
+    private bool IsCarryingAnotherFlag(PlayerRef player)
+    {
+        return flagManager != null &&
+               flagManager.IsPlayerCarryingFlag(player);
+    }
+
+    // Returns true only if the thief really took the flag.
+    // The base must not remove the flag from its list when this is false.
+    public bool StealFromBase(PlayerRef player)
+    {
+        if (!HasStateAuthority ||
+            State != FlagState.Stored ||
+            StoredOwner == player)
+        {
+            return false;
+        }
+
+        if (IsCarryingAnotherFlag(player))
+            return false;
+
+        if (!Runner.TryGetPlayerObject(player, out NetworkObject playerObject))
+            return false;
+
+        StoredOwner = PlayerRef.None;
+        AttachToHolder(player, playerObject);
+
+        return true;
+    }
+
+    private void SetHolderBumpBlocked(bool blocked)
+    {
+        if (_holderBump != null)
+            _holderBump.SetObjectiveBumpBlocked(blocked);
+    }
+
+    public void ResetFlag(Vector3 position, Quaternion rotation)
+    {
+        if (!HasStateAuthority)
             return;
 
-        _holderMovement.OnHitReceived -=
-            HandleHolderHit;
-    }
-public void StoreAtBase(PlayerRef player)
-{
-    if (!HasStateAuthority)
-        return;
+        SetHolderBumpBlocked(false);
+        UnsubscribeFromHolder();
 
-    if (State != FlagState.Carried)
-        return;
+        State = FlagState.Free;
+        Holder = PlayerRef.None;
+        StoredOwner = PlayerRef.None;
 
-    if (Holder != player)
-        return;
+        SetCarriedPhysics(false);
 
-    // Restore the player's bump ability.
-    SetHolderBumpBlocked(false);
+        _holderMovement = null;
+        _holderBump = null;
+        _previousHolder = PlayerRef.None;
 
-    // Stop listening for hits from the holder.
-    UnsubscribeFromHolder();
+        PickupLockTimer =
+            TickTimer.CreateFromSeconds(Runner, pickupLockDuration);
 
-    // Clear the holder.
-    Holder = PlayerRef.None;
-    _holderMovement = null;
-    _holderBump = null;
+        PreviousHolderLockTimer = TickTimer.None;
 
-    // Store the flag for its owner.
-    State = FlagState.Stored;
-    StoredOwner = player;
-SetCarriedPhysics(true);
-    PickupLockTimer = TickTimer.None;
-    PreviousHolderLockTimer = TickTimer.None;
+        TeleportTo(position, rotation);
 
-    RPC_PlayFlagSFX(storedSFX, transform.position);
-
-
-}
-
-private bool IsCarryingAnotherFlag(PlayerRef player)
-{
-    return flagManager != null &&
-           flagManager.IsPlayerCarryingFlag(player);
-}
- public void StealFromBase(PlayerRef player)
-{
-    if (!HasStateAuthority)
-        return;
-
-    if (State != FlagState.Stored)
-        return;
-
-    if (StoredOwner == player)
-        return;
-
-    if (IsCarryingAnotherFlag(player))
-        return;
-
-    if (!Runner.TryGetPlayerObject(
-            player,
-            out NetworkObject playerObject))
-    {
-        return;
+        if (_rb != null)
+        {
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
     }
 
-    StoredOwner = PlayerRef.None;
-    State = FlagState.Carried;
-    Holder = player;
-
-SetCarriedPhysics(true);
-   _holderMovement =
-    playerObject.GetComponent<PlayerMovement>();
-
-_holderBump =
-    playerObject.GetComponent<PlayerBumpAttack>();
-
-SubscribeToHolder(_holderMovement);
-
-SetHolderBumpBlocked(true);
-
-UpdateCarriedPosition();
-
-RPC_PlayFlagSFX(pickupSFX, transform.position);
-   
-}
-
-private void SetHolderBumpBlocked(bool blocked)
-{
-    if (_holderBump != null)
-    {
-        _holderBump.SetObjectiveBumpBlocked(blocked);
-    }
-}
-  public void ResetFlag(Vector3 position, Quaternion rotation)
-{
-    if (!HasStateAuthority)
-        return;
-
-    // Restore bump ability before clearing the holder reference.
-    SetHolderBumpBlocked(false);
-
-    UnsubscribeFromHolder();
-
-    State = FlagState.Free;
-    Holder = PlayerRef.None;
-    StoredOwner = PlayerRef.None;
-SetCarriedPhysics(false);
-    _holderMovement = null;
-    _holderBump = null;
-
-    _previousHolder = PlayerRef.None;
-
-    PickupLockTimer = TickTimer.CreateFromSeconds(
-        Runner,
-        pickupLockDuration
-    );
-
-    PreviousHolderLockTimer = TickTimer.None;
-
-    transform.SetPositionAndRotation(position, rotation);
-    if (_rb != null)
-{
-    _rb.linearVelocity = Vector3.zero;
-    _rb.angularVelocity = Vector3.zero;
-}
-}
     private void OnDestroy()
     {
         UnsubscribeFromHolder();
@@ -541,10 +504,6 @@ SetCarriedPhysics(false);
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-
-        Gizmos.DrawWireSphere(
-            transform.position,
-            pickupRadius
-        );
+        Gizmos.DrawWireSphere(transform.position, pickupRadius);
     }
 }

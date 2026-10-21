@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
@@ -17,16 +16,40 @@ public class AgawanRelicBoostManager : NetworkBehaviour
     [SerializeField, Min(0.1f)]
     private float respawnDelay = 5f;
 
+    [Header("Optimization")]
+    [Tooltip("How often (in ticks) the player cache is re-scanned for joins/leaves. " +
+             "Invalid entries force an immediate re-scan regardless.")]
+    [SerializeField, Min(1)]
+    private int movementCacheRefreshTicks = 30;
+
+    private readonly Dictionary<PlayerRef, PlayerMovement> _movementCache = new();
+    private readonly List<PlayerRef> _playersToRemove = new();
     private readonly HashSet<NetworkObject> _activePickups = new();
     private readonly List<TickTimer> _respawnTimers = new();
-private bool _roundCollectiblesActive;
+    private readonly List<Transform> _spawnScratch = new();
+
+    private bool _roundCollectiblesActive;
+    private int _nextCacheRefreshTick;
+
+    // Boost flags are only pushed to players when the holder changes or the
+    // player cache changed; PlayerMovement recalculates on stack changes itself.
+    private PlayerRef _lastAppliedHolder = PlayerRef.None;
+    private bool _boostsDirty = true;
+
     public override void FixedUpdateNetwork()
     {
-           if (!HasStateAuthority || Runner == null)
-        return;
+        if (!_roundCollectiblesActive || !HasStateAuthority || Runner == null)
+            return;
 
-    if (!_roundCollectiblesActive)
-        return;
+        int tick = Runner.Tick.Raw;
+
+        // Re-scanning players every tick was wasted work; joins/leaves are rare.
+        if (tick >= _nextCacheRefreshTick)
+        {
+            RefreshMovementCache();
+            _nextCacheRefreshTick = tick + movementCacheRefreshTicks;
+            _boostsDirty = true;
+        }
 
         for (int i = _respawnTimers.Count - 1; i >= 0; i--)
         {
@@ -39,170 +62,191 @@ private bool _roundCollectiblesActive;
 
         UpdatePlayerBoosts();
     }
-public void StartRoundCollectibles()
-{
-    if (!HasStateAuthority || Runner == null)
-        return;
 
-    ClearCollectibles();
-
-    _roundCollectiblesActive = true;
-    SpawnInitialPickups();
-
-    Debug.Log("[Relic Boost] Started collectibles for the round.");
-}
-public void ClearCollectibles()
-{
-    if (!HasStateAuthority || Runner == null)
-        return;
-
-    _roundCollectiblesActive = false;
-    // Reset collectible stacks for all active players.
-    foreach (PlayerRef player in Runner.ActivePlayers)
+    public void StartRoundCollectibles()
     {
-        if (!Runner.TryGetPlayerObject(
-                player,
-                out NetworkObject playerObject))
-        {
-            continue;
-        }
+        if (!HasStateAuthority || Runner == null)
+            return;
 
-        PlayerMovement movement =
-            playerObject.GetComponent<PlayerMovement>();
+        ClearCollectibles();
 
-        if (movement != null && movement.HasStateAuthority)
+        _roundCollectiblesActive = true;
+        _nextCacheRefreshTick = 0; // force a fresh scan on the first tick
+        SpawnInitialPickups();
+    }
+
+    public void ClearCollectibles()
+    {
+        if (!HasStateAuthority || Runner == null)
+            return;
+
+        _roundCollectiblesActive = false;
+        _nextCacheRefreshTick = 0;
+        _lastAppliedHolder = PlayerRef.None;
+        _boostsDirty = true;
+
+        RefreshMovementCache();
+
+        foreach (PlayerMovement movement in _movementCache.Values)
         {
+            if (IsInvalid(movement) || !movement.HasStateAuthority)
+                continue;
+
             movement.ResetCollectibleSpeedBoost();
         }
-    }
 
-    // Despawn all active pickups.
-    foreach (NetworkObject pickup in _activePickups)
-    {
-        if (pickup != null && pickup.IsValid)
+        foreach (NetworkObject pickup in _activePickups)
         {
-            Runner.Despawn(pickup);
+            if (pickup != null && pickup.IsValid)
+                Runner.Despawn(pickup);
         }
+
+        _activePickups.Clear();
+        _respawnTimers.Clear();
     }
-
-    _activePickups.Clear();
-
-    // Cancel pending pickup respawns.
-    _respawnTimers.Clear();
-
-    Debug.Log("[Relic Boost] Cleared pickups, stacks, and respawn timers.");
-}
 
     public bool TryCollect(PlayerMovement movement)
     {
-        if (!HasStateAuthority ||
-            movement == null ||
-            !movement.HasStateAuthority)
+        return HasStateAuthority &&
+               movement != null &&
+               movement.HasStateAuthority &&
+               movement.TryAddCollectibleSpeedBoostStack();
+    }
+
+    public void HandlePickupCollected(SpeedBoostPickup pickup)
+    {
+        if (!_roundCollectiblesActive || !HasStateAuthority || Runner == null || pickup == null)
+            return;
+
+        NetworkObject pickupObject = pickup.Object;
+
+        if (pickupObject != null && pickupObject.IsValid)
         {
-            return false;
+            _activePickups.Remove(pickupObject);
+            Runner.Despawn(pickupObject);
         }
 
-        return movement.TryAddCollectibleSpeedBoostStack();
+        _respawnTimers.Add(TickTimer.CreateFromSeconds(Runner, respawnDelay));
     }
 
-  public void HandlePickupCollected(SpeedBoostPickup pickup)
-{
-    if (!HasStateAuthority ||
-        Runner == null ||
-        !_roundCollectiblesActive ||
-        pickup == null)
+    private static bool IsInvalid(PlayerMovement movement)
     {
-        return;
+        return movement == null ||
+               movement.Object == null ||
+               !movement.Object.IsValid;
     }
 
-    NetworkObject pickupObject = pickup.Object;
-
-    if (pickupObject != null)
+    private void RefreshMovementCache()
     {
-        _activePickups.Remove(pickupObject);
-        Runner.Despawn(pickupObject);
-    }
+        _playersToRemove.Clear();
 
-    _respawnTimers.Add(
-        TickTimer.CreateFromSeconds(Runner, respawnDelay)
-    );
-}
-  
-private void SpawnInitialPickups()
-{
-    if (spawnPoints == null || spawnPoints.Length == 0)
-    {
-        Debug.LogWarning(
-            "[Relic Boost] No spawn points assigned."
-        );
-        return;
-    }
-
-    List<Transform> availableSpawnPoints =
-        new List<Transform>();
-
-    foreach (Transform point in spawnPoints)
-    {
-        if (point != null)
-            availableSpawnPoints.Add(point);
-    }
-
-    int count = Mathf.Min(
-        initialPickupCount,
-        availableSpawnPoints.Count
-    );
-
-    for (int i = 0; i < count; i++)
-    {
-        int randomIndex = Random.Range(
-            0,
-            availableSpawnPoints.Count
-        );
-
-        Transform spawnPoint =
-            availableSpawnPoints[randomIndex];
-
-        availableSpawnPoints.RemoveAt(randomIndex);
-
-        SpawnPickupAt(spawnPoint);
-    }
-}
-
-private void SpawnPickupAt(Transform spawnPoint)
-{
-    if (spawnPoint == null || Runner == null)
-        return;
-
-    NetworkObject spawnedObject = Runner.Spawn(
-        pickupPrefab,
-        spawnPoint.position,
-        spawnPoint.rotation,
-        PlayerRef.None,
-        (runner, networkObject) =>
+        foreach (var entry in _movementCache)
         {
-            SpeedBoostPickup pickup =
-                networkObject.GetComponent<SpeedBoostPickup>();
-
-            if (pickup != null)
-                pickup.Initialize(this);
+            if (IsInvalid(entry.Value))
+                _playersToRemove.Add(entry.Key);
         }
-    );
 
-    if (spawnedObject != null)
-        _activePickups.Add(spawnedObject);
-}
+        for (int i = 0; i < _playersToRemove.Count; i++)
+            _movementCache.Remove(_playersToRemove[i]);
 
+        foreach (PlayerRef player in Runner.ActivePlayers)
+        {
+            if (_movementCache.ContainsKey(player))
+                continue;
+
+            if (!Runner.TryGetPlayerObject(player, out NetworkObject obj) ||
+                obj == null ||
+                !obj.IsValid)
+            {
+                continue;
+            }
+
+            if (obj.TryGetComponent(out PlayerMovement movement))
+                _movementCache[player] = movement;
+        }
+    }
+
+    private void UpdatePlayerBoosts()
+    {
+        // CurrentHolder is already PlayerRef.None when nobody holds the relic.
+        PlayerRef holder = relicController != null
+            ? relicController.CurrentHolder
+            : PlayerRef.None;
+
+        // Nothing changed since the last push: skip the loop entirely.
+        if (!_boostsDirty && holder == _lastAppliedHolder)
+            return;
+
+        _lastAppliedHolder = holder;
+        _boostsDirty = false;
+
+        bool foundInvalid = false;
+
+        foreach (var entry in _movementCache)
+        {
+            PlayerMovement movement = entry.Value;
+
+            if (IsInvalid(movement))
+            {
+                foundInvalid = true;
+                continue;
+            }
+
+            movement.UpdateCollectibleSpeedBoost(
+                holder != PlayerRef.None && entry.Key == holder
+            );
+        }
+
+        // A stale entry means someone left/respawned: re-scan next tick.
+        if (foundInvalid)
+        {
+            _nextCacheRefreshTick = 0;
+            _boostsDirty = true;
+        }
+    }
+
+    private void SpawnInitialPickups()
+    {
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning("[Relic Boost] No spawn points assigned.");
+            return;
+        }
+
+        _spawnScratch.Clear();
+
+        foreach (Transform point in spawnPoints)
+        {
+            if (point != null)
+                _spawnScratch.Add(point);
+        }
+
+        int count = Mathf.Min(initialPickupCount, _spawnScratch.Count);
+
+        for (int i = 0; i < count; i++)
+        {
+            int randomIndex = Random.Range(0, _spawnScratch.Count);
+            SpawnPickupAt(_spawnScratch[randomIndex]);
+            _spawnScratch.RemoveAt(randomIndex);
+        }
+
+        _spawnScratch.Clear();
+    }
 
     private void SpawnPickup()
     {
         if (spawnPoints == null || spawnPoints.Length == 0)
             return;
 
-        Transform spawnPoint = spawnPoints[
-            Random.Range(0, spawnPoints.Length)
-        ];
+        Transform point = spawnPoints[Random.Range(0, spawnPoints.Length)];
 
-        if (spawnPoint == null)
+        if (point != null)
+            SpawnPickupAt(point);
+    }
+
+    private void SpawnPickupAt(Transform spawnPoint)
+    {
+        if (spawnPoint == null || Runner == null)
             return;
 
         NetworkObject spawnedObject = Runner.Spawn(
@@ -212,10 +256,7 @@ private void SpawnPickupAt(Transform spawnPoint)
             PlayerRef.None,
             (runner, networkObject) =>
             {
-                SpeedBoostPickup pickup =
-                    networkObject.GetComponent<SpeedBoostPickup>();
-
-                if (pickup != null)
+                if (networkObject.TryGetComponent(out SpeedBoostPickup pickup))
                     pickup.Initialize(this);
             }
         );
@@ -224,42 +265,13 @@ private void SpawnPickupAt(Transform spawnPoint)
             _activePickups.Add(spawnedObject);
     }
 
-    private void UpdatePlayerBoosts()
+    public override void Despawned(NetworkRunner runner, bool hasState)
     {
-        foreach (PlayerRef player in Runner.ActivePlayers)
-        {
-            if (!Runner.TryGetPlayerObject(
-                    player,
-                    out NetworkObject playerObject))
-            {
-                continue;
-            }
-
-            PlayerMovement movement =
-                playerObject.GetComponent<PlayerMovement>();
-
-            if (movement == null ||
-                !movement.HasStateAuthority)
-            {
-                continue;
-            }
-
-            bool isHolder =
-                relicController != null &&
-                relicController.IsHeld &&
-                relicController.CurrentHolder == player;
-
-            movement.UpdateCollectibleSpeedBoost(isHolder);
-        }
+        _roundCollectiblesActive = false;
+        _activePickups.Clear();
+        _respawnTimers.Clear();
+        _movementCache.Clear();
+        _playersToRemove.Clear();
+        _spawnScratch.Clear();
     }
-
-
-public override void Despawned(
-    NetworkRunner runner,
-    bool hasState)
-{
-    // Never spawn new pickups during teardown.
-    _activePickups.Clear();
-    _respawnTimers.Clear();
-}
 }

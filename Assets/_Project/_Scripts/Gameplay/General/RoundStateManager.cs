@@ -1,7 +1,6 @@
 using System;
 using Fusion;
 using UnityEngine;
-using System.Linq;
 
 public class RoundStateManager : NetworkBehaviour
 {
@@ -60,13 +59,9 @@ public bool IsSpawned => isSpawned;
         // Visual confirmation log
         Debug.Log("<color=red>[RoundStateManager] Script spawned and running successfully!</color>");
     }
-
-  public override void FixedUpdateNetwork()
+public override void FixedUpdateNetwork()
 {
-    if (!HasStateAuthority)
-        return;
-
-    if (!roundStarted)
+    if (!HasStateAuthority || Runner == null || !roundStarted)
         return;
 
     switch (NetworkState)
@@ -80,7 +75,6 @@ public bool IsSpawned => isSpawned;
             break;
 
         case RoundState.Playing:
-            // Gameplay is running.
             break;
 
         case RoundState.RoundEnd:
@@ -88,47 +82,42 @@ public bool IsSpawned => isSpawned;
             break;
     }
 }
+private void UpdateWaiting()
+{
+    if (ExpectedPlayerCount <= 0)
+        return;
 
-    private void UpdateWaiting()
-    {
-        if (ExpectedPlayerCount <= 0)
-            return;
+    if (!AllExpectedPlayersSpawned())
+        return;
 
-        int currentPlayerCount = Runner.ActivePlayers.Count();
-
-        if (currentPlayerCount < ExpectedPlayerCount)
-            return;
-
-        if (!AllExpectedPlayersSpawned())
-            return;
-
-        EnterCountdown();
-    }
-
+    EnterCountdown();
+}
   public void TriggerRoundEndSequence()
 {
     EnterRoundEnd();
 }
 
-    private bool AllExpectedPlayersSpawned()
+  
+private bool AllExpectedPlayersSpawned()
+{
+    int spawnedCount = 0;
+
+    foreach (PlayerRef player in Runner.ActivePlayers)
     {
-        int spawnedPlayerCount = 0;
-
-        foreach (PlayerRef player in Runner.ActivePlayers)
+        if (!Runner.TryGetPlayerObject(
+                player, out NetworkObject playerObject))
         {
-            if (!Runner.TryGetPlayerObject(player, out NetworkObject playerObject))
-            {
-                return false;
-            }
-
-            if (playerObject == null)
-                return false;
-
-            spawnedPlayerCount++;
+            return false;
         }
 
-        return spawnedPlayerCount >= ExpectedPlayerCount;
+        if (playerObject == null || !playerObject.IsValid)
+            return false;
+
+        spawnedCount++;
     }
+
+    return spawnedCount >= ExpectedPlayerCount;
+}
 
     private void UpdateCountdown()
     {
@@ -172,12 +161,15 @@ public void StartRound()
     Debug.Log(
         "[ROUND] Round system started."
     );
-}
-    private void CaptureExpectedPlayers()
-    {
-        ExpectedPlayerCount = Runner.ActivePlayers.Count();
-    }
+}private void CaptureExpectedPlayers()
+{
+    int count = 0;
 
+    foreach (PlayerRef player in Runner.ActivePlayers)
+        count++;
+
+    ExpectedPlayerCount = count;
+}
 public void EndRound()
 {
     EnterRoundEnd();

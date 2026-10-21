@@ -85,14 +85,14 @@ QualitySettings:
     useLegacyDetailDistribution: 1
     adaptiveVsync: 0
     vSyncCount: 0
-    realtimeGICPUUsage: 100
+    realtimeGICPUUsage: 50
     adaptiveVsyncExtraA: 0
     adaptiveVsyncExtraB: 0
     lodBias: 1
     meshLodThreshold: 1
     maximumLODLevel: 0
-    enableLODCrossFade: 1
-    streamingMipmapsActive: 0
+    enableLODCrossFade: 0
+    streamingMipmapsActive: 1
     streamingMipmapsAddAllCameras: 1
     streamingMipmapsMemoryBudget: 512
     streamingMipmapsRenderersPerFrame: 512
@@ -117,7 +117,7 @@ QualitySettings:
     - Standalone
   m_TextureMipmapLimitGroupNames: []
   m_PerPlatformDefaultQuality:
-    Android: 0
+    Android: 1
     GameCoreScarlett: 1
     GameCoreXboxOne: 1
     Lumin: 0
@@ -127,8 +127,8 @@ QualitySettings:
     PS5: 1
     Server: 0
     Stadia: 0
-    Standalone: 0
-    WebGL: 0
+    Standalone: 1
+    WebGL: 1
     Windows Store Apps: 0
     XboxOne: 0
     iPhone: 0

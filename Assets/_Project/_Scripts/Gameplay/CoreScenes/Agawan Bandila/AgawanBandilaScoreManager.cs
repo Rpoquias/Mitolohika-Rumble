@@ -8,154 +8,97 @@ public class AgawanBandilaScoreManager : NetworkBehaviour
     [Header("References")]
     [SerializeField] private AgawanBandilaManager flagManager;
 
+    [Networked, Capacity(4), OnChangedRender(nameof(OnScoresNetworkChanged))]
+    public NetworkDictionary<PlayerRef, int> Scores => default;
 
-   [Networked, Capacity(4), OnChangedRender(nameof(OnScoresNetworkChanged))]
-public NetworkDictionary<PlayerRef, int> Scores => default;
+    // Server only: the tick when each player's CURRENT score was reached.
+    // Used as the tie-break (earlier = better). Clients never fill this.
+    private readonly Dictionary<PlayerRef, int> _scoreTicks =
+        new Dictionary<PlayerRef, int>();
 
-private readonly Dictionary<PlayerRef, Dictionary<int, int>>
-    firstReachedTicks =
-        new Dictionary<PlayerRef, Dictionary<int, int>>();    private bool scoringActive;
+    private bool scoringActive;
 
-public event Action OnScoresChanged;
+    public event Action OnScoresChanged;
 
-private void OnScoresNetworkChanged()
-{
-    OnScoresChanged?.Invoke();
-}
-public override void Spawned()
-{
-    if (!HasStateAuthority)
-        return;
-
-    Scores.Clear();
-    firstReachedTicks.Clear();
-    scoringActive = false;
-}
-   public void StartScoring()
-{
-    if (!HasStateAuthority)
-        return;
-
-    scoringActive = true;
-    firstReachedTicks.Clear();
-
-    foreach (PlayerRef player in Runner.ActivePlayers)
+    private void OnScoresNetworkChanged()
     {
-        InitializePlayer(player);
+        OnScoresChanged?.Invoke();
     }
 
- 
-}
+    public override void Spawned()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        Scores.Clear();
+        _scoreTicks.Clear();
+        scoringActive = false;
+    }
+
+    public void StartScoring()
+    {
+        if (!HasStateAuthority)
+            return;
+
+        scoringActive = true;
+        _scoreTicks.Clear();
+
+        foreach (PlayerRef player in Runner.ActivePlayers)
+            InitializePlayer(player);
+    }
+
     public void StopScoring()
     {
         if (!HasStateAuthority)
             return;
 
         scoringActive = false;
-
-
     }
 
-    public override void FixedUpdateNetwork()
+    // No FixedUpdateNetwork polling: bases call this when their
+    // stored flags change, so the score updates in the same tick.
+    public void NotifyStoredFlagsChanged(PlayerRef owner)
     {
-        if (!HasStateAuthority)
+        if (!HasStateAuthority || !scoringActive || flagManager == null)
             return;
 
-        if (!scoringActive)
+        if (owner == PlayerRef.None)
             return;
 
-        if (flagManager == null)
-            return;
+        UpdateScore(owner, flagManager.GetStoredFlagCount(owner));
+    }
 
-        NetworkRunner runner = Runner;
+    private void UpdateScore(PlayerRef player, int score)
+    {
+        int tick = Runner.Tick.Raw;
 
-        foreach (PlayerRef player in runner.ActivePlayers)
+        if (Scores.TryGet(player, out int current))
         {
-            int storedFlags =
-                flagManager.GetStoredFlagCount(player);
+            if (current == score)
+                return;
 
-            UpdateScore(player, storedFlags);
-        }
-    }
-
-   private void UpdateScore(
-    PlayerRef player,
-    int score)
-{
-    if (!firstReachedTicks.TryGetValue(
-            player,
-            out Dictionary<int, int> history))
-    {
-        history =
-            new Dictionary<int, int>();
-
-        firstReachedTicks.Add(
-            player,
-            history
-        );
-    }
-
-    if (!history.ContainsKey(score))
-    {
-        history.Add(
-            score,
-            Runner.Tick.Raw
-        );
-    }
-
-    if (Scores.ContainsKey(player))
-    {
-        if (Scores[player] != score)
-        {
-            Scores.Set(
-                player,
-                score
-            );
-
-        
+            Scores.Set(player, score);
+            _scoreTicks[player] = tick;
+            return;
         }
 
-        return;
+        Scores.Add(player, score);
+        _scoreTicks[player] = tick;
+
+    
     }
 
-    Scores.Add(
-        player,
-        score
-    );
-
-    Debug.Log(
-        $"[BANDILA SCORE] " +
-        $"{player} score initialized: {score}"
-    );
-}
-
-public int GetFirstReachedTick(
-    PlayerRef player,
-    int score)
-{
-    if (!firstReachedTicks.TryGetValue(
-            player,
-            out Dictionary<int, int> history))
+    // Tick when the player's current score was last attained.
+    public int GetScoreTick(PlayerRef player)
     {
-        return int.MaxValue;
+        return _scoreTicks.TryGetValue(player, out int tick)
+            ? tick
+            : int.MaxValue;
     }
-
-    if (history.TryGetValue(
-            score,
-            out int tick))
-    {
-        return tick;
-    }
-
-    return int.MaxValue;
-}
 
     public int GetScore(PlayerRef player)
     {
-        if (Scores.TryGet(player, out int score))
-            return score;
-
-        return 0;
+        return Scores.TryGet(player, out int score) ? score : 0;
     }
 
     public void InitializePlayer(PlayerRef player)
@@ -171,17 +114,15 @@ public int GetFirstReachedTick(
         UpdateScore(player, score);
     }
 
-public void ResetScores()
-{
-    if (!HasStateAuthority)
-        return;
+    public void ResetScores()
+    {
+        if (!HasStateAuthority)
+            return;
 
-    Scores.Clear();
-    firstReachedTicks.Clear();
-    scoringActive = false;
+        Scores.Clear();
+        _scoreTicks.Clear();
+        scoringActive = false;
 
-    Debug.Log(
-        "[BANDILA SCORE] Scores reset."
-    );
-}
+      
+    }
 }

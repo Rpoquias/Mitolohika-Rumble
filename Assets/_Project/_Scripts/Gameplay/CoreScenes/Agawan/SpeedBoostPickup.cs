@@ -1,4 +1,3 @@
-
 using Fusion;
 using UnityEngine;
 
@@ -14,9 +13,28 @@ public class SpeedBoostPickup : NetworkBehaviour
     [SerializeField]
     private float rotationSpeed = 90f;
 
-    private readonly Collider[] _hits = new Collider[16];
+    [Header("Optimization")]
+    [Tooltip("Run the overlap check every N ticks. 2 = half the physics queries, " +
+             "still ~30 checks/sec at 60Hz. Set to 1 for the old every-tick behavior.")]
+    [SerializeField, Min(1)]
+    private int checkIntervalTicks = 2;
 
+    private readonly Collider[] _hits = new Collider[8];
+
+    private Transform _transform;
     private AgawanRelicBoostManager _manager;
+    private int _tickOffset;
+
+    private void Awake()
+    {
+        _transform = transform;
+    }
+
+    public override void Spawned()
+    {
+        // Stagger pickups so they don't all query on the same tick.
+        _tickOffset = (int)(Object.Id.Raw % (uint)checkIntervalTicks);
+    }
 
     public void Initialize(AgawanRelicBoostManager manager)
     {
@@ -25,11 +43,17 @@ public class SpeedBoostPickup : NetworkBehaviour
 
     public override void FixedUpdateNetwork()
     {
-        if (!HasStateAuthority || Runner == null)
+        if (_manager == null || !HasStateAuthority)
             return;
 
+        if (checkIntervalTicks > 1 &&
+            (Runner.Tick.Raw + _tickOffset) % checkIntervalTicks != 0)
+        {
+            return;
+        }
+
         int hitCount = Runner.GetPhysicsScene().OverlapSphere(
-            transform.position,
+            _transform.position,
             pickupRadius,
             _hits,
             playerLayer,
@@ -43,10 +67,11 @@ public class SpeedBoostPickup : NetworkBehaviour
             if (hit == null)
                 continue;
 
-            PlayerMovement movement =
-                hit.GetComponentInParent<PlayerMovement>();
+            PlayerMovement movement = hit.GetComponentInParent<PlayerMovement>();
 
             if (movement == null ||
+                movement.Object == null ||
+                !movement.Object.IsValid ||
                 !movement.HasStateAuthority ||
                 !movement.CanMove ||
                 movement.IsStunned)
@@ -54,17 +79,10 @@ public class SpeedBoostPickup : NetworkBehaviour
                 continue;
             }
 
-            NetworkObject playerObject =
-                movement.GetComponent<NetworkObject>();
-
-            if (playerObject == null)
+            // A repeat attempt for a second collider of the same player is
+            // harmless and cheap, so no per-tick HashSet is needed anymore.
+            if (!_manager.TryCollect(movement))
                 continue;
-
-            if (_manager == null ||
-                !_manager.TryCollect(movement))
-            {
-                continue;
-            }
 
             _manager.HandlePickupCollected(this);
             return;
@@ -73,12 +91,7 @@ public class SpeedBoostPickup : NetworkBehaviour
 
     public override void Render()
     {
-        transform.Rotate(
-            0f,
-            rotationSpeed * Time.deltaTime,
-            0f,
-            Space.Self
-        );
+        _transform.Rotate(0f, rotationSpeed * Time.deltaTime, 0f, Space.Self);
     }
 
     private void OnDrawGizmosSelected()

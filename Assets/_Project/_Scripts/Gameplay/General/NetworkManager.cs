@@ -65,17 +65,27 @@ public async void Host(string sessionName)
 
     try
     {
-        StartGameResult result = await runner.StartGame(new StartGameArgs
-        {
-            GameMode = GameMode.Host,
-            SessionName = sessionName,
-            PlayerCount = 4,
-            IsVisible = true,
-            IsOpen = true,
-            Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
-            SceneManager = GetOrCreateSceneManager()
-        });
+       float startTime = Time.realtimeSinceStartup;
 
+Debug.Log("[NETWORK] Host: StartGame requested.");
+
+StartGameResult result = await runner.StartGame(new StartGameArgs
+{
+    GameMode = GameMode.Host,
+    SessionName = sessionName,
+    PlayerCount = 4,
+    IsVisible = true,
+    IsOpen = true,
+    Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
+    SceneManager = GetOrCreateSceneManager()
+});
+
+Debug.Log(
+    $"[NETWORK] Host StartGame finished in " +
+    $"{Time.realtimeSinceStartup - startTime:F2}s. " +
+    $"OK: {result.Ok}, Reason: {result.ShutdownReason}, " +
+    $"Error: {result.ErrorMessage}"
+);
         if (!result.Ok)
             HandleStartFailed(result);
     }
@@ -134,19 +144,62 @@ public async void JoinSession(SessionInfo session)
         return;
     }
 
-    StartGameResult result = await runner.StartGame(new StartGameArgs
-    {
-        GameMode = GameMode.Client,
-        SessionName = session.Name,
-        Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
-        SceneManager = GetOrCreateSceneManager()
-    });
+    NetworkRunner currentRunner = runner;
 
-    if (!result.Ok)
+    try
     {
-        HandleStartFailed(result);
+        Debug.Log(
+            $"[NETWORK] Joining session '{session.Name}'..."
+        );
+
+        float startTime = Time.realtimeSinceStartup;
+
+        StartGameResult result = await currentRunner.StartGame(
+            new StartGameArgs
+            {
+                GameMode = GameMode.Client,
+                SessionName = session.Name,
+                Scene = SceneRef.FromIndex(lobbySceneBuildIndex),
+                SceneManager = GetOrCreateSceneManager()
+            }
+        );
+
+        Debug.Log(
+            $"[NETWORK] Join finished in " +
+            $"{Time.realtimeSinceStartup - startTime:F2}s. " +
+            $"OK: {result.Ok}, Reason: {result.ShutdownReason}, " +
+            $"Error: {result.ErrorMessage}"
+        );
+
+        if (!result.Ok)
+        {
+            LastNetworkError =
+                $"{result.ShutdownReason}: {result.ErrorMessage}";
+
+            HandleStartFailed(result);
+        }
+    }
+    catch (Exception exception)
+    {
+        Debug.LogException(exception);
+        LastNetworkError = exception.Message;
+
+        if (currentRunner.IsRunning)
+            HandleStartExceptionCleanup();
+        else
+        {
+            // Failed runners must not be reused.
+            if (runner == currentRunner)
+                runner = null;
+
+            if (currentRunner != null)
+                Destroy(currentRunner.gameObject);
+
+            sessionActive = false;
+        }
     }
 }
+
 private async void HandleStartFailed(StartGameResult result)
 {
     Debug.LogWarning(

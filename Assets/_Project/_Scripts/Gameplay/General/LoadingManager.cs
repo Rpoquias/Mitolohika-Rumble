@@ -101,9 +101,14 @@ public void LoadScene(string sceneName, Sprite loadingBackground)
         OnStateChanged?.Invoke(state);
     }
 
-    private void SetProgress(float progress)
-    {
-        Progress = Mathf.Clamp01(progress);
-        OnProgressChanged?.Invoke(Progress);
-    }
+ private void SetProgress(float progress)
+{
+    progress = Mathf.Clamp01(progress);
+
+    if (Mathf.Approximately(Progress, progress))
+        return;
+
+    Progress = progress;
+    OnProgressChanged?.Invoke(Progress);
+}
 }

@@ -8,53 +8,51 @@ public class AgawanRelicStandingsProvider :
     IStandingsProvider
 {
     [Header("References")]
-    [SerializeField]
-    private AgawanRelicScoreManager scoreManager;
+    [SerializeField] private AgawanRelicScoreManager scoreManager;
 
-    [SerializeField]
-    private RelicController relicController;
+    // Kept for when you want to show a "holding" status icon/text again.
+    [SerializeField] private RelicController relicController;
 
     public event Action StandingsChanged;
 
-    public string SecondaryHeaderLabel =>
-        "HOLD TIME";
+    public string SecondaryHeaderLabel => "HOLD TIME";
 
-    public bool IsReady
+    public bool IsReady =>
+        scoreManager != null &&
+        scoreManager.Object != null &&
+        scoreManager.Object.IsValid;
+
+    private struct ScoreRow
     {
-        get
-        {
-            return scoreManager != null &&
-                   scoreManager.Object != null &&
-                   scoreManager.Object.IsValid;
-        }
+        public PlayerRef Player;
+        public int Score;
     }
 
-    private NetworkRunner runner;
-
-    private void Awake()
+    // Cached comparison: highest score first, then lowest PlayerId for stability.
+    private static readonly Comparison<ScoreRow> ByScoreDescending = (a, b) =>
     {
-        runner =
-            NetworkRunner.GetRunnerForGameObject(
-                gameObject
-            );
-    }
+        int comparison = b.Score.CompareTo(a.Score);
+        return comparison != 0
+            ? comparison
+            : a.Player.PlayerId.CompareTo(b.Player.PlayerId);
+    };
+
+    // Reused every call so GetStandings does not allocate.
+    private readonly List<ScoreRow> _rows = new(4);
+    private readonly List<string> _secondsLabels = new();
+
+    private NetworkRunner _runner;
 
     private void OnEnable()
     {
         if (scoreManager != null)
-        {
-            scoreManager.OnScoresChanged +=
-                HandleScoresChanged;
-        }
+            scoreManager.OnScoresChanged += HandleScoresChanged;
     }
 
     private void OnDisable()
     {
         if (scoreManager != null)
-        {
-            scoreManager.OnScoresChanged -=
-                HandleScoresChanged;
-        }
+            scoreManager.OnScoresChanged -= HandleScoresChanged;
     }
 
     private void HandleScoresChanged()
@@ -62,89 +60,53 @@ public class AgawanRelicStandingsProvider :
         StandingsChanged?.Invoke();
     }
 
-    public void GetStandings(
-        List<StandingEntry> buffer)
+    public void GetStandings(List<StandingEntry> buffer)
     {
         buffer.Clear();
 
         if (!IsReady)
             return;
 
-        if (runner == null)
-        {
-            runner =
-                NetworkRunner.GetRunnerForGameObject(
-                    scoreManager.gameObject
-                );
-        }
+        if (_runner == null)
+            _runner = NetworkRunner.GetRunnerForGameObject(scoreManager.gameObject);
 
-        if (runner == null ||
-            !runner.IsRunning)
-        {
+        if (_runner == null || !_runner.IsRunning)
             return;
-        }
 
-        List<PlayerRef> players =
-            new List<PlayerRef>();
+        _rows.Clear();
 
-        foreach (PlayerRef player
-                 in runner.ActivePlayers)
+        // Read each score once instead of inside the sort comparer.
+        foreach (PlayerRef player in _runner.ActivePlayers)
         {
-            players.Add(player);
-        }
-
-        // Highest relic score first.
-        players.Sort(
-            (a, b) =>
+            _rows.Add(new ScoreRow
             {
-                int scoreA =
-                    scoreManager.GetScore(a);
-
-                int scoreB =
-                    scoreManager.GetScore(b);
-
-                int comparison =
-                    scoreB.CompareTo(scoreA);
-
-                if (comparison != 0)
-                    return comparison;
-
-                return a.PlayerId.CompareTo(
-                    b.PlayerId
-                );
-            }
-        );
-
-        for (int i = 0;
-             i < players.Count;
-             i++)
-        {
-            PlayerRef player =
-                players[i];
-
-            int score =
-                scoreManager.GetScore(player);
-
-            bool holding =
-                relicController != null &&
-                relicController.CurrentHolder == player;
-
-            buffer.Add(
-                new StandingEntry
-                {
-                    Player = player,
-
-                    Placement = i + 1,
-
-                    Status =
-                        holding
-                            ? ""
-                            : "",
-
-                    Detail =
-                        $"{score}s"
-                }
-            );
+                Player = player,
+                Score = scoreManager.GetScore(player)
+            });
         }
+
+        _rows.Sort(ByScoreDescending);
+
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            buffer.Add(new StandingEntry
+            {
+                Player = _rows[i].Player,
+                Placement = i + 1,
+                Status = string.Empty,
+                Detail = GetSecondsLabel(_rows[i].Score)
+            });
+        }
+    }
+
+    private string GetSecondsLabel(int seconds)
+    {
+        if (seconds < 0)
+            seconds = 0;
+
+        while (_secondsLabels.Count <= seconds)
+            _secondsLabels.Add($"{_secondsLabels.Count}s");
+
+        return _secondsLabels[seconds];
     }
 }

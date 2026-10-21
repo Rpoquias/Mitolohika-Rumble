@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
@@ -10,15 +9,20 @@ public class AgawanRelicManager : MonoBehaviour
     [SerializeField] private AgawanRelicScoreManager scoreManager;
     [SerializeField] private RoundStateManager roundStateManager;
     [SerializeField] private RelicController relicController;
-[SerializeField] private AgawanRelicBoostManager relicBoostManager;
+    [SerializeField] private AgawanRelicBoostManager relicBoostManager;
+
     [Header("Round Settings")]
     [SerializeField] private float roundDuration = 75f;
 
-    private NetworkRunner runner;
+    [Tooltip("How often (seconds) to check whether the round timer expired.")]
+    [SerializeField, Min(0.02f)] private float timerCheckInterval = 0.1f;
 
-    private bool initialized;
-    private bool roundStarted;
-    private bool roundEnded;
+    private NetworkRunner _runner;
+    private MatchSession _matchSession;
+    private float _nextTimerCheckTime;
+
+    private bool _roundStarted;
+    private bool _roundEnded;
 
     private void OnEnable()
     {
@@ -27,7 +31,6 @@ public class AgawanRelicManager : MonoBehaviour
 
         roundStateManager.OnRoundStarted += HandleRoundStarted;
         roundStateManager.OnRoundReset += HandleRoundReset;
-        roundStateManager.OnStateChanged += HandleStateChanged;
     }
 
     private void OnDisable()
@@ -37,146 +40,101 @@ public class AgawanRelicManager : MonoBehaviour
 
         roundStateManager.OnRoundStarted -= HandleRoundStarted;
         roundStateManager.OnRoundReset -= HandleRoundReset;
-        roundStateManager.OnStateChanged -= HandleStateChanged;
     }
 
     private void Update()
     {
-        if (!initialized)
-        {
-            TryInitialize();
-            return;
-        }
-
-        if (!runner.IsRunning)
+        // _roundStarted is only ever true on the server, so this is the
+        // single cheap early-out for every client and every idle frame.
+        if (!_roundStarted || _roundEnded)
             return;
 
-        if (!runner.IsServer)
+        float now = Time.unscaledTime;
+
+        if (now < _nextTimerCheckTime)
             return;
 
-        if (!roundStarted || roundEnded)
+        _nextTimerCheckTime = now + timerCheckInterval;
+
+        if (_runner == null || !_runner.IsRunning || !_runner.IsServer)
             return;
 
-        UpdateTimer();
+        if (_matchSession != null && _matchSession.IsRoundTimerExpired())
+            EndRound();
     }
 
-    private void TryInitialize()
+    private bool TryResolveRunner()
     {
-        runner =
-            NetworkRunner.GetRunnerForGameObject(gameObject);
+        if (_runner == null || !_runner.IsRunning)
+            _runner = NetworkRunner.GetRunnerForGameObject(gameObject);
 
-        if (runner == null || !runner.IsRunning)
-            return;
-
-        initialized = true;
+        return _runner != null && _runner.IsRunning;
     }
 
-    private void HandleStateChanged(
-        RoundStateManager.RoundState state)
+    private static MatchSession GetMatchSession()
     {
-        if (!initialized)
-            TryInitialize();
+        return NetworkManager.Instance != null
+            ? NetworkManager.Instance.CurrentMatchSession
+            : null;
     }
 
     private void HandleRoundStarted()
     {
-        if (!initialized)
-            TryInitialize();
-
-        if (runner == null || !runner.IsServer)
+        if (!TryResolveRunner() || !_runner.IsServer)
             return;
 
-        if (roundStarted)
+        if (_roundStarted)
             return;
 
-  
-        MatchSession matchSession =
-            NetworkManager.Instance != null
-                ? NetworkManager.Instance.CurrentMatchSession
-                : null;
+        _matchSession = GetMatchSession();
 
-        if (matchSession == null)
+        if (_matchSession == null)
         {
-            Debug.LogError(
-                "[RELIC MANAGER] MatchSession is missing."
-            );
-
+            Debug.LogError("[RELIC MANAGER] MatchSession is missing.");
             return;
         }
-              roundStarted = true;
-        roundEnded = false;
 
-// Spawn fresh collectibles when gameplay begins.
-if (relicBoostManager != null)
-{
-    relicBoostManager.StartRoundCollectibles();
-}
+        _roundStarted = true;
+        _roundEnded = false;
+        _nextTimerCheckTime = 0f;
 
-matchSession.StartRoundTimer(roundDuration);
+        // Spawn fresh collectibles when gameplay begins.
+        if (relicBoostManager != null)
+            relicBoostManager.StartRoundCollectibles();
 
-scoreManager.StartScoring();
-    }
-
-    private void UpdateTimer()
-    {
-        MatchSession matchSession =
-            NetworkManager.Instance != null
-                ? NetworkManager.Instance.CurrentMatchSession
-                : null;
-
-        if (matchSession == null)
-            return;
-
-        if (matchSession.IsRoundTimerExpired())
-        {
-            EndRound();
-        }
+        _matchSession.StartRoundTimer(roundDuration);
+        scoreManager.StartScoring();
     }
 
     private void EndRound()
     {
-        if (roundEnded)
+        if (_roundEnded)
             return;
 
-        roundEnded = true;
+        _roundEnded = true;
 
-if (relicBoostManager != null)
-{
-    relicBoostManager.ClearCollectibles();
-}
+        if (relicBoostManager != null)
+            relicBoostManager.ClearCollectibles();
 
-        MatchSession matchSession =
-            NetworkManager.Instance.CurrentMatchSession;
-
-        if (matchSession != null)
-        {
-            matchSession.StopRoundTimer();
-        }
+        if (_matchSession != null)
+            _matchSession.StopRoundTimer();
 
         scoreManager.StopScoring();
 
-        List<RoundPlacement> placements =
-            placementManager.BuildFinalPlacements();
+        List<RoundPlacement> placements = placementManager.BuildFinalPlacements();
 
         roundStateManager.EndRound();
 
         if (MatchFlowManager.Instance == null)
         {
-            Debug.LogError(
-                "[RELIC MANAGER] MatchFlowManager is missing."
-            );
-
+            Debug.LogError("[RELIC MANAGER] MatchFlowManager is missing.");
             return;
         }
 
-        Dictionary<PlayerRef, int> holdTimes =
-            new Dictionary<PlayerRef, int>();
+        Dictionary<PlayerRef, int> holdTimes = new Dictionary<PlayerRef, int>();
 
-        foreach (PlayerRef player in runner.ActivePlayers)
-        {
-            holdTimes[player] =
-                scoreManager.GetScore(player);
-        }
+        foreach (PlayerRef player in _runner.ActivePlayers)
+            holdTimes[player] = scoreManager.GetScore(player);
 
         MatchFlowManager.Instance.HandleRoundComplete(
             placements,
@@ -185,27 +143,26 @@ if (relicBoostManager != null)
         );
     }
 
-private void HandleRoundReset()
-{
-    roundStarted = false;
-    roundEnded = false;
+    private void HandleRoundReset()
+    {
+        _roundStarted = false;
+        _roundEnded = false;
 
-    MatchSession matchSession =
-        NetworkManager.Instance != null
-            ? NetworkManager.Instance.CurrentMatchSession
-            : null;
+        // Look the session up fresh: a reset may belong to a new session.
+        MatchSession session = GetMatchSession();
 
-    if (matchSession != null)
-        matchSession.StopRoundTimer();
+        if (session != null)
+            session.StopRoundTimer();
 
-    scoreManager.ResetScores();
-    placementManager.ResetPlacement();
-// Clear the previous round without spawning pickups yet.
-if (relicBoostManager != null)
-{
-    relicBoostManager.ClearCollectibles();
-}
+        _matchSession = null;
 
-    relicController.ResetRelic();
-}
+        scoreManager.ResetScores();
+        placementManager.ResetPlacement();
+
+        // Clear the previous round without spawning pickups yet.
+        if (relicBoostManager != null)
+            relicBoostManager.ClearCollectibles();
+
+        relicController.ResetRelic();
+    }
 }

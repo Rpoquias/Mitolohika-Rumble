@@ -7,56 +7,11 @@ public class AgawanRelicPlacementManager : MonoBehaviour
     [Header("References")]
     [SerializeField] private AgawanRelicScoreManager scoreManager;
     [SerializeField] private RelicController relicController;
-    [SerializeField] private RoundStateManager roundStateManager;
 
-    private PlayerRegistry playerRegistry;
-    private NetworkRunner runner;
+    private readonly Dictionary<PlayerRef, int> _placements = new();
+    private readonly List<PlayerScoreData> _ranked = new(4);
 
-    private readonly Dictionary<PlayerRef, int> placements =
-        new Dictionary<PlayerRef, int>();
-
-    private bool initialized = false;
-
-    private void OnEnable()
-    {
-        if (roundStateManager == null)
-            return;
-
-        roundStateManager.OnStateChanged += HandleStateChanged;
-    }
-
-    private void HandleStateChanged(
-        RoundStateManager.RoundState state)
-    {
-        if (initialized)
-            return;
-
-        TryInitialize();
-    }
-
-    private void TryInitialize()
-    {
-        runner =
-            NetworkRunner.GetRunnerForGameObject(gameObject);
-
-        if (runner == null || !runner.IsRunning)
-            return;
-
-        playerRegistry = PlayerRegistry.Instance;
-
-        if (playerRegistry == null)
-            return;
-
-        initialized = true;
-    }
-
-    private void OnDestroy()
-    {
-        if (roundStateManager != null)
-        {
-            roundStateManager.OnStateChanged -= HandleStateChanged;
-        }
-    }
+    private NetworkRunner _runner;
 
     // ---------------------------------
     // Final Placement
@@ -64,150 +19,81 @@ public class AgawanRelicPlacementManager : MonoBehaviour
 
     public List<RoundPlacement> BuildFinalPlacements()
     {
-        List<RoundPlacement> result =
-            new List<RoundPlacement>();
+        List<RoundPlacement> result = new List<RoundPlacement>(4);
 
-        if (runner == null ||
-            playerRegistry == null ||
-            scoreManager == null ||
-            relicController == null)
-        {
+        _placements.Clear();
+
+        // Resolved on demand: no event subscription or state-change polling needed.
+        if (_runner == null)
+            _runner = NetworkRunner.GetRunnerForGameObject(gameObject);
+
+        if (_runner == null || scoreManager == null || relicController == null)
             return result;
+
+        PlayerRef holder = relicController.CurrentHolder;
+        bool hasHolder = holder != PlayerRef.None;
+
+        // Buzzer rule: whoever holds the relic when time runs out is always 1st.
+        if (hasHolder)
+        {
+            _placements[holder] = 1;
+            result.Add(new RoundPlacement { Player = holder, Placement = 1 });
         }
 
-        placements.Clear();
+        _ranked.Clear();
 
-        PlayerRef currentHolder =
-            relicController.CurrentHolder;
-
-        // ---------------------------------
-        // Collect players
-        // ---------------------------------
-
-        List<PlayerScoreData> players =
-            new List<PlayerScoreData>();
-
-        foreach (PlayerRef player in runner.ActivePlayers)
+        foreach (PlayerRef player in _runner.ActivePlayers)
         {
-            int score =
-                scoreManager.GetScore(player);
+            if (hasHolder && player == holder)
+                continue;
 
-            int reachedTick =
-                scoreManager.GetScoreReachedTick(player);
-
-            players.Add(
-                new PlayerScoreData(
-                    player,
-                    score,
-                    reachedTick
-                )
-            );
+            _ranked.Add(new PlayerScoreData(
+                player,
+                scoreManager.GetScore(player),
+                scoreManager.GetScoreReachedTick(player)
+            ));
         }
 
-        // ---------------------------------
-        // Special Buzzer Rule
-        // ---------------------------------
+        _ranked.Sort(CompareByScoreThenTick);
 
-        if (currentHolder != PlayerRef.None)
-        {
-            // Holder is ALWAYS 1st.
-            placements[currentHolder] = 1;
-
-            // Remove holder from normal ranking.
-            players.RemoveAll(
-                player => player.Player == currentHolder
-            );
-        }
-
-        // ---------------------------------
-        // Rank Remaining Players
-        // ---------------------------------
-
-        players.Sort((a, b) =>
-        {
-            int scoreComparison =
-                b.Score.CompareTo(a.Score);
-
-            if (scoreComparison != 0)
-                return scoreComparison;
-
-            return a.ReachedTick.CompareTo(
-                b.ReachedTick
-            );
-        });
-
-        int startingPlacement =
-            currentHolder != PlayerRef.None
-                ? 2
-                : 1;
-
+        int startingPlacement = hasHolder ? 2 : 1;
         int currentPlacement = startingPlacement;
 
-        for (int i = 0; i < players.Count; i++)
+        for (int i = 0; i < _ranked.Count; i++)
         {
             if (i > 0)
             {
-                PlayerScoreData previous =
-                    players[i - 1];
-
-                PlayerScoreData current =
-                    players[i];
+                PlayerScoreData previous = _ranked[i - 1];
+                PlayerScoreData current = _ranked[i];
 
                 bool tied =
                     previous.Score == current.Score &&
-                    previous.ReachedTick ==
-                    current.ReachedTick;
+                    previous.ReachedTick == current.ReachedTick;
 
                 if (!tied)
-                {
                     currentPlacement = startingPlacement + i;
-                }
             }
 
-            placements[players[i].Player] =
-                currentPlacement;
+            _placements[_ranked[i].Player] = currentPlacement;
 
-            result.Add(
-                new RoundPlacement
-                {
-                    Player = players[i].Player,
-                    Placement = currentPlacement
-                }
-            );
-        }
-
-        // Add holder to result AFTER normal ranking.
-        if (currentHolder != PlayerRef.None)
-        {
-            result.Add(
-                new RoundPlacement
-                {
-                    Player = currentHolder,
-                    Placement = 1
-                }
-            );
-        }
-
-        // If nobody held the Relic,
-        // all players were ranked normally.
-        if (currentHolder == PlayerRef.None)
-        {
-            result.Clear();
-
-            foreach (PlayerScoreData player in players)
+            result.Add(new RoundPlacement
             {
-                result.Add(
-                    new RoundPlacement
-                    {
-                        Player = player.Player,
-                        Placement =
-                            placements[player.Player]
-                    }
-                );
-            }
+                Player = _ranked[i].Player,
+                Placement = currentPlacement
+            });
         }
 
+        _ranked.Clear();
         return result;
+    }
+
+    private static int CompareByScoreThenTick(PlayerScoreData a, PlayerScoreData b)
+    {
+        int scoreComparison = b.Score.CompareTo(a.Score);
+
+        return scoreComparison != 0
+            ? scoreComparison
+            : a.ReachedTick.CompareTo(b.ReachedTick);
     }
 
     // ---------------------------------
@@ -216,35 +102,21 @@ public class AgawanRelicPlacementManager : MonoBehaviour
 
     public int GetPlacement(PlayerRef player)
     {
-        if (placements.TryGetValue(
-            player,
-            out int placement))
-        {
-            return placement;
-        }
-
-        return 0;
+        return _placements.TryGetValue(player, out int placement) ? placement : 0;
     }
 
     public void ResetPlacement()
     {
-        placements.Clear();
+        _placements.Clear();
     }
 
-    // ---------------------------------
-    // Player Score Data
-    // ---------------------------------
-
-    private struct PlayerScoreData
+    private readonly struct PlayerScoreData
     {
-        public PlayerRef Player;
-        public int Score;
-        public int ReachedTick;
+        public readonly PlayerRef Player;
+        public readonly int Score;
+        public readonly int ReachedTick;
 
-        public PlayerScoreData(
-            PlayerRef player,
-            int score,
-            int reachedTick)
+        public PlayerScoreData(PlayerRef player, int score, int reachedTick)
         {
             Player = player;
             Score = score;

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
 
@@ -25,18 +24,7 @@ public class AgawanRelicScoreManager : NetworkBehaviour
 
     public override void Spawned()
     {
-        if (relicController == null)
-        {
-     
-     
-        }
-
-        if (!HasStateAuthority)
-            return;
-
-        _currentHolder = PlayerRef.None;
-        _continuousHoldTime = 0f;
-        _scoringActive = false;
+        ResetLocalState();
     }
 
     private void OnScoresNetworkChanged()
@@ -49,60 +37,50 @@ public class AgawanRelicScoreManager : NetworkBehaviour
         if (!HasStateAuthority)
             return;
 
+        ResetLocalState();
         _scoringActive = true;
-        _currentHolder = PlayerRef.None;
-        _continuousHoldTime = 0f;
     }
 
     public void StopScoring()
     {
-        if (!HasStateAuthority)
+        if (!HasStateAuthority || !_scoringActive)
             return;
 
-        if (!_scoringActive)
-            return;
-
-        _scoringActive = false;
-        _currentHolder = PlayerRef.None;
-        _continuousHoldTime = 0f;
+        ResetLocalState();
     }
 
     public override void FixedUpdateNetwork()
     {
-        if (!HasStateAuthority)
-            return;
-
-        if (!_scoringActive)
+        // _scoringActive is only ever set on the authority, so it is checked first.
+        if (!_scoringActive || !HasStateAuthority || relicController == null)
             return;
 
         PlayerRef holder = relicController.CurrentHolder;
 
-        // Holder changed.
         if (holder != _currentHolder)
         {
             _currentHolder = holder;
             _continuousHoldTime = 0f;
 
+            // Dictionary entries are only created when the holder changes,
+            // not every tick.
             if (holder != PlayerRef.None)
-            {
                 EnsurePlayerScoreExists(holder);
-            }
 
             return;
         }
 
-        // Nobody currently holds the Relic.
         if (holder == PlayerRef.None)
             return;
 
-        EnsurePlayerScoreExists(holder);
-
         _continuousHoldTime += Runner.DeltaTime;
+
+        if (_continuousHoldTime < secondsPerPoint)
+            return;
 
         while (_continuousHoldTime >= secondsPerPoint)
         {
             _continuousHoldTime -= secondsPerPoint;
-
             AddPoint(holder);
         }
     }
@@ -110,56 +88,34 @@ public class AgawanRelicScoreManager : NetworkBehaviour
     private void EnsurePlayerScoreExists(PlayerRef player)
     {
         if (!Scores.ContainsKey(player))
-        {
             Scores.Add(player, 0);
-        }
 
         if (!ScoreReachedTick.ContainsKey(player))
-        {
             ScoreReachedTick.Add(player, 0);
-        }
     }
 
     private void AddPoint(PlayerRef player)
     {
-        int newScore = Scores[player] + 1;
+        Scores.Set(player, Scores[player] + 1);
 
-        Scores.Set(player, newScore);
-
-        // Store the tick when this player reached their
-        // current/final score.
-        ScoreReachedTick.Set(
-            player,
-            Runner.Tick.Raw
-        );
+        // Tick when this player reached their current score (tie-breaker).
+        ScoreReachedTick.Set(player, Runner.Tick.Raw);
     }
 
     public int GetScore(PlayerRef player)
     {
-        if (Scores.TryGet(player, out int score))
-            return score;
-
-        return 0;
+        return Scores.TryGet(player, out int score) ? score : 0;
     }
 
     public int GetScoreReachedTick(PlayerRef player)
     {
-        if (ScoreReachedTick.TryGet(
-                player,
-                out int tick))
-        {
-            return tick;
-        }
-
-        return 0;
+        return ScoreReachedTick.TryGet(player, out int tick) ? tick : 0;
     }
 
     public void InitializePlayer(PlayerRef player)
     {
-        if (!HasStateAuthority)
-            return;
-
-        EnsurePlayerScoreExists(player);
+        if (HasStateAuthority)
+            EnsurePlayerScoreExists(player);
     }
 
     public void ResetScores()
@@ -170,7 +126,13 @@ public class AgawanRelicScoreManager : NetworkBehaviour
         Scores.Clear();
         ScoreReachedTick.Clear();
 
+        ResetLocalState();
+    }
+
+    private void ResetLocalState()
+    {
         _currentHolder = PlayerRef.None;
         _continuousHoldTime = 0f;
+        _scoringActive = false;
     }
 }
