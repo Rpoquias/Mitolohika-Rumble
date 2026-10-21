@@ -31,16 +31,16 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 640080655679136815}
   - {fileID: 8807533660407522851}
+  - {fileID: 640080655679136815}
   - {fileID: 6286422204990890393}
   - {fileID: 3448554316840003098}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 600, y: 600}
+  m_AnchoredPosition: {x: 0, y: -36.845764}
+  m_SizeDelta: {x: 600, y: 673.6915}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5023987702225116293
 CanvasRenderer:
@@ -130,8 +130,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.2087, y: -20.186}
-  m_SizeDelta: {x: 673.9601, y: 665.28}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 750, y: 750}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4535403817763987721
 CanvasRenderer:
@@ -161,7 +161,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: aff8a13460e612f429b31b8c5daf5ee2, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 1767acb479588ea49880bf56c3321eab, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -198,14 +198,14 @@ RectTransform:
   m_GameObject: {fileID: 3177677385310212738}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.92, y: 0.9, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5739667315494938975}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.6888, y: -0.1258}
+  m_AnchoredPosition: {x: -5, y: 12.58}
   m_SizeDelta: {x: 626.9175, y: 625.1604}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4618844876809885042
@@ -229,14 +229,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0, g: 1, b: 0.91829205, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 3257f182e8cc64b47b949deeb661b5a5, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 5b56d9fa0e8bd6e409ed188db38a692c, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -355,8 +355,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: 0, y: 35.670013}
-  m_SizeDelta: {x: -12.701904, y: 71.3318}
+  m_AnchoredPosition: {x: 3.1755066, y: 35.670013}
+  m_SizeDelta: {x: -6.351, y: 71.3318}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &9188392936119154889
 CanvasRenderer:
@@ -388,15 +388,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: MATIRA MATIBAY
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 5302535af1044152a457ed104f1f4b91, type: 2}
-  m_sharedMaterial: {fileID: 2164040, guid: 5302535af1044152a457ed104f1f4b91, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 329220c0fc329e94ba1fbd7b9ed7327d, type: 2}
+  m_sharedMaterial: {fileID: 7903431120758505401, guid: 329220c0fc329e94ba1fbd7b9ed7327d, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4283741690
+  m_fontColor: {r: 0.98039216, g: 0.70980394, b: 0.32941177, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -413,7 +413,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 60.85
+  m_fontSize: 64.45
   m_fontSizeBase: 103.5
   m_fontWeight: 400
   m_enableAutoSizing: 1
