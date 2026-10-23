@@ -1,3 +1,5 @@
+
+using System;
 using Fusion;
 using UnityEngine;
 
@@ -12,8 +14,16 @@ public class AgawanBandilaEventVFX : NetworkBehaviour
     [Networked, OnChangedRender(nameof(ApplyVFX))]
     private int ActiveEventId { get; set; }
 
+    public int CurrentEventId =>
+        Object != null && Object.IsValid ? ActiveEventId : 0;
+
+    public event Action<int> EventChanged;
+
+    private int lastAppliedEventId = -1;
+
     public override void Spawned()
     {
+        lastAppliedEventId = -1;
         ApplyVFX();
     }
 
@@ -22,13 +32,12 @@ public class AgawanBandilaEventVFX : NetworkBehaviour
         if (Object == null || !Object.HasStateAuthority)
             return;
 
+        eventId = Mathf.Clamp(eventId, 0, 3);
+
         if (ActiveEventId == eventId)
             return;
 
         ActiveEventId = eventId;
-
-        // Apply immediately on the authority; harmless if OnChangedRender
-        // also fires here (SetActive is guarded by activeSelf).
         ApplyVFX();
     }
 
@@ -39,12 +48,19 @@ public class AgawanBandilaEventVFX : NetworkBehaviour
         SetActive(speedSurgeVFX, id == 1);
         SetActive(slowMotionVFX, id == 2);
         SetActive(blackHoleVFX, id == 3);
+
+        // Notify listeners only when the event actually changes.
+        if (lastAppliedEventId == id)
+            return;
+
+        lastAppliedEventId = id;
+        EventChanged?.Invoke(id);
     }
 
-    private static void SetActive(GameObject vfx, bool active)
+    private static void SetActive(GameObject target, bool active)
     {
-        if (vfx != null && vfx.activeSelf != active)
-            vfx.SetActive(active);
+        if (target != null && target.activeSelf != active)
+            target.SetActive(active);
     }
 
     public override void Despawned(NetworkRunner runner, bool hasState)
@@ -52,5 +68,9 @@ public class AgawanBandilaEventVFX : NetworkBehaviour
         SetActive(speedSurgeVFX, false);
         SetActive(slowMotionVFX, false);
         SetActive(blackHoleVFX, false);
+
+        lastAppliedEventId = 0;
+        EventChanged?.Invoke(0);
+        EventChanged = null;
     }
 }

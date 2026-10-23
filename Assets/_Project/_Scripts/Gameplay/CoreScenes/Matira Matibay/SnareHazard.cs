@@ -6,6 +6,9 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class SnareHazard : NetworkBehaviour
 {
+
+    private Collider triggerCollider;
+
     [Header("Snare")]
     [SerializeField] private float rootDuration = 2f;
 
@@ -22,15 +25,22 @@ public class SnareHazard : NetworkBehaviour
         ownerManager = manager;
     }
 
- public override void Spawned()
+private void Awake()
 {
-    Collider trigger = GetComponent<Collider>();
-    trigger.isTrigger = true;
+    triggerCollider = GetComponent<Collider>();
 
-    if (trigger is SphereCollider sphere)
-    {
+    if (triggerCollider == null)
+        return;
+
+    triggerCollider.isTrigger = true;
+
+    if (triggerCollider is SphereCollider sphere)
         sphere.radius = triggerRadius;
-    }
+}
+
+public override void Spawned()
+{
+    hasTriggered = false;
 }
 
     private void OnTriggerEnter(Collider other)
@@ -53,14 +63,15 @@ public class SnareHazard : NetworkBehaviour
         Runner.Despawn(Object);
     }
 
-    public override void Despawned(
-        NetworkRunner runner,
-        bool hasState)
-    {
-        if (ownerManager != null)
-            ownerManager.NotifySnareDespawned(Object);
-    }
+ public override void Despawned(
+    NetworkRunner runner,
+    bool hasState)
+{
+    if (ownerManager != null)
+        ownerManager.NotifySnareDespawned(Object);
 
+    ownerManager = null;
+}
 #if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {

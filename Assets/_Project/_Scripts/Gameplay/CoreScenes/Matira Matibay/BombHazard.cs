@@ -14,11 +14,12 @@ public class BombHazard : NetworkBehaviour
     [SerializeField] private float hitstopDuration = 0.1f;
     [SerializeField] private float explosionVisualDuration = 0.6f;
 
-    [Header("Optional Visuals")]
-    [SerializeField] private GameObject bombVisual;
-    [SerializeField] private GameObject warningVisual;
-    [SerializeField] private GameObject explosionVisual;
-    [SerializeField] private TMP_Text countdownText;
+[Header("Explosion Visual")]
+[SerializeField] private GameObject explosionEffectPrefab;
+[SerializeField] private Vector3 explosionEffectOffset = Vector3.zero;
+
+[Header("Countdown")]
+[SerializeField] private TMP_Text countdownText;
 
     [Header("Audio")]
     [SerializeField] private SFXID explosionSFX = SFXID.ArenaTileDestroyed;
@@ -28,22 +29,27 @@ public class BombHazard : NetworkBehaviour
     [Networked] private NetworkBool HasExploded { get; set; }
 
     private MatiraMatibayHazardManager ownerManager;
+private int lastCountdownValue = -1;
 
     public void SetOwnerManager(MatiraMatibayHazardManager manager)
     {
         ownerManager = manager;
     }
 
-    public override void Spawned()
-    {
-        if (HasStateAuthority)
-        {
-            ExplosionTimer = TickTimer.CreateFromSeconds(
-                Runner, Mathf.Max(0f, warningDuration));
-        }
+public override void Spawned()
+{
+    lastCountdownValue = -1;
 
-        UpdateVisuals();
+    if (HasStateAuthority)
+    {
+        ExplosionTimer = TickTimer.CreateFromSeconds(
+            Runner,
+            Mathf.Max(0f, warningDuration));
     }
+
+    if (countdownText != null)
+        countdownText.gameObject.SetActive(true);
+}
 
     public override void FixedUpdateNetwork()
     {
@@ -62,46 +68,99 @@ public class BombHazard : NetworkBehaviour
             Explode();
     }
 
-    public override void Render()
+public override void Render()
+{
+    if (HasExploded)
     {
-        UpdateVisuals();
-
-        if (countdownText != null && !HasExploded)
+        if (countdownText != null &&
+            countdownText.gameObject.activeSelf)
         {
-            float remaining = ExplosionTimer.RemainingTime(Runner) ?? 0f;
-            countdownText.text = Mathf.CeilToInt(remaining).ToString();
+            countdownText.gameObject.SetActive(false);
         }
+
+        return;
     }
 
-    private void UpdateVisuals()
-    {
-        if (bombVisual != null)
-            bombVisual.SetActive(!HasExploded);
+    UpdateCountdownFacing();
 
-        if (warningVisual != null)
-            warningVisual.SetActive(!HasExploded);
+    if (countdownText == null || Runner == null)
+        return;
 
-        if (explosionVisual != null)
-            explosionVisual.SetActive(HasExploded);
+    float remaining =
+        ExplosionTimer.RemainingTime(Runner) ?? 0f;
 
-        if (countdownText != null)
-            countdownText.gameObject.SetActive(!HasExploded);
-    }
+    int countdown = Mathf.CeilToInt(remaining);
 
+    if (countdown == lastCountdownValue)
+        return;
+
+    lastCountdownValue = countdown;
+    countdownText.text = countdown.ToString();
+}
     private void Explode()
     {
         if (!HasStateAuthority || HasExploded)
             return;
+HasExploded = true;
 
-        HasExploded = true;
+if (countdownText != null)
+    countdownText.gameObject.SetActive(false);
 
-        ApplyExplosionKnockback();
+RPC_PlayExplosionEffect(transform.position);
 
-        RPC_PlayExplosionSFX(transform.position);
+ApplyExplosionKnockback();
+RPC_PlayExplosionSFX(transform.position);
 
-        DespawnTimer = TickTimer.CreateFromSeconds(
-            Runner, Mathf.Max(0.05f, explosionVisualDuration));
+DespawnTimer = TickTimer.CreateFromSeconds(
+    Runner,
+    Mathf.Max(0.05f, explosionVisualDuration));
     }
+
+
+[Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+private void RPC_PlayExplosionEffect(Vector3 position)
+{
+    if (explosionEffectPrefab == null)
+        return;
+
+    GameObject effect = Instantiate(
+        explosionEffectPrefab,
+        position + explosionEffectOffset,
+        Quaternion.identity
+    );
+
+    Destroy(effect, Mathf.Max(0.1f, explosionVisualDuration));
+}
+
+private void UpdateCountdownFacing()
+{
+    if (countdownText == null)
+        return;
+
+    if (Runner == null ||
+        !ThirdPersonCamera.TryGetCamera(
+            Runner,
+            out ThirdPersonCamera camera) ||
+        camera == null)
+    {
+        return;
+    }
+
+    Transform cameraTransform = camera.CameraTransform;
+
+    // Face the camera while keeping the text upright.
+    Vector3 direction =
+        countdownText.transform.position -
+        cameraTransform.position;
+
+    direction.y = 0f;
+
+    if (direction.sqrMagnitude < 0.001f)
+        return;
+
+    countdownText.transform.rotation =
+        Quaternion.LookRotation(direction);
+}
 
     private void ApplyExplosionKnockback()
     {
@@ -151,12 +210,15 @@ public class BombHazard : NetworkBehaviour
         }
     }
 
-    public override void Despawned(NetworkRunner runner, bool hasState)
-    {
-        if (ownerManager != null)
-            ownerManager.NotifyBombDespawned(Object);
- 
-    }
+public override void Despawned(
+    NetworkRunner runner,
+    bool hasState)
+{
+    if (ownerManager != null)
+        ownerManager.NotifyBombDespawned(Object);
+
+    ownerManager = null;
+}
     #if UNITY_EDITOR
 private void OnDrawGizmosSelected()
 {

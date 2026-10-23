@@ -12,15 +12,18 @@ public class TileDestructionWarningUI : MonoBehaviour
     [SerializeField]
     private TMP_Text warningText;
 
+    private int lastCountdownValue = -1;
+
     private void Update()
     {
-        if (arenaShrinkController == null)
+        if (warningText == null)
             return;
 
-        if (arenaShrinkController.Object == null ||
+        if (arenaShrinkController == null ||
+            arenaShrinkController.Object == null ||
             !arenaShrinkController.Object.IsValid)
         {
-            warningText.gameObject.SetActive(false);
+            HideWarning();
             return;
         }
 
@@ -29,33 +32,32 @@ public class TileDestructionWarningUI : MonoBehaviour
 
     private void UpdateWarning()
     {
-        if (warningText == null)
-            return;
-
-        // Prioritize the imminent crumbling tile warning.
-        if (arenaShrinkController.IsCrumbleWarningActive)
+        if (!arenaShrinkController.IsShrinkWarningActive)
         {
-            int countdown = Mathf.CeilToInt(
-                arenaShrinkController.RemainingCrumbleWarningTime
-            );
-
-            warningText.text = $"THIS TILE WILL CRUMBLE IN {countdown}";
-            warningText.gameObject.SetActive(true);
+            HideWarning();
             return;
         }
 
-        // Otherwise, show the arena-shrink warning.
-        if (arenaShrinkController.IsShrinkWarningActive)
-        {
-            int countdown = Mathf.CeilToInt(
-                arenaShrinkController.RemainingShrinkTime
-            );
+        int countdown = Mathf.CeilToInt(
+            arenaShrinkController.RemainingShrinkTime
+        );
 
+        // Avoid rebuilding the TMP text every frame.
+        if (countdown != lastCountdownValue)
+        {
             warningText.text = $"TILES WILL DISAPPEAR IN {countdown}";
-            warningText.gameObject.SetActive(true);
-            return;
+            lastCountdownValue = countdown;
         }
 
-        warningText.gameObject.SetActive(false);
+        if (!warningText.gameObject.activeSelf)
+            warningText.gameObject.SetActive(true);
+    }
+
+    private void HideWarning()
+    {
+        if (warningText.gameObject.activeSelf)
+            warningText.gameObject.SetActive(false);
+
+        lastCountdownValue = -1;
     }
 }
