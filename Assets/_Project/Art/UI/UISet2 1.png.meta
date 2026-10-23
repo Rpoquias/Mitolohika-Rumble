@@ -606,6 +606,138 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: UISet2 1_22
+      rect:
+        serializedVersion: 2
+        x: 180
+        y: 2456
+        width: 202
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c096a3342d902034dba18b0b6f066302
+      internalID: 1619433657
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UISet2 1_23
+      rect:
+        serializedVersion: 2
+        x: 417
+        y: 2453
+        width: 202
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 784789b17ad75af479334fdee7b5e8f2
+      internalID: -1667080863
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UISet2 1_24
+      rect:
+        serializedVersion: 2
+        x: 186
+        y: 2234
+        width: 202
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a00fb3841522d7d4586dd9efc7981267
+      internalID: 1345272694
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UISet2 1_25
+      rect:
+        serializedVersion: 2
+        x: 408
+        y: 2228
+        width: 202
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6928f1b514c791d49a885472956b8191
+      internalID: -837403029
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UISet2 1_26
+      rect:
+        serializedVersion: 2
+        x: 184
+        y: 1990
+        width: 202
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7b023457f88b16049832013c8fd9db17
+      internalID: 1371800225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UISet2 1_27
+      rect:
+        serializedVersion: 2
+        x: 404
+        y: 1991
+        width: 202
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1667960130c1fd14da1f09a3cd0aff5d
+      internalID: -267107677
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
@@ -637,6 +769,12 @@ TextureImporter:
       UISet2 1_2: 638182446
       UISet2 1_20: 1937687374
       UISet2 1_21: -1166326077
+      UISet2 1_22: 1619433657
+      UISet2 1_23: -1667080863
+      UISet2 1_24: 1345272694
+      UISet2 1_25: -837403029
+      UISet2 1_26: 1371800225
+      UISet2 1_27: -267107677
       UISet2 1_3: 1140639612
       UISet2 1_4: 374119704
       UISet2 1_5: -245719121
