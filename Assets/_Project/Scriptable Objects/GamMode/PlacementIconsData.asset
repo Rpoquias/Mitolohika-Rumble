@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20fb960f122b8994eb7b13fde1c0d504, type: 3}
   m_Name: PlacementIconsData
   m_EditorClassIdentifier: Assembly-CSharp::PlacementIconsData
-  roundFirst: {fileID: 549338420, guid: 50a4180935e388c41b1f91292150f477, type: 3}
-  roundSecond: {fileID: 1736434636, guid: 50a4180935e388c41b1f91292150f477, type: 3}
-  roundThird: {fileID: 1703053196, guid: 50a4180935e388c41b1f91292150f477, type: 3}
-  roundFourth: {fileID: 254167294, guid: 50a4180935e388c41b1f91292150f477, type: 3}
-  finalFirst: {fileID: 109641680, guid: ade2bac31c4434844a25d0a2f93cd9b3, type: 3}
-  finalSecond: {fileID: 154599348, guid: ade2bac31c4434844a25d0a2f93cd9b3, type: 3}
-  finalThird: {fileID: -737543164, guid: ade2bac31c4434844a25d0a2f93cd9b3, type: 3}
-  finalFourth: {fileID: -1534223258, guid: ade2bac31c4434844a25d0a2f93cd9b3, type: 3}
+  roundFirst: {fileID: 411186476, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
+  roundSecond: {fileID: -326623848, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
+  roundThird: {fileID: 155490927, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
+  roundFourth: {fileID: -1103883921, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
+  finalFirst: {fileID: 1315807981, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
+  finalSecond: {fileID: -68037739, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
+  finalThird: {fileID: 136607633, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
+  finalFourth: {fileID: -723862994, guid: 76b03c0b5c469034ab39939f275bfd42, type: 3}
