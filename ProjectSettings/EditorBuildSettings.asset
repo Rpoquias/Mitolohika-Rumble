@@ -5,13 +5,13 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Project/_Scenes/Main/Bootstrap.unity
     guid: 2ae74500831306f49ae6fa4a81d56653
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Project/_Scenes/Main/MainMenu.unity
     guid: 8d8b2d14051f4e84ea25fa1ba9aafb35
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Project/_Scenes/Main/Lobby.unity
     guid: 972ff293f8a89bd46a4f14745cf55c9a
   - enabled: 0
@@ -23,11 +23,14 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/_Scenes/Main/AgawanBandila.unity
     guid: 286d61fe105b04546945dad7c058ac93
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Project/_Scenes/Main/AgawanRelic.unity
     guid: e97f65210f88c6e43a1c3dadb136d3b7
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Project/_Scenes/Main/Celebration.unity
     guid: b354632d3ebc7f04f9a37803aa5f9645
+  - enabled: 1
+    path: Assets/_Project/_Scenes/Testing/Sison/PPARK.unity
+    guid: 9d43d172d7e5848479a106d25debe6f7
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
