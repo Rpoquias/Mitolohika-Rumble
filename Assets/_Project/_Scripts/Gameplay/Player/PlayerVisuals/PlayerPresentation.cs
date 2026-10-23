@@ -6,7 +6,6 @@ public class PlayerPresentation : NetworkBehaviour
 
     [SerializeField] private Target targetIndicator;
     [Header("References")]
-    [SerializeField] private Animator animator;
   [Header("Hit VFX")]
 [SerializeField] private ParticleSystem stunVfx;
 [SerializeField] private ParticleSystem knockbackVfx;
@@ -26,9 +25,19 @@ private bool hasInitializedInvisibility;
 [SerializeField] private SirenaAbility sirenaAbility;
 [SerializeField] private PlayerAnimationController animationController;
 [SerializeField] private GameObject waterholeVfx;
+[Header("Sirena Animation")]
+[SerializeField] private float diveClipLength = 0.6f;
+
+private Coroutine _hideSirenaCoroutine;
+private bool _hasInitializedSirenaState;
+
 
 [SerializeField] private string diveTrigger = "Dive";
 [SerializeField] private string emergeTrigger = "Emerge";
+
+private PlayerBumpAttack _bumpAttack;
+private int _lastBumpAnimationCount;
+private bool _hasInitializedBumpAnimation;
 
 private bool lastDivingState;
 private bool lastEmergingState;
@@ -51,6 +60,7 @@ private bool lastReversedInputState;
     smokeStatus = GetComponent<PlayerStatusEffects>();
     controlEffects = GetComponent<PlayerControlEffects>();
     sirenaAbility = GetComponent<SirenaAbility>();
+    _bumpAttack = GetComponentInParent<PlayerBumpAttack>();
     if (animationController == null)
     animationController = GetComponentInChildren<PlayerAnimationController>();
     if (smokeOverlay != null)
@@ -67,10 +77,32 @@ private bool lastReversedInputState;
 
         
 }
+private void UpdateBumpAnimation()
+{
+    if (_bumpAttack == null || animationController == null)
+        return;
+
+    int currentCount = _bumpAttack.BumpAnimationCount;
+
+    // Initialize without playing an animation on spawn.
+    if (!_hasInitializedBumpAnimation)
+    {
+        _lastBumpAnimationCount = currentCount;
+        _hasInitializedBumpAnimation = true;
+        return;
+    }
+
+    if (currentCount == _lastBumpAnimationCount)
+        return;
+
+    _lastBumpAnimationCount = currentCount;
+    animationController.PlayBumpAnimation();
+}
 
 public override void Render()
 {
     UpdateHitPresentation();
+    UpdateBumpAnimation();
 }
 private void UpdateConfusionPresentation()
 {
@@ -102,6 +134,7 @@ private void UpdateConfusionPresentation()
         confusionVfx.gameObject.SetActive(false);
     }
 }
+
 private void Update()
 {
     UpdateStunPresentation();
@@ -191,34 +224,72 @@ private void UpdateSirenaPresentation()
     bool diving = sirenaAbility.IsDiving;
     bool emerging = sirenaAbility.IsEmerging;
 
-    // Dive starts.
-    if (diving && !lastDivingState)
+    // Initialize without replaying animations for late joiners.
+    if (!_hasInitializedSirenaState)
     {
-        if (animationController != null)
-            animationController.PlayAbilityAnimation(diveTrigger);
+        _hasInitializedSirenaState = true;
+        lastDivingState = diving;
+        lastEmergingState = emerging;
 
         if (characterVisual != null)
-            characterVisual.SetActive(false);
+            characterVisual.SetActive(!diving);
 
         if (waterholeVfx != null)
-            waterholeVfx.SetActive(true);
+            waterholeVfx.SetActive(diving);
+
+        return;
     }
 
-    // Emergence starts.
-    if (emerging && !lastEmergingState)
+    // Dive begins.
+    if (diving && !lastDivingState)
     {
-        if (waterholeVfx != null)
-            waterholeVfx.SetActive(false);
+        if (_hideSirenaCoroutine != null)
+            StopCoroutine(_hideSirenaCoroutine);
 
         if (characterVisual != null)
             characterVisual.SetActive(true);
 
-        if (animationController != null)
-            animationController.PlayAbilityAnimation(emergeTrigger);
+        animationController?.PlayAbilityAnimation(diveTrigger);
+
+        if (waterholeVfx != null)
+            waterholeVfx.SetActive(true);
+
+        _hideSirenaCoroutine = StartCoroutine(HideSirenaAfterDive());
+    }
+
+    // Sirena emerges.
+    if (emerging && !lastEmergingState)
+    {
+        if (_hideSirenaCoroutine != null)
+        {
+            StopCoroutine(_hideSirenaCoroutine);
+            _hideSirenaCoroutine = null;
+        }
+
+        if (characterVisual != null)
+            characterVisual.SetActive(true);
+
+        if (waterholeVfx != null)
+            waterholeVfx.SetActive(false);
+
+        animationController?.PlayAbilityAnimation(emergeTrigger);
     }
 
     lastDivingState = diving;
     lastEmergingState = emerging;
+}
+
+private System.Collections.IEnumerator HideSirenaAfterDive()
+{
+    yield return new WaitForSeconds(diveClipLength);
+
+    if (sirenaAbility != null && sirenaAbility.IsDiving)
+    {
+        if (characterVisual != null)
+            characterVisual.SetActive(false);
+    }
+
+    _hideSirenaCoroutine = null;
 }
 private void PlayVFX(ParticleSystem effect, string effectName)
 {
@@ -364,11 +435,5 @@ private void SetInvisibilityPresentation(bool invisible)
             );
         }
     }
-}
-
-   public void PlayKickEffects()
-{
-    if (animator != null)
-        animator.SetTrigger("Kick");
 }
 }

@@ -66,8 +66,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: d9107eb21a34fa041bca6aa876b6fde8, type: 3}
-  m_Type: 0
+  m_Sprite: {fileID: 4554348, guid: 40cd5c6d5c328434db53462854acb2a8, type: 3}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -75,7 +75,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 3.05
 --- !u!1 &4649410113238216605
 GameObject:
   m_ObjectHideFlags: 0
@@ -192,7 +192,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Text
+  m_text: Round 1/4
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 70465b682e5b3344ba14aa25bb232573, type: 2}
   m_sharedMaterial: {fileID: 6187341932386556180, guid: 70465b682e5b3344ba14aa25bb232573, type: 2}
@@ -224,7 +224,7 @@ MonoBehaviour:
   m_fontWeight: 400
   m_enableAutoSizing: 1
   m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_fontSizeMax: 50
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512

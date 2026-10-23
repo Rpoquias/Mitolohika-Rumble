@@ -18,7 +18,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: NetworkedBehaviours.Array.size
-      value: 16
+      value: 17
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[8]'
@@ -50,6 +50,10 @@ PrefabInstance:
       objectReference: {fileID: 7468027950120649027}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[15]'
+      value: 
+      objectReference: {fileID: 5383451114351001346}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[16]'
       value: 
       objectReference: {fileID: -1841798753372411669}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
@@ -86,7 +90,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4467926278494369058, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: TriggerHashes.Array.size
-      value: 3
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 4467926278494369058, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'StateHashes.Array.data[1]'
@@ -127,6 +131,10 @@ PrefabInstance:
     - target: {fileID: 4467926278494369058, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'TriggerHashes.Array.data[2]'
       value: -1021552072
+      objectReference: {fileID: 0}
+    - target: {fileID: 4467926278494369058, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'TriggerHashes.Array.data[3]'
+      value: -1036680761
       objectReference: {fileID: 0}
     - target: {fileID: 5140535773488375641, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: m_LocalPosition.y
@@ -176,6 +184,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7381083579745209503, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: _ability
+      value: 
+      objectReference: {fileID: -1841798753372411669}
+    - target: {fileID: 7381083579745209503, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: _playerAudio
+      value: 
+      objectReference: {fileID: 9036036137605980400}
     - target: {fileID: 7542660410226928183, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: m_LocalPosition.y
       value: -0.835
@@ -305,6 +321,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5140535773488375641, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
   m_PrefabInstance: {fileID: 129799215157071324}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &5383451114351001346 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5438377985417523934, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 129799215157071324}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 339924765907466690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ca6621b735cec34fbaa7235cc180c32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerActionHUDConnector
 --- !u!114 &7468027950120649027 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7381083579745209503, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}

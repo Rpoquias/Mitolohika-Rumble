@@ -1,3 +1,4 @@
+
 using UnityEngine;
 
 [CreateAssetMenu(
@@ -14,19 +15,20 @@ public class GameModeData : ScriptableObject
     [SerializeField] private string locationName;
 
     [Header("Visuals")]
-    [SerializeField] private Sprite modeIcon;
+    [SerializeField] private Sprite modeCardImage;
     [SerializeField] private Sprite modeBackground;
     [SerializeField] private Sprite loadingBackground;
-
 
     [Header("Scene")]
     [SerializeField] private string scenePath;
 
-public Sprite LoadingBackground => loadingBackground;
     public GameModeType GameMode => gameMode;
     public string DisplayName => displayName;
     public string LocationName => locationName;
-    public Sprite ModeIcon => modeIcon;
+
+    public Sprite ModeCardImage => modeCardImage;
     public Sprite ModeBackground => modeBackground;
+    public Sprite LoadingBackground => loadingBackground;
+
     public string ScenePath => scenePath;
 }

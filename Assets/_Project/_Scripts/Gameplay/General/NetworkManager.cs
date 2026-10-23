@@ -38,6 +38,7 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     public event Action<string> OnConnectionStatusChanged;
     public event Action<MatchSession> OnMatchSessionRegistered;
     public static event Action<NetworkManager> OnInstanceReady;
+    public event Action<PlayerRef> OnPlayerObjectAvailable;
 
     private NetworkRunner runner;
 
@@ -742,6 +743,10 @@ private void Awake()
                 "NO ROOMS FOUND.\nWaiting for available rooms...");
         }
     }
+    public void NotifyPlayerObjectAvailable(PlayerRef player)
+{
+    OnPlayerObjectAvailable?.Invoke(player);
+}
 
     public void OnPlayerJoined(
         NetworkRunner callbackRunner,
@@ -761,17 +766,19 @@ private void Awake()
         OnPlayerJoinedEvent?.Invoke(player);
     }
 
-    public void OnPlayerLeft(
-        NetworkRunner callbackRunner,
-        PlayerRef player)
-    {
-        if (callbackRunner != runner)
-            return;
+public void OnPlayerLeft(
+    NetworkRunner callbackRunner,
+    PlayerRef player)
+{
+    if (callbackRunner != runner)
+        return;
 
-        playerSelections.Remove(player);
-        OnPlayerLeftEvent?.Invoke(player);
-    }
+    playerSelections.Remove(player);
+    if (joinsAllowed)
+        CurrentMatchSession?.RemovePlayerIdentity(player);
 
+    OnPlayerLeftEvent?.Invoke(player);
+}
     public void OnShutdown(
         NetworkRunner shutdownRunner,
         ShutdownReason shutdownReason)
@@ -818,14 +825,18 @@ public void OnSceneLoadDone(NetworkRunner callbackRunner)
     OnNetworkSceneLoadDoneEvent?.Invoke(scene);
 
     bool inLobby = scene.buildIndex == lobbySceneBuildIndex;
+if (callbackRunner.IsServer)
+{
+    SetJoinable(inLobby);
 
-    if (callbackRunner.IsServer)
+    if (inLobby)
     {
-        SetJoinable(inLobby);
-
-        if (inLobby && CurrentMatchSession == null)
+        if (CurrentMatchSession == null)
             SpawnMatchSession();
+        else
+            CurrentMatchSession.PruneInactiveIdentities();
     }
+}
 
     if (inLobby)
     {

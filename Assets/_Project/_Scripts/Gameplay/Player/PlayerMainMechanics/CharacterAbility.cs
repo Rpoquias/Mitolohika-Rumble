@@ -194,6 +194,29 @@ if (targetingState != null &&
             return bestTarget;
         }
 
+public float CooldownRemaining
+{
+    get
+    {
+        if (Runner == null || !Runner.IsRunning)
+            return 0f;
+
+        return CooldownTimer.RemainingTime(Runner) ?? 0f;
+    }
+}
+
+public bool IsAbilityAvailable
+{
+    get
+    {
+        return _movement != null &&
+               _movement.CanMove &&
+               !_movement.IsBusy &&
+               !_movement.IsStunned &&
+               !_movement.IsSnareRooted &&
+               CooldownTimer.ExpiredOrNotRunning(Runner);
+    }
+}
     #if UNITY_EDITOR
 
         private void OnDrawGizmosSelected()

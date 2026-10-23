@@ -20,6 +20,7 @@ public class MatchSession : NetworkBehaviour
     public event Action OnRoundNumberChanged;
     public event Action OnLobbySettingsChanged;
     public event Action OnCelebrationReadyChanged;
+    public event Action OnPlayerIdentityChanged;
     #endregion
 
     #region Networked Properties
@@ -83,6 +84,14 @@ public RoundResultDetailType CurrentRoundResultDetailType { get; set; }
     [Networked, Capacity(4)] public NetworkDictionary<PlayerRef, int> OverallPlacements => default;
     [Networked, Capacity(4)] public NetworkDictionary<PlayerRef, NetworkBool> CelebrationReady => default;
     [Networked, Capacity(4)] public NetworkArray<PlayerRef> OverallWinners => default;
+    [Networked, Capacity(4)]
+public NetworkDictionary<PlayerRef, NetworkString<_16>> PlayerNames => default;
+
+[Networked, Capacity(4)]
+public NetworkDictionary<PlayerRef, int> PlayerColors => default;
+
+[Networked, OnChangedRender(nameof(OnPlayerIdentitySequenceChanged))]
+public int PlayerIdentitySequence { get; set; }
 
     public bool IsFinalRound => CurrentRound >= TotalRounds;
     public bool IsSpawned { get; private set; }
@@ -103,8 +112,8 @@ public override void Spawned()
         Debug.LogException(e);
     }
 
+    RequestPlayerName(PlayerProfile.LocalName);
 }
-
 public override void Despawned(NetworkRunner runner, bool hasState)
 {
     IsSpawned = false;
@@ -465,4 +474,226 @@ private void OnRoundRevealSequenceChanged()
     OnRoundNumberChanged?.Invoke();
 }    private void OnCurrentGameModeChanged() { } // Kept because [OnChangedRender] references it by name.
     #endregion
+
+    
+#region Player Identity
+
+private const int PlayerColorCount = 4;
+
+public void RequestPlayerName(string requestedName)
+{
+    if (!IsSpawned || Runner == null || !Runner.IsRunning)
+        return;
+
+    string cleanName = PlayerProfile.Sanitize(requestedName);
+    NetworkString<_16> networkName = cleanName;
+
+    if (HasStateAuthority)
+    {
+        SetPlayerName(Runner.LocalPlayer, networkName.ToString());
+    }
+    else
+    {
+        RPC_SetPlayerName(networkName);
+    }
+}
+
+[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+private void RPC_SetPlayerName(
+    NetworkString<_16> requestedName,
+    RpcInfo info = default)
+{
+    SetPlayerName(info.Source, requestedName.ToString());
+}
+private void SetPlayerName(PlayerRef player, string requestedName)
+{
+    if (!HasStateAuthority)
+        return;
+
+    string cleanName = PlayerProfile.Sanitize(requestedName);
+
+    if (string.IsNullOrWhiteSpace(cleanName))
+        cleanName = $"Player {player.PlayerId + 1}";
+
+    cleanName = MakeUniquePlayerName(player, cleanName);
+
+    NetworkString<_16> networkName = cleanName;
+
+    bool changed = false;
+
+    if (!PlayerNames.TryGet(player, out var oldName) ||
+        oldName.ToString() != cleanName)
+    {
+        PlayerNames.Set(player, networkName);
+        changed = true;
+    }
+
+    // Assign once. Never reroll this player's color on a rename.
+    if (!PlayerColors.ContainsKey(player))
+    {
+        int colorId = GetRandomAvailableColor(player);
+        PlayerColors.Set(player, colorId);
+        changed = true;
+    }
+
+    if (changed)
+        PlayerIdentitySequence++;
+}
+
+private string MakeUniquePlayerName(PlayerRef player, string baseName)
+{
+    string candidate = baseName;
+    int suffix = 2;
+
+    while (IsPlayerNameTaken(player, candidate))
+    {
+        string tag = $" {suffix++}";
+        int allowedBaseLength = PlayerProfile.MaxNameLength - tag.Length;
+
+        if (allowedBaseLength < 1)
+            allowedBaseLength = 1;
+
+        string shortenedBase = baseName.Length > allowedBaseLength
+            ? baseName.Substring(0, allowedBaseLength)
+            : baseName;
+
+        candidate = shortenedBase + tag;
+    }
+
+    return candidate;
+}
+
+private bool IsPlayerNameTaken(PlayerRef player, string candidate)
+{
+    foreach (var entry in PlayerNames)
+    {
+        if (entry.Key == player)
+            continue;
+
+        if (string.Equals(
+            entry.Value.ToString(),
+            candidate,
+            System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+private int GetRandomAvailableColor(PlayerRef player)
+{
+    List<int> availableColors = new List<int>
+    {
+        0, 1, 2, 3
+    };
+
+    foreach (var entry in PlayerColors)
+    {
+        if (entry.Key != player)
+            availableColors.Remove(entry.Value);
+    }
+
+    if (availableColors.Count == 0)
+        return 0;
+
+    return availableColors[
+        UnityEngine.Random.Range(0, availableColors.Count)];
+}
+
+public void RemovePlayerIdentity(PlayerRef player)
+{
+    if (!HasStateAuthority)
+        return;
+
+    bool changed = PlayerNames.Remove(player);
+    changed |= PlayerColors.Remove(player);
+
+    if (changed)
+        PlayerIdentitySequence++;
+}
+
+public string GetPlayerName(PlayerRef player)
+{
+    if (PlayerNames.TryGet(player, out var name))
+        return name.ToString();
+
+    return $"Player {player.PlayerId + 1}";
+}
+
+public int GetPlayerColorId(PlayerRef player)
+{
+    return PlayerColors.TryGet(player, out int colorId)
+        ? colorId
+        : -1;
+}
+
+public static string NameOf(PlayerRef player)
+{
+    return Instance != null
+        ? Instance.GetPlayerName(player)
+        : $"Player {player.PlayerId + 1}";
+}
+
+public static int ColorIdOf(PlayerRef player)
+{
+    return Instance != null
+        ? Instance.GetPlayerColorId(player)
+        : -1;
+}
+
+public static Color ColorForPlayer(PlayerRef player)
+{
+    return ColorForId(ColorIdOf(player));
+}
+
+public static Color ColorForId(int colorId)
+{
+    switch (colorId)
+    {
+        case 0: return new Color(0.85f, 0.16f, 0.16f); // Red
+        case 1: return new Color(0.95f, 0.76f, 0.12f); // Yellow
+        case 2: return new Color(0.12f, 0.65f, 0.30f); // Green
+        case 3: return new Color(0.15f, 0.45f, 0.90f); // Blue
+        default: return Color.white;
+    }
+}
+
+private void OnPlayerIdentitySequenceChanged()
+{
+    OnPlayerIdentityChanged?.Invoke();
+}
+public void PruneInactiveIdentities()
+{
+    if (!HasStateAuthority) return;
+
+    var stale = new List<PlayerRef>();
+
+    foreach (var entry in PlayerNames)
+        if (!IsActivePlayer(entry.Key)) stale.Add(entry.Key);
+
+    foreach (var entry in PlayerColors)
+        if (!IsActivePlayer(entry.Key) && !stale.Contains(entry.Key)) stale.Add(entry.Key);
+
+    foreach (PlayerRef player in stale)
+    {
+        PlayerNames.Remove(player);
+        PlayerColors.Remove(player);
+    }
+
+    if (stale.Count > 0)
+        PlayerIdentitySequence++;
+}
+
+private bool IsActivePlayer(PlayerRef player)
+{
+    foreach (PlayerRef active in Runner.ActivePlayers)
+        if (active == player) return true;
+
+    return false;
+}
+
+#endregion
+
 }

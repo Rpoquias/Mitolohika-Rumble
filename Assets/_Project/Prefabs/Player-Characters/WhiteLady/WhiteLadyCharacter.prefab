@@ -388,7 +388,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: NetworkedBehaviours.Array.size
-      value: 16
+      value: 17
       objectReference: {fileID: 0}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[0]'
@@ -452,6 +452,10 @@ PrefabInstance:
       objectReference: {fileID: 3727568279699650894}
     - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
       propertyPath: 'NetworkedBehaviours.Array.data[15]'
+      value: 
+      objectReference: {fileID: 2210392238678198031}
+    - target: {fileID: 61308517068521054, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[16]'
       value: 
       objectReference: {fileID: 3992416396935922465}
     - target: {fileID: 394773554417792030, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
@@ -550,6 +554,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7381083579745209503, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: _ability
+      value: 
+      objectReference: {fileID: 3992416396935922465}
+    - target: {fileID: 7381083579745209503, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+      propertyPath: _playerAudio
+      value: 
+      objectReference: {fileID: 2990190859107653885}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 326830786392338650, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
@@ -576,6 +588,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5445560512753064ca291bea2cbf34b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkPlayerRegistration
+--- !u!114 &2210392238678198031 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5438377985417523934, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}
+  m_PrefabInstance: {fileID: 6184598912061175249}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5813759565420167631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ca6621b735cec34fbaa7235cc180c32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerActionHUDConnector
 --- !u!114 &2299001371698843946 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5346804513213949179, guid: 7cc492ea1efe2114dace42a71916141f, type: 3}

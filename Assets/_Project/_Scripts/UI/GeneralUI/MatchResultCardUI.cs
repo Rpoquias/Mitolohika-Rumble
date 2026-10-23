@@ -1,11 +1,16 @@
+
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using Fusion;
 
 public class MatchResultCardUI : MonoBehaviour
 {
-    [Header("References")]
-    [SerializeField] private TMP_Text placementText;
+    [Header("Placement")]
+    [SerializeField] private Image placementIcon;
+    [SerializeField] private PlacementIconsData placementIcons;
+
+    [Header("Player Details")]
     [SerializeField] private TMP_Text playerText;
     [SerializeField] private TMP_Text infoText;
 
@@ -14,35 +19,24 @@ public class MatchResultCardUI : MonoBehaviour
         PlayerRef player,
         string detail)
     {
-        placementText.text =
-            GetPlacementText(placement);
+        Sprite sprite = placementIcons != null
+            ? placementIcons.GetRoundIcon(placement)
+            : null;
 
-        playerText.text =
-            player.ToString();
-
-        infoText.text =
-            detail;
-    }
-
-    private string GetPlacementText(
-        int placement)
-    {
-        switch (placement)
+        if (placementIcon != null)
         {
-            case 1:
-                return "1ST";
-
-            case 2:
-                return "2ND";
-
-            case 3:
-                return "3RD";
-
-            case 4:
-                return "4TH";
-
-            default:
-                return $"{placement}TH";
+            placementIcon.sprite = sprite;
+            placementIcon.enabled = sprite != null;
+            placementIcon.gameObject.SetActive(sprite != null);
         }
+
+        if (playerText != null)
+        {
+            playerText.text = MatchSession.NameOf(player);
+            playerText.color = MatchSession.ColorForPlayer(player);
+        }
+
+        if (infoText != null)
+            infoText.text = detail;
     }
 }

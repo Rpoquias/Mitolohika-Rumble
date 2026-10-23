@@ -9,7 +9,7 @@ public class AbilityPresenter : NetworkBehaviour
     [SerializeField] private PlayerAudio _playerAudio;
 
     [Header("Animation")]
-    [SerializeField] private string _triggerName = "Kick";
+    [SerializeField] private string _triggerName = "Ability";
 
     private ChangeDetector _changeDetector;
     private int _lastActivationCount;
@@ -42,26 +42,27 @@ public class AbilityPresenter : NetworkBehaviour
 
         _lastActivationCount = _ability.ActivationCount;
     }
-
-    public override void Render()
+public override void Render()
+{
+    if (_ability == null ||
+        _animationController == null ||
+        _changeDetector == null)
     {
-        if (_ability == null || _animationController == null)
-            return;
-
-        foreach (var change in _changeDetector.DetectChanges(_ability))
-        {
-            if (change != nameof(CharacterAbility.ActivationCount))
-                continue;
-
-            int currentCount = _ability.ActivationCount;
-
-            if (currentCount == _lastActivationCount)
-                continue;
-
-            _lastActivationCount = currentCount;
-
-            _animationController.PlayAbilityAnimation(_triggerName);
-
-        }
+        return;
     }
+
+    foreach (var change in _changeDetector.DetectChanges(_ability))
+    {
+        if (change != nameof(CharacterAbility.ActivationCount))
+            continue;
+
+        int currentCount = _ability.ActivationCount;
+
+        if (currentCount == _lastActivationCount)
+            continue;
+
+        _lastActivationCount = currentCount;
+        _animationController.PlayAbilityAnimation(_triggerName);
+    }
+}
 }

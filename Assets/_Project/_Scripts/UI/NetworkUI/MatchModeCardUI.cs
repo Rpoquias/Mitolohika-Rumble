@@ -7,8 +7,7 @@ public class MatchModeCardUI : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private TMP_Text modeText;
-    [SerializeField] private Image modeIcon;
-    [SerializeField] private Image background;
+    [SerializeField] private Image modeCardImage;
     [SerializeField] private GameObject highlightObject;
 
     [Header("Played Mode Appearance")]
@@ -18,9 +17,7 @@ public class MatchModeCardUI : MonoBehaviour
     private GameModeData modeData;
 
     private Color originalTextColor;
-    private Color originalIconColor;
-    private Color originalBackgroundColor;
-
+    private Color originalCardImageColor;
     private bool originalColorsCached;
 
     public GameModeData ModeData => modeData;
@@ -42,13 +39,10 @@ public class MatchModeCardUI : MonoBehaviour
         if (modeText != null)
             modeText.text = data.DisplayName;
 
-        if (modeIcon != null)
-            modeIcon.sprite = data.ModeIcon;
-
-        if (background != null)
+        if (modeCardImage != null)
         {
-            background.sprite = data.ModeBackground;
-            background.enabled = data.ModeBackground != null;
+            modeCardImage.sprite = data.ModeCardImage;
+            modeCardImage.enabled = data.ModeCardImage != null;
         }
 
         SetHighlighted(false);
@@ -63,11 +57,8 @@ public class MatchModeCardUI : MonoBehaviour
         if (modeText != null)
             originalTextColor = modeText.color;
 
-        if (modeIcon != null)
-            originalIconColor = modeIcon.color;
-
-        if (background != null)
-            originalBackgroundColor = background.color;
+        if (modeCardImage != null)
+            originalCardImageColor = modeCardImage.color;
 
         originalColorsCached = true;
     }
@@ -76,16 +67,25 @@ public class MatchModeCardUI : MonoBehaviour
     {
         CacheOriginalColors();
 
-        float brightness = available ? 1f : unavailableBrightness;
+        float brightness = available
+            ? 1f
+            : unavailableBrightness;
 
         if (modeText != null)
-            modeText.color = ApplyBrightness(originalTextColor, brightness);
+        {
+            modeText.color = ApplyBrightness(
+                originalTextColor,
+                brightness
+            );
+        }
 
-        if (modeIcon != null)
-            modeIcon.color = ApplyBrightness(originalIconColor, brightness);
-
-        if (background != null)
-            background.color = ApplyBrightness(originalBackgroundColor, brightness);
+        if (modeCardImage != null)
+        {
+            modeCardImage.color = ApplyBrightness(
+                originalCardImageColor,
+                brightness
+            );
+        }
 
         if (!available)
             SetHighlighted(false);

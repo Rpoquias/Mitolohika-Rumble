@@ -60,6 +60,7 @@ GameObject:
   - component: {fileID: 8983363282271677740}
   - component: {fileID: 4467926278494369058}
   - component: {fileID: 7381083579745209503}
+  - component: {fileID: 5438377985417523934}
   m_Layer: 6
   m_Name: PlayerTemplate
   m_TagString: Untagged
@@ -184,6 +185,7 @@ MonoBehaviour:
     m_Bits: 8
   _coyoteTime: 2.51
   _jumpGuardTime: 0.1
+  _sampleGroundOnProxies: 1
   _externalVelocityDamping: 10
   _fallMultiplier: 4
   _eventSpeedTransitionRate: 0.6
@@ -207,7 +209,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7e3c91b4d824f6a9c1e5b8d2f0a4c76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBumpAttack
-  _startup: 0.1
+  _BumpAnimationCount: 0
+  _startup: 0.2
   _activeTime: 0.15
   _recovery: 0.5
   _cooldown: 2
@@ -265,6 +268,7 @@ MonoBehaviour:
   - {fileID: 8983363282271677740}
   - {fileID: 4467926278494369058}
   - {fileID: 7381083579745209503}
+  - {fileID: 5438377985417523934}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &5822319257664240599
 MonoBehaviour:
@@ -347,7 +351,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerPresentation
   targetIndicator: {fileID: 4776808547342160659}
-  animator: {fileID: 0}
   stunVfx: {fileID: 8535650350159002572}
   knockbackVfx: {fileID: 3080612267909593511}
   powerfulKickVfx: {fileID: 2927649897954906664}
@@ -359,6 +362,7 @@ MonoBehaviour:
   sirenaAbility: {fileID: 0}
   animationController: {fileID: 0}
   waterholeVfx: {fileID: 0}
+  diveClipLength: 0.6
   diveTrigger: Dive
   emergeTrigger: Emerge
 --- !u!114 &2529339143744099010
@@ -462,7 +466,19 @@ MonoBehaviour:
   _ability: {fileID: 0}
   _animationController: {fileID: 941134947159227891}
   _playerAudio: {fileID: 0}
-  _triggerName: Kick
+  _triggerName: Ability
+--- !u!114 &5438377985417523934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 394773554417792030}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ca6621b735cec34fbaa7235cc180c32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerActionHUDConnector
 --- !u!1 &1096132585349599618
 GameObject:
   m_ObjectHideFlags: 0
@@ -542,6 +558,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimationController
   _animator: {fileID: 0}
   _speedParameter: Speed
+  _dampTime: 0.1
+  _bumpTrigger: Bump
+  _abilityTrigger: Ability
 --- !u!1 &4906323175606873485
 GameObject:
   m_ObjectHideFlags: 0
@@ -662,7 +681,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.23584908, g: 0.23584908, b: 0.23584908, a: 0.78039217}
+  m_Color: {r: 0.1509434, g: 0.1473834, b: 0.1473834, a: 0.8784314}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 0

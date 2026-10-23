@@ -6,6 +6,7 @@ public class MobileInputProvider : MonoBehaviour
 
     [Header("Movement")]
     [SerializeField] private FixedJoystick movementJoystick;
+    [Tooltip("Assign the new Empty Parent Wrapper (Joystick Root) here!")]
 
     [Header("Action Buttons")]
     [SerializeField] private RectTransform jumpButton;
@@ -22,68 +23,58 @@ public class MobileInputProvider : MonoBehaviour
     private bool _jumpPressed;
     private bool _bumpPressed;
     private bool _abilityPressed;
-private bool inputEnabled = true;
-  public Vector2 MoveInput
-{
-    get
+    private bool inputEnabled = true;
+
+    public Vector2 MoveInput
     {
-        if (!inputEnabled)
-            return Vector2.zero;
+        get
+        {
+            if (!inputEnabled)
+                return Vector2.zero;
 
-        if (movementJoystick == null)
-            return Vector2.zero;
+            if (movementJoystick == null)
+                return Vector2.zero;
 
-        return new Vector2(
-            movementJoystick.Horizontal,
-            movementJoystick.Vertical
-        );
+            return new Vector2(
+                movementJoystick.Horizontal,
+                movementJoystick.Vertical
+            );
+        }
     }
-}
+
     private void Awake()
     {
         Instance = this;
 
-        if (movementJoystick != null)
-        {
-            _joystickTransform =
-                movementJoystick.GetComponent<RectTransform>();
-
-            _defaultJoystickScale =
-                _joystickTransform.localScale;
-        }
-
         if (jumpButton != null)
         {
-            _defaultJumpButtonScale =
-                jumpButton.localScale;
+            _defaultJumpButtonScale = jumpButton.localScale;
         }
 
         if (bumpButton != null)
         {
-            _defaultBumpButtonScale =
-                bumpButton.localScale;
+            _defaultBumpButtonScale = bumpButton.localScale;
         }
 
         if (abilityButton != null)
         {
-            _defaultAbilityButtonScale =
-                abilityButton.localScale;
+            _defaultAbilityButtonScale = abilityButton.localScale;
         }
     }
-private void Update()
-{
-    if (MobileInputProvider.Instance == null)
+
+    private void Update()
     {
-        return;
+        if (MobileInputProvider.Instance == null)
+        {
+            return;
+        }
+
+        if (movementJoystick == null)
+        {
+            return;
+        }
     }
 
-    if (movementJoystick == null)
-    {
-        return;
-    }
-
- 
-}
     private void OnDestroy()
     {
         if (Instance == this)
@@ -91,44 +82,45 @@ private void Update()
     }
 
     public void SetInputEnabled(bool enabled)
-{
-    inputEnabled = enabled;
-
-    if (!enabled)
     {
-        _jumpPressed = false;
-        _bumpPressed = false;
-        _abilityPressed = false;
+        inputEnabled = enabled;
+
+        if (!enabled)
+        {
+            _jumpPressed = false;
+            _bumpPressed = false;
+            _abilityPressed = false;
+        }
     }
-}
 
     // --------------------------------------------------------------------
     // Button presses
     // --------------------------------------------------------------------
 
-public void PressJump()
-{
-    if (!inputEnabled)
-        return;
+    public void PressJump()
+    {
+        if (!inputEnabled)
+            return;
 
-    _jumpPressed = true;
-}
+        _jumpPressed = true;
+    }
 
-public void PressBump()
-{
-    if (!inputEnabled)
-        return;
+    public void PressBump()
+    {
+        if (!inputEnabled)
+            return;
 
-    _bumpPressed = true;
-}
+        _bumpPressed = true;
+    }
 
-public void PressAbility()
-{
-    if (!inputEnabled)
-        return;
+    public void PressAbility()
+    {
+        if (!inputEnabled)
+            return;
 
-    _abilityPressed = true;
-}
+        _abilityPressed = true;
+    }
+
     // --------------------------------------------------------------------
     // Button consumption
     // --------------------------------------------------------------------
@@ -168,20 +160,17 @@ public void PressAbility()
     {
         if (jumpButton != null)
         {
-            jumpButton.localScale =
-                _defaultJumpButtonScale * scale;
+            jumpButton.localScale = _defaultJumpButtonScale * scale;
         }
 
         if (bumpButton != null)
         {
-            bumpButton.localScale =
-                _defaultBumpButtonScale * scale;
+            bumpButton.localScale = _defaultBumpButtonScale * scale;
         }
 
         if (abilityButton != null)
         {
-            abilityButton.localScale =
-                _defaultAbilityButtonScale * scale;
+            abilityButton.localScale = _defaultAbilityButtonScale * scale;
         }
     }
 
@@ -190,7 +179,7 @@ public void PressAbility()
         if (_joystickTransform == null)
             return;
 
-        _joystickTransform.localScale =
-            _defaultJoystickScale * scale;
+        // Automatically scales the wrapper parent if assigned, keeping internal touch math aligned
+        _joystickTransform.localScale = _defaultJoystickScale * scale;
     }
 }

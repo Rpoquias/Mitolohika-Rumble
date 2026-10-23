@@ -6,6 +6,9 @@
     [RequireComponent(typeof(PlayerInputHandler))]
     public class PlayerBumpAttack : NetworkBehaviour
     {
+
+        [Networked]
+public int BumpAnimationCount { get; private set; }
         public event Action<PlayerElimination, PlayerElimination>
             OnKnockbackApplied;
 
@@ -119,18 +122,18 @@
             return;
         }
 
-        State = BumpState.Startup;
+    State = BumpState.Startup;
+BumpAnimationCount++;
 
-        AttackTimer = TickTimer.CreateFromSeconds(
-            Runner,
-            _startup
-        );
+AttackTimer = TickTimer.CreateFromSeconds(
+    Runner,
+    _startup
+);
 
-    _movement.SetBusy(true);
+_movement.SetBusy(true);
 
-    _audio?.Play(SFXID.PlayerBump);
-
-    OnBumpStarted?.Invoke();
+_audio?.Play(SFXID.PlayerBump);
+OnBumpStarted?.Invoke();
     }   private void UpdateBumpState()
         {
             if (State == BumpState.None)
@@ -253,6 +256,34 @@
                 }
             }
         }
+
+
+        public float CooldownRemaining
+{
+    get
+    {
+        if (Runner == null || !Runner.IsRunning)
+            return 0f;
+
+        return CooldownTimer.RemainingTime(Runner) ?? 0f;
+    }
+}
+
+public bool IsBumpAvailable
+{
+    get
+    {
+        return _canBump &&
+               !_objectiveBlocksBump &&
+               _movement != null &&
+               _movement.CanMove &&
+               !_movement.IsBusy &&
+               !_movement.IsStunned &&
+               _movement.IsGrounded &&
+               State == BumpState.None &&
+               CooldownTimer.ExpiredOrNotRunning(Runner);
+    }
+}
 
         private void OnDrawGizmosSelected()
         {

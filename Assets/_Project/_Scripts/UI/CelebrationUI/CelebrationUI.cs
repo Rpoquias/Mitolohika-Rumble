@@ -70,11 +70,6 @@ public class CelebrationUI : MonoBehaviour
                     player,
                     out MatchPlayerPlacementRecord record))
             {
-                Debug.LogWarning(
-                    $"[CELEBRATION UI] " +
-                    $"No placement record for {player}."
-                );
-
                 continue;
             }
 
@@ -82,22 +77,15 @@ public class CelebrationUI : MonoBehaviour
                     player,
                     out int overallPlacement))
             {
-                Debug.LogWarning(
-                    $"[CELEBRATION UI] " +
-                    $"No overall placement for {player}."
-                );
-
                 continue;
             }
 
-            string characterName =
-                GetCharacterName(player);
+         
 
             players.Add(
                 new PlayerCelebrationData
                 {
                     Player = player,
-                    CharacterName = characterName,
                     Record = record,
                     OverallPlacement = overallPlacement
                 }
@@ -127,64 +115,27 @@ public class CelebrationUI : MonoBehaviour
         }
     }
 
-    private void CreatePlayerCard(
-        PlayerCelebrationData player)
+private void CreatePlayerCard(PlayerCelebrationData player)
+{
+    if (playerCardPrefab == null ||
+        playerCardContainer == null)
     {
-        if (playerCardPrefab == null ||
-            playerCardContainer == null)
-        {
-            return;
-        }
-
-        CelebrationPlayerCardUI card =
-            Instantiate(
-                playerCardPrefab,
-                playerCardContainer
-            );
-
-        card.Setup(
-            player.CharacterName,
-            player.Record,
-            player.OverallPlacement
-        );
-
-        playerCards.Add(card);
+        return;
     }
 
-    private string GetCharacterName(
-        PlayerRef player)
-    {
-        if (!NetworkManager.Instance.TryGetPlayerSelection(
-                player,
-                out CharacterID characterID))
-        {
-            return player.ToString();
-        }
+    CelebrationPlayerCardUI card = Instantiate(
+        playerCardPrefab,
+        playerCardContainer
+    );
 
-        CharacterData character =
-            GetCharacterData(characterID);
+    card.Setup(
+        player.Player,
+        player.Record,
+        player.OverallPlacement
+    );
 
-        if (character == null)
-            return player.ToString();
-
-        return character.characterName;
-    }
-
-    private CharacterData GetCharacterData(
-        CharacterID characterID)
-    {
-        foreach (CharacterData character in characters)
-        {
-            if (character == null)
-                continue;
-
-            if (character.characterID == characterID)
-                return character;
-        }
-
-        return null;
-    }
-
+    playerCards.Add(card);
+}
     private void ClearCards()
     {
         foreach (CelebrationPlayerCardUI card in playerCards)

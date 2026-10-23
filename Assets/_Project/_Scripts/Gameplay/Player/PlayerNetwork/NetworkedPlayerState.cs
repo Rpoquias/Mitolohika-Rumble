@@ -16,17 +16,16 @@ public class NetworkPlayerState : NetworkBehaviour
 
     public bool IsValid => IsInitialized && Object != null && Object.IsValid;
 
-    public override void Spawned()
-    {
-        IsInitialized = true;
+public override void Spawned()
+{
+    IsInitialized = true;
 
-        if (Runner.IsServer && HasInputAuthority) IsReady = true;
+    if (Runner.IsServer && HasInputAuthority)
+        IsReady = true;
 
-        Debug.Log($"<color=#FF5252><b>[NETWORK PLAYER STATE] OK</b> - Spawned | Player: {Object.InputAuthority} | Character: {SelectedCharacter} | IsReady: {IsReady}</color>");
-
-        // Initial spawn does not trigger OnChangedRender,
-        // so UI that subscribes should call Refresh() once.
-    }
+    NetworkManager.Instance?.NotifyPlayerObjectAvailable(
+        Object.InputAuthority);
+}
 
     public override void Despawned(NetworkRunner runner, bool hasState)
     {

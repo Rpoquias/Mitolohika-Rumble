@@ -29,8 +29,6 @@ public class MatchRevealUI : MonoBehaviour
 
     [Header("Round Reveal Visuals")]
     [SerializeField] private Image modeBackgroundImage;
-    [SerializeField] private Image modeIconImage;
-
     [Header("Timing")]
     [SerializeField, Min(0f)] private float randomPickDuration = 0.7f;
     [SerializeField, Min(0f)] private float modePickDuration = 2f;
@@ -516,12 +514,6 @@ OnRevealCompleted?.Invoke();
         {
             modeBackgroundImage.sprite = data.ModeBackground;
             modeBackgroundImage.enabled = data.ModeBackground != null;
-        }
-
-        if (modeIconImage != null)
-        {
-            modeIconImage.sprite = data.ModeIcon;
-            modeIconImage.enabled = data.ModeIcon != null;
         }
     }
 

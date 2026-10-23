@@ -1,3 +1,4 @@
+
 using System.Collections.Generic;
 using Fusion;
 using TMPro;
@@ -21,42 +22,31 @@ public class LeaderboardUI : MonoBehaviour
     [SerializeField] private Transform cardContainer;
 
     private IStandingsProvider standingsProvider;
-
     private NetworkRunner runner;
 
-    private readonly List<StandingEntry> entries =
-        new List<StandingEntry>();
-
-    private readonly List<LeaderboardUICard> cards =
-        new List<LeaderboardUICard>();
+    private readonly List<StandingEntry> entries = new();
+    private readonly List<LeaderboardUICard> cards = new();
 
     private bool initialized;
 
-    // ============================================================
-    // UNITY
-    // ============================================================
-private void Awake()
-{
-    standingsProvider =
-        providerSource as IStandingsProvider;
-
-
-    if (standingButton != null)
+    private void Awake()
     {
-        standingButton.onClick.AddListener(
-            ToggleLeaderboard
-        );
-    }
+        standingsProvider = providerSource as IStandingsProvider;
 
-}
+        // The panel is controlled only by the standing button.
+        if (leaderboardPanel != null)
+            leaderboardPanel.SetActive(false);
+
+        if (standingButton != null)
+            standingButton.onClick.AddListener(ToggleLeaderboard);
+    }
 
     private void OnEnable()
     {
         if (standingsProvider == null)
             return;
 
-        standingsProvider.StandingsChanged +=
-            HandleStandingsChanged;
+        standingsProvider.StandingsChanged += HandleStandingsChanged;
 
         TryInitialize();
     }
@@ -64,10 +54,7 @@ private void Awake()
     private void OnDisable()
     {
         if (standingsProvider != null)
-        {
-            standingsProvider.StandingsChanged -=
-                HandleStandingsChanged;
-        }
+            standingsProvider.StandingsChanged -= HandleStandingsChanged;
 
         initialized = false;
     }
@@ -75,19 +62,13 @@ private void Awake()
     private void OnDestroy()
     {
         if (standingButton != null)
-        {
-            standingButton.onClick.RemoveListener(
-                ToggleLeaderboard
-            );
-        }
+            standingButton.onClick.RemoveListener(ToggleLeaderboard);
     }
 
     private void Update()
     {
-        if (initialized)
-            return;
-
-        TryInitialize();
+        if (!initialized)
+            TryInitialize();
     }
 
     // ============================================================
@@ -96,41 +77,29 @@ private void Awake()
 
     private void TryInitialize()
     {
-        if (standingsProvider == null)
+        if (standingsProvider == null ||
+            !standingsProvider.IsReady ||
+            cardPrefab == null ||
+            cardContainer == null)
+        {
             return;
-
-        if (!standingsProvider.IsReady)
-            return;
-
-        if (cardPrefab == null)
-            return;
-
-        if (cardContainer == null)
-            return;
+        }
 
         if (runner == null)
         {
             if (providerSource != null)
             {
-                runner =
-                    NetworkRunner.GetRunnerForGameObject(
-                        providerSource.gameObject
-                    );
+                runner = NetworkRunner.GetRunnerForGameObject(
+                    providerSource.gameObject
+                );
             }
 
-            if (runner == null &&
-                NetworkManager.Instance != null)
-            {
-                runner =
-                    NetworkManager.Instance.Runner;
-            }
+            if (runner == null && NetworkManager.Instance != null)
+                runner = NetworkManager.Instance.Runner;
         }
 
-        if (runner == null ||
-            !runner.IsRunning)
-        {
+        if (runner == null || !runner.IsRunning)
             return;
-        }
 
         initialized = true;
 
@@ -144,11 +113,8 @@ private void Awake()
 
     private void UpdateHeader()
     {
-        if (secondaryHeaderText == null)
-            return;
-
-        secondaryHeaderText.text =
-            standingsProvider.SecondaryHeaderLabel;
+        if (secondaryHeaderText != null)
+            secondaryHeaderText.text = standingsProvider.SecondaryHeaderLabel;
     }
 
     // ============================================================
@@ -162,19 +128,14 @@ private void Awake()
 
     private void Refresh()
     {
-        if (!initialized)
-            return;
-
-        if (standingsProvider == null ||
+        if (!initialized ||
+            standingsProvider == null ||
             !standingsProvider.IsReady)
         {
             return;
         }
 
-        standingsProvider.GetStandings(
-            entries
-        );
-
+        standingsProvider.GetStandings(entries);
         DisplayEntries();
     }
 
@@ -182,45 +143,39 @@ private void Awake()
     // DISPLAY
     // ============================================================
 
-    private void DisplayEntries()
+   private void DisplayEntries()
+{
+    EnsureCardCount(entries.Count);
+
+    for (int i = 0; i < cards.Count; i++)
     {
-        EnsureCardCount(
-            entries.Count
-        );
-
-        for (int i = 0;
-             i < cards.Count;
-             i++)
+        if (i >= entries.Count)
         {
-            if (i >= entries.Count)
-            {
-                cards[i].Clear();
-                cards[i].gameObject.SetActive(false);
-                continue;
-            }
-
-            StandingEntry entry =
-                entries[i];
-
-            cards[i].gameObject.SetActive(true);
-
-            cards[i].SetData(
-                entry,
-                GetPlayerName(entry.Player)
-            );
+            cards[i].Clear();
+            continue;
         }
-    }
 
-    private void EnsureCardCount(
-        int requiredCount)
+        StandingEntry entry = entries[i];
+
+        cards[i].gameObject.SetActive(true);
+
+        string playerName = GetPlayerName(entry.Player);
+
+        cards[i].SetData(
+            entry,
+            playerName,
+            entry.Player
+        );
+    }
+}
+    private void EnsureCardCount(int requiredCount)
     {
         while (cards.Count < requiredCount)
         {
-            LeaderboardUICard card =
-                Instantiate(
-                    cardPrefab,
-                    cardContainer
-                );
+            LeaderboardUICard card = Instantiate(
+                cardPrefab,
+                cardContainer
+            );
 
             cards.Add(card);
         }
@@ -230,17 +185,18 @@ private void Awake()
     // PLAYER NAME
     // ============================================================
 
-    private string GetPlayerName(
-        PlayerRef player)
-    {
-        if (runner != null &&
-            player == runner.LocalPlayer)
-        {
-            return "YOU";
-        }
+private string GetPlayerName(PlayerRef player)
+{
+    string playerName = MatchSession.NameOf(player);
 
-        return $"PLAYER {player.PlayerId}";
-    }
+    if (string.IsNullOrWhiteSpace(playerName))
+        playerName = $"Player {player.PlayerId}";
+
+    if (runner != null && player == runner.LocalPlayer)
+        return $"{playerName} (YOU)";
+
+    return playerName;
+}
 
     // ============================================================
     // PANEL TOGGLE
@@ -251,11 +207,6 @@ private void Awake()
         if (leaderboardPanel == null)
             return;
 
-        bool shouldShow =
-            !leaderboardPanel.activeSelf;
-
-        leaderboardPanel.SetActive(
-            shouldShow
-        );
+        leaderboardPanel.SetActive(!leaderboardPanel.activeSelf);
     }
 }

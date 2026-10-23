@@ -27,6 +27,8 @@ public class MatchResultUI : MonoBehaviour
     private Coroutine resultCoroutine;
     private int lastHandledSequence = -1;
     private Coroutine bindCoroutine;
+    private GameplayCanvasVisibility gameplayCanvasVisibility;
+private bool gameplayCanvasesHidden;
 
     private readonly List<MatchResultCardUI> resultCards = new();
 
@@ -63,7 +65,9 @@ private void OnDisable()
     if (rootPanel != null)
         rootPanel.SetActive(false);
 
-    lastHandledSequence = -1;
+
+RestoreGameplayCanvases();
+lastHandledSequence = -1;
 }
 
     private void BindMatchSession()
@@ -125,6 +129,38 @@ private IEnumerator BindMatchSessionWhenAvailable()
 
     bindCoroutine = null;
 }
+
+private void HideGameplayCanvases()
+{
+    if (gameplayCanvasVisibility == null)
+    {
+        gameplayCanvasVisibility =
+            FindAnyObjectByType<GameplayCanvasVisibility>();
+    }
+
+    if (gameplayCanvasVisibility == null)
+    {
+        Debug.LogWarning(
+            "[MATCH RESULT UI] GameplayCanvasVisibility not found."
+        );
+        return;
+    }
+
+    gameplayCanvasVisibility.HideGameplayCanvases();
+    gameplayCanvasesHidden = true;
+}
+
+private void RestoreGameplayCanvases()
+{
+    if (!gameplayCanvasesHidden)
+        return;
+
+    if (gameplayCanvasVisibility != null)
+        gameplayCanvasVisibility.RestoreGameplayCanvases();
+
+    gameplayCanvasVisibility = null;
+    gameplayCanvasesHidden = false;
+}
     private void CheckForMissedResult()
     {
         if (matchSession == null || !matchSession.IsSpawned)
@@ -160,8 +196,10 @@ private IEnumerator BindMatchSessionWhenAvailable()
 
     private IEnumerator ShowResultCoroutine()
     {
-        if (rootPanel != null)
-            rootPanel.SetActive(true);
+      HideGameplayCanvases();
+
+    if (rootPanel != null)
+        rootPanel.SetActive(true);
 
         ClearCards();
 
@@ -257,16 +295,16 @@ private IEnumerator BindMatchSessionWhenAvailable()
         resultCards.Clear();
     }
 
-    public void HideImmediately()
-    {
-        StopResultCoroutine();
+public void HideImmediately()
+{
+    StopResultCoroutine();
 
-        if (rootPanel != null)
-            rootPanel.SetActive(false);
+    if (rootPanel != null)
+        rootPanel.SetActive(false);
 
-        ClearCards();
-    }
-
+    ClearCards();
+    RestoreGameplayCanvases();
+}
     private void OnDestroy()
     {
         UnbindMatchSession();

@@ -20,22 +20,108 @@ public class CharacterPlayerIconUI : MonoBehaviour
 
     private NetworkPlayerState playerState;
 
-    public void Setup(
-        PlayerRef playerRef,
-        int displayNumber,
-        CharacterData[] characterData)
+public void Setup(
+    PlayerRef playerRef,
+    int displayNumber,
+    CharacterData[] characterData)
+{
+    player = playerRef;
+    characters = characterData;
+
+    if (playerNumberText != null)
+        playerNumberText.text = $"P{displayNumber}";
+
+    SubscribeToIdentity();
+
+    if (NetworkManager.Instance != null)
     {
-        player = playerRef;
-        characters = characterData;
+        NetworkManager.Instance.OnPlayerObjectAvailable -=
+            HandlePlayerObjectAvailable;
 
-        if (playerNumberText != null)
-        {
-            playerNumberText.text =
-                $"P{displayNumber}";
-        }
-
-        TryBindToPlayerState();
+        NetworkManager.Instance.OnPlayerObjectAvailable +=
+            HandlePlayerObjectAvailable;
     }
+
+    RefreshIdentity();
+    TryBindToPlayerState();
+}
+private void OnEnable()
+{
+    SubscribeToIdentity();
+}
+private void HandlePlayerObjectAvailable(PlayerRef spawnedPlayer)
+{
+    if (spawnedPlayer != player || playerState != null)
+        return;
+
+    TryBindToPlayerState();
+}
+private void SubscribeToIdentity()
+{
+    if (MatchSession.Instance != null)
+    {
+        MatchSession.Instance.OnPlayerIdentityChanged -=
+            HandleIdentityChanged;
+
+        MatchSession.Instance.OnPlayerIdentityChanged +=
+            HandleIdentityChanged;
+
+        RefreshIdentity();
+    }
+    else if (NetworkManager.Instance != null)
+    {
+        NetworkManager.Instance.OnMatchSessionRegistered -=
+            HandleSessionRegistered;
+
+        NetworkManager.Instance.OnMatchSessionRegistered +=
+            HandleSessionRegistered;
+    }
+}
+
+private void HandleSessionRegistered(MatchSession session)
+{
+    if (NetworkManager.Instance != null)
+    {
+        NetworkManager.Instance.OnMatchSessionRegistered -=
+            HandleSessionRegistered;
+    }
+
+    SubscribeToIdentity();
+}
+
+private void HandleIdentityChanged()
+{
+    RefreshIdentity();
+}
+
+private void RefreshIdentity()
+{
+    if (playerNumberText != null)
+    {
+        playerNumberText.color =
+            MatchSession.ColorForPlayer(player);
+    }
+}
+
+private void UnsubscribeFromIdentity()
+{
+    if (MatchSession.Instance != null)
+    {
+        MatchSession.Instance.OnPlayerIdentityChanged -=
+            HandleIdentityChanged;
+    }
+
+    if (NetworkManager.Instance != null)
+    {
+        NetworkManager.Instance.OnMatchSessionRegistered -=
+            HandleSessionRegistered;
+    }
+    if (NetworkManager.Instance != null)
+{
+    NetworkManager.Instance.OnPlayerObjectAvailable -=
+        HandlePlayerObjectAvailable;
+}
+}
 
  private void TryBindToPlayerState()
 {
@@ -69,11 +155,10 @@ public class CharacterPlayerIconUI : MonoBehaviour
 
 private void OnDestroy()
 {
+    UnsubscribeFromIdentity();
+
     if (playerState != null)
-    {
-        playerState.OnUIStateChanged -=
-            HandlePlayerStateChanged;
-    }
+        playerState.OnUIStateChanged -= HandlePlayerStateChanged;
 }
     private void HandlePlayerStateChanged(
     NetworkPlayerState state)
