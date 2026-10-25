@@ -51,7 +51,7 @@ private void OnEnable()
 }
 private void HandlePlayerObjectAvailable(PlayerRef spawnedPlayer)
 {
-    if (spawnedPlayer != player || playerState != null)
+    if (spawnedPlayer != player)
         return;
 
     TryBindToPlayerState();
@@ -123,36 +123,42 @@ private void UnsubscribeFromIdentity()
 }
 }
 
- private void TryBindToPlayerState()
+private void TryBindToPlayerState()
 {
     if (NetworkManager.Instance == null)
         return;
 
-    NetworkRunner runner =
-        NetworkManager.Instance.Runner;
+    NetworkRunner runner = NetworkManager.Instance.Runner;
 
     if (runner == null || !runner.IsRunning)
         return;
 
-    if (!runner.TryGetPlayerObject(
-            player,
-            out NetworkObject playerObject))
+    if (!runner.TryGetPlayerObject(player, out NetworkObject playerObject))
+        return;
+
+    NetworkPlayerState newState =
+        playerObject.GetComponent<NetworkPlayerState>();
+
+    if (newState == null)
+        return;
+
+    // Nothing changed; avoid duplicate event subscriptions.
+    if (playerState == newState)
     {
+        Refresh();
         return;
     }
 
-    playerState =
-        playerObject.GetComponent<NetworkPlayerState>();
+    // The character may have been despawned and replaced.
+    if (playerState != null)
+        playerState.OnUIStateChanged -= HandlePlayerStateChanged;
 
-    if (playerState == null)
-        return;
+    playerState = newState;
+    playerState.OnUIStateChanged += HandlePlayerStateChanged;
 
-    playerState.OnUIStateChanged +=
-        HandlePlayerStateChanged;
-
+    // Refresh immediately, including the initial replicated state.
     Refresh();
 }
-
 private void OnDestroy()
 {
     UnsubscribeFromIdentity();
@@ -166,49 +172,45 @@ private void OnDestroy()
     Refresh();
 }
 
-    public void Refresh()
+public void Refresh()
+{
+    if (playerState == null)
+        return;
+
+    if (readyIndicator != null)
+        readyIndicator.SetActive(playerState.IsReady);
+
+    CharacterData selectedCharacter =
+        FindCharacter(playerState.SelectedCharacter);
+
+    if (characterIcon == null)
+        return;
+
+    Sprite icon = selectedCharacter != null
+        ? selectedCharacter.characterIcon
+        : null;
+
+    characterIcon.sprite = icon;
+    characterIcon.enabled = icon != null;
+}
+
+private CharacterData FindCharacter(CharacterID characterID)
+{
+    if (characters == null)
+        return null;
+
+    for (int i = 0; i < characters.Length; i++)
     {
-        if (playerState == null)
-            return;
+        CharacterData character = characters[i];
 
-        if (readyIndicator != null)
+        if (character != null &&
+            character.characterID == characterID)
         {
-            readyIndicator.SetActive(
-                playerState.IsReady
-            );
-        }
-
-        CharacterData selectedCharacter =
-            FindCharacter(
-                playerState.SelectedCharacter
-            );
-
-        if (selectedCharacter != null)
-        {
-            if (characterIcon != null)
-            {
-                characterIcon.enabled = true;
-                characterIcon.sprite =
-                    selectedCharacter.characterIcon;
-            }
-        }
-        else
-        {
-            if (characterIcon != null)
-                characterIcon.enabled = false;
+            return character;
         }
     }
 
-    private CharacterData FindCharacter(
-        CharacterID characterID)
-    {
-        if (characters == null)
-            return null;
+    return null;
+}
 
-        return characters.FirstOrDefault(
-            character =>
-                character != null &&
-                character.characterID == characterID
-        );
-    }
 }

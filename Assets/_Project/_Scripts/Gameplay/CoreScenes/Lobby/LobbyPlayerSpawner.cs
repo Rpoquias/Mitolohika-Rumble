@@ -5,7 +5,9 @@ using UnityEngine.SceneManagement;
 public class LobbyPlayerSpawner : MonoBehaviour
 {
     [Header("Characters")]
-    [SerializeField] private CharacterData[] characters;
+[SerializeField] private CharacterData[] characters;
+[SerializeField] private CharacterData defaultCharacter;
+    
 
     private bool initialized;
     private bool isLobbySceneLoaded;
@@ -161,19 +163,18 @@ TrySpawnExistingPlayers();
     }
 
     if (!NetworkManager.Instance.TryGetPlayerSelection(
-            player, out CharacterID characterID))
+        player, out CharacterID characterID))
+{
+    if (defaultCharacter == null)
     {
-       
-
-        if (characters == null || characters.Length == 0 || characters[0] == null)
-        {
-            
-            return;
-        }
-
-        characterID = characters[0].characterID;
-        NetworkManager.Instance.SetPlayerSelection(player, characterID);
+        Debug.LogError(
+            "[LOBBY SPAWNER] Default character is not assigned.");
+        return;
     }
+
+    characterID = defaultCharacter.characterID;
+    NetworkManager.Instance.SetPlayerSelection(player, characterID);
+}
 
     CharacterData character = GetCharacterData(characterID);
 
@@ -419,6 +420,7 @@ TrySpawnExistingPlayers();
         }
 
         runner.SetPlayerObject(player, playerObject);
+        NetworkManager.Instance?.NotifyPlayerObjectAvailable(player);
     }
 
     // ============================================================

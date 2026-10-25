@@ -54,13 +54,13 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: f77cb85e6f18c1c4eb07bedd96f9e095, type: 3}
   abilitySFX:
   - id: 14
-    clip: {fileID: 8300000, guid: b4ddbe87609e37044b9c6ee13295b943, type: 3}
+    clip: {fileID: 8300000, guid: 10005b152e93a8740b867554fb87f3bd, type: 3}
   - id: 15
     clip: {fileID: 8300000, guid: 38c7a2dbbf7968845aed8c8a3a7ed346, type: 3}
   - id: 16
     clip: {fileID: 8300000, guid: cae01f39a9293da4d9746ecd911c4fcf, type: 3}
   - id: 17
-    clip: {fileID: 8300000, guid: ec9cd26631a80b44b8d64b0948da04f7, type: 3}
+    clip: {fileID: 8300000, guid: a62b43bd70c1c12458ebcba7e2d9f67c, type: 3}
   - id: 20
     clip: {fileID: 8300000, guid: df3f971789ad3334c92f3a850558ce73, type: 3}
   - id: 19

@@ -17,10 +17,25 @@ private PlayerAnimationController _animationController;
         [Networked]
         protected TickTimer CooldownTimer { get; set; }
         [Networked]
+
+        
 public int ActivationCount { get; private set; }
+[Networked]
+private TickTimer BumpLockTimer { get; set; }
+
+public bool IsBlockingBump =>
+    Runner != null &&
+    !BumpLockTimer.ExpiredOrNotRunning(Runner);
+    private PlayerBumpAttack _bumpAttack;
 protected void NotifyActivated()
 {
     ActivationCount++;
+
+    // Prevent bumping immediately after a skill activates.
+    BumpLockTimer = TickTimer.CreateFromSeconds(
+        Runner,
+        0.5f
+    );
 
     if (_movement != null)
     {
@@ -42,7 +57,13 @@ protected void NotifyActivated()
 
 public virtual bool CanActivate()
 {
-    return CooldownTimer.ExpiredOrNotRunning(Runner);
+    return CooldownTimer.ExpiredOrNotRunning(Runner) &&
+           _movement != null &&
+           _movement.CanMove &&
+           !_movement.IsBusy &&
+           !_movement.IsStunned &&
+           !_movement.IsSnareRooted &&
+           (_bumpAttack == null || !_bumpAttack.IsBumping);
 }
 
 public override void Spawned()
@@ -50,6 +71,7 @@ public override void Spawned()
     _movement = GetComponent<PlayerMovement>();
     _inputHandler = GetComponent<PlayerInputHandler>();
     Audio = GetComponent<PlayerAudio>();
+    _bumpAttack = GetComponent<PlayerBumpAttack>();
 
     _animationController =
         GetComponentInChildren<PlayerAnimationController>();
@@ -62,10 +84,11 @@ public override void FixedUpdateNetwork()
     if (!_canUseAbility)
         return;
 
-    if (_inputHandler.AbilityPressed)
-    {
-        Activate();
-    }
+ if (_inputHandler.AbilityPressed &&
+    CanActivate())
+{
+    Activate();
+}
 }
 protected bool HasAbilityAnimation(string triggerName)
 {
@@ -214,6 +237,7 @@ public bool IsAbilityAvailable
                !_movement.IsBusy &&
                !_movement.IsStunned &&
                !_movement.IsSnareRooted &&
+               (_bumpAttack == null || !_bumpAttack.IsBumping) &&
                CooldownTimer.ExpiredOrNotRunning(Runner);
     }
 }

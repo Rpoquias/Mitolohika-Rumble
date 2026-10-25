@@ -44,12 +44,16 @@ public class AgawanRelicBoostManager : NetworkBehaviour
         int tick = Runner.Tick.Raw;
 
         // Re-scanning players every tick was wasted work; joins/leaves are rare.
-        if (tick >= _nextCacheRefreshTick)
-        {
-            RefreshMovementCache();
-            _nextCacheRefreshTick = tick + movementCacheRefreshTicks;
-            _boostsDirty = true;
-        }
+
+if (tick >= _nextCacheRefreshTick)
+{
+    _nextCacheRefreshTick =
+        tick + movementCacheRefreshTicks;
+
+    if (RefreshMovementCache())
+        _boostsDirty = true;
+}
+
 
         for (int i = _respawnTimers.Count - 1; i >= 0; i--)
         {
@@ -63,47 +67,58 @@ public class AgawanRelicBoostManager : NetworkBehaviour
         UpdatePlayerBoosts();
     }
 
-    public void StartRoundCollectibles()
+
+public void StartRoundCollectibles()
+{
+    if (!HasStateAuthority || Runner == null)
+        return;
+
+    ClearCollectibles();
+
+    _roundCollectiblesActive = true;
+    _boostsDirty = true;
+    _nextCacheRefreshTick = 0;
+
+    // Spawn pickups after resetting the previous round's state.
+    SpawnInitialPickups();
+}
+
+
+public void ClearCollectibles()
+{
+    _roundCollectiblesActive = false;
+    _lastAppliedHolder = PlayerRef.None;
+    _boostsDirty = true;
+    _nextCacheRefreshTick = 0;
+
+    bool canCleanNetworkObjects =
+        Runner != null && HasStateAuthority;
+
+    if (canCleanNetworkObjects)
     {
-        if (!HasStateAuthority || Runner == null)
-            return;
-
-        ClearCollectibles();
-
-        _roundCollectiblesActive = true;
-        _nextCacheRefreshTick = 0; // force a fresh scan on the first tick
-        SpawnInitialPickups();
-    }
-
-    public void ClearCollectibles()
-    {
-        if (!HasStateAuthority || Runner == null)
-            return;
-
-        _roundCollectiblesActive = false;
-        _nextCacheRefreshTick = 0;
-        _lastAppliedHolder = PlayerRef.None;
-        _boostsDirty = true;
-
-        RefreshMovementCache();
-
-        foreach (PlayerMovement movement in _movementCache.Values)
+        foreach (var entry in _movementCache)
         {
-            if (IsInvalid(movement) || !movement.HasStateAuthority)
-                continue;
+            PlayerMovement movement = entry.Value;
 
-            movement.ResetCollectibleSpeedBoost();
+            if (!IsInvalid(movement) && movement.HasStateAuthority)
+                movement.ResetCollectibleSpeedBoost();
         }
 
-        foreach (NetworkObject pickup in _activePickups)
+        // Despawn first; clear the collection after enumeration.
+        foreach (NetworkObject pickupObject in _activePickups)
         {
-            if (pickup != null && pickup.IsValid)
-                Runner.Despawn(pickup);
+            if (pickupObject != null && pickupObject.IsValid)
+                Runner.Despawn(pickupObject);
         }
-
-        _activePickups.Clear();
-        _respawnTimers.Clear();
     }
+
+    // Always clear local bookkeeping, even during teardown.
+    _activePickups.Clear();
+    _respawnTimers.Clear();
+    _movementCache.Clear();
+    _playersToRemove.Clear();
+    _spawnScratch.Clear();
+}
 
     public bool TryCollect(PlayerMovement movement)
     {
@@ -127,6 +142,7 @@ public class AgawanRelicBoostManager : NetworkBehaviour
         }
 
         _respawnTimers.Add(TickTimer.CreateFromSeconds(Runner, respawnDelay));
+        _boostsDirty = true;
     }
 
     private static bool IsInvalid(PlayerMovement movement)
@@ -136,35 +152,60 @@ public class AgawanRelicBoostManager : NetworkBehaviour
                !movement.Object.IsValid;
     }
 
-    private void RefreshMovementCache()
+
+private bool RefreshMovementCache()
+{
+    if (Runner == null)
+        return false;
+
+    bool changed = false;
+    _playersToRemove.Clear();
+
+    foreach (var entry in _movementCache)
     {
-        _playersToRemove.Clear();
-
-        foreach (var entry in _movementCache)
+        if (IsInvalid(entry.Value) ||
+            !Runner.TryGetPlayerObject(
+                entry.Key, out NetworkObject playerObject) ||
+            playerObject == null ||
+            playerObject.GetComponent<PlayerMovement>() != entry.Value)
         {
-            if (IsInvalid(entry.Value))
-                _playersToRemove.Add(entry.Key);
-        }
-
-        for (int i = 0; i < _playersToRemove.Count; i++)
-            _movementCache.Remove(_playersToRemove[i]);
-
-        foreach (PlayerRef player in Runner.ActivePlayers)
-        {
-            if (_movementCache.ContainsKey(player))
-                continue;
-
-            if (!Runner.TryGetPlayerObject(player, out NetworkObject obj) ||
-                obj == null ||
-                !obj.IsValid)
-            {
-                continue;
-            }
-
-            if (obj.TryGetComponent(out PlayerMovement movement))
-                _movementCache[player] = movement;
+            _playersToRemove.Add(entry.Key);
         }
     }
+
+    for (int i = 0; i < _playersToRemove.Count; i++)
+    {
+        _movementCache.Remove(_playersToRemove[i]);
+        changed = true;
+    }
+
+    foreach (PlayerRef playerRef in Runner.ActivePlayers)
+    {
+        if (!Runner.TryGetPlayerObject(
+                playerRef, out NetworkObject playerObject) ||
+            playerObject == null)
+        {
+            continue;
+        }
+
+        PlayerMovement movement =
+            playerObject.GetComponent<PlayerMovement>();
+
+        if (movement == null)
+            continue;
+
+        if (!_movementCache.TryGetValue(
+                playerRef, out PlayerMovement cachedMovement) ||
+            cachedMovement != movement)
+        {
+            _movementCache[playerRef] = movement;
+            changed = true;
+        }
+    }
+
+    return changed;
+}
+
 
     private void UpdatePlayerBoosts()
     {

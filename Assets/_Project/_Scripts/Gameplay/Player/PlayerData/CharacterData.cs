@@ -1,3 +1,4 @@
+
 using UnityEngine;
 
 [CreateAssetMenu(
@@ -10,8 +11,12 @@ public class CharacterData : ScriptableObject
     public CharacterID characterID;
     public string characterName;
 
-    [Header("Character Icon")]
+    [Header("Character Artwork")]
+    [Tooltip("Small icon used for selection and compact UI.")]
     public Sprite characterIcon;
+
+    [Tooltip("Larger character profile art used on result cards.")]
+    public Sprite characterPortrait;
 
     [Header("Lobby Prefab")]
     public GameObject lobbyPrefab;

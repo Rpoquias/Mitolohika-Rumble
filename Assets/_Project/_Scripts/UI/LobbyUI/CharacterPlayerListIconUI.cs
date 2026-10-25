@@ -1,3 +1,4 @@
+
 using System.Collections.Generic;
 using System.Linq;
 using Fusion;
@@ -6,14 +7,18 @@ using UnityEngine.SceneManagement;
 
 public class CharacterPlayerIconListUI : MonoBehaviour
 {
-    [Header("UI")]
-    [SerializeField] private Transform container;
-    [SerializeField] private CharacterPlayerIconUI playerIconPrefab;
+    [Header("All Players UI")]
+    [SerializeField] private Transform allPlayersContainer;
 
-    [Header("Characters")]
+    [Header("Local Player UI")]
+    [SerializeField] private Transform localPlayerContainer;
+
+    [Header("Shared Settings")]
+    [SerializeField] private CharacterPlayerIconUI playerIconPrefab;
     [SerializeField] private CharacterData[] characters;
 
-    private readonly List<CharacterPlayerIconUI> icons = new();
+    private readonly List<CharacterPlayerIconUI> allPlayerIcons = new();
+    private CharacterPlayerIconUI localPlayerIcon;
 
     private PlayerRegistry playerRegistry;
     private bool initialized;
@@ -29,28 +34,24 @@ public class CharacterPlayerIconListUI : MonoBehaviour
         UnsubscribeFromNetworkEvents();
         UnsubscribeFromPlayerRegistry();
 
-        ClearIcons();
+        ClearAllPlayerIcons();
+        ClearLocalPlayerIcon();
 
         initialized = false;
     }
 
-    // --------------------------------------------------------------------
+    // --------------------------------------------------
     // Initialization
-    // --------------------------------------------------------------------
+    // --------------------------------------------------
 
     private void SubscribeToNetworkEvents()
     {
         if (NetworkManager.Instance == null)
             return;
 
-        NetworkManager.Instance.OnPlayerJoinedEvent +=
-            HandlePlayerJoined;
-
-        NetworkManager.Instance.OnPlayerLeftEvent +=
-            HandlePlayerLeft;
-
-        NetworkManager.Instance.OnNetworkSceneLoadDoneEvent +=
-            HandleSceneLoadDone;
+        NetworkManager.Instance.OnPlayerJoinedEvent += HandlePlayerJoined;
+        NetworkManager.Instance.OnPlayerLeftEvent += HandlePlayerLeft;
+        NetworkManager.Instance.OnNetworkSceneLoadDoneEvent += HandleSceneLoadDone;
     }
 
     private void UnsubscribeFromNetworkEvents()
@@ -58,35 +59,22 @@ public class CharacterPlayerIconListUI : MonoBehaviour
         if (NetworkManager.Instance == null)
             return;
 
-        NetworkManager.Instance.OnPlayerJoinedEvent -=
-            HandlePlayerJoined;
-
-        NetworkManager.Instance.OnPlayerLeftEvent -=
-            HandlePlayerLeft;
-
-        NetworkManager.Instance.OnNetworkSceneLoadDoneEvent -=
-            HandleSceneLoadDone;
+        NetworkManager.Instance.OnPlayerJoinedEvent -= HandlePlayerJoined;
+        NetworkManager.Instance.OnPlayerLeftEvent -= HandlePlayerLeft;
+        NetworkManager.Instance.OnNetworkSceneLoadDoneEvent -= HandleSceneLoadDone;
     }
 
     private void TryInitialize()
     {
-        if (initialized)
+        if (initialized || PlayerRegistry.Instance == null)
             return;
 
-        if (PlayerRegistry.Instance == null)
-            return;
+        playerRegistry = PlayerRegistry.Instance;
 
-        playerRegistry =
-            PlayerRegistry.Instance;
-
-        playerRegistry.OnPlayerRegistered +=
-            HandlePlayerRegistered;
-
-        playerRegistry.OnPlayerUnregistered +=
-            HandlePlayerUnregistered;
+        playerRegistry.OnPlayerRegistered += HandlePlayerRegistered;
+        playerRegistry.OnPlayerUnregistered += HandlePlayerUnregistered;
 
         initialized = true;
-
         Rebuild();
     }
 
@@ -95,25 +83,20 @@ public class CharacterPlayerIconListUI : MonoBehaviour
         if (playerRegistry == null)
             return;
 
-        playerRegistry.OnPlayerRegistered -=
-            HandlePlayerRegistered;
-
-        playerRegistry.OnPlayerUnregistered -=
-            HandlePlayerUnregistered;
+        playerRegistry.OnPlayerRegistered -= HandlePlayerRegistered;
+        playerRegistry.OnPlayerUnregistered -= HandlePlayerUnregistered;
 
         playerRegistry = null;
     }
 
-    // --------------------------------------------------------------------
-    // Network events
-    // --------------------------------------------------------------------
+    // --------------------------------------------------
+    // Events
+    // --------------------------------------------------
 
     private void HandleSceneLoadDone(Scene scene)
     {
-        if (scene != SceneManager.GetActiveScene())
-            return;
-
-        TryInitialize();
+        if (scene == SceneManager.GetActiveScene())
+            TryInitialize();
     }
 
     private void HandlePlayerJoined(PlayerRef player)
@@ -124,87 +107,96 @@ public class CharacterPlayerIconListUI : MonoBehaviour
     private void HandlePlayerLeft(PlayerRef player)
     {
         if (!initialized)
-        {
             TryInitialize();
-            return;
-        }
-
-        Rebuild();
+        else
+            Rebuild();
     }
 
-    // --------------------------------------------------------------------
-    // Player Registry events
-    // --------------------------------------------------------------------
-
-    private void HandlePlayerRegistered(
-        NetworkObject playerObject)
+    private void HandlePlayerRegistered(NetworkObject playerObject)
     {
         Rebuild();
     }
 
-    private void HandlePlayerUnregistered(
-        NetworkObject playerObject)
+    private void HandlePlayerUnregistered(NetworkObject playerObject)
     {
         Rebuild();
     }
 
-    // --------------------------------------------------------------------
-    // List
-    // --------------------------------------------------------------------
+    // --------------------------------------------------
+    // Build UI
+    // --------------------------------------------------
 
     private void Rebuild()
     {
-        if (!initialized)
+        if (!initialized || playerRegistry == null)
             return;
 
-        ClearIcons();
+        ClearAllPlayerIcons();
+        ClearLocalPlayerIcon();
 
-        if (playerRegistry == null)
-            return;
+        List<NetworkObject> players = playerRegistry.Players
+            .Where(player => player != null && player.IsValid)
+            .OrderBy(player => player.InputAuthority.PlayerId)
+            .ToList();
 
-        List<NetworkObject> players =
-            playerRegistry.Players
-                .Where(player =>
-                    player != null &&
-                    player.IsValid)
-                .OrderBy(player =>
-                    player.InputAuthority.PlayerId)
-                .ToList();
+        NetworkRunner runner = NetworkManager.Instance != null
+            ? NetworkManager.Instance.Runner
+            : null;
 
         for (int i = 0; i < players.Count; i++)
         {
-            NetworkObject playerObject =
-                players[i];
+            NetworkObject playerObject = players[i];
+            PlayerRef playerRef = playerObject.InputAuthority;
 
-            CharacterPlayerIconUI icon =
-                Instantiate(
+            // Create an icon in the all-players container.
+            if (allPlayersContainer != null)
+            {
+                CharacterPlayerIconUI icon = Instantiate(
                     playerIconPrefab,
-                    container
+                    allPlayersContainer
                 );
 
-            icon.Setup(
-                playerObject.InputAuthority,
-                i + 1,
-                characters
-            );
+                icon.Setup(playerRef, i + 1, characters);
+                allPlayerIcons.Add(icon);
+            }
 
-            icons.Add(icon);
+            // Create a separate icon only for the local player.
+            if (runner != null &&
+                runner.IsRunning &&
+                playerRef == runner.LocalPlayer &&
+                localPlayerContainer != null)
+            {
+                localPlayerIcon = Instantiate(
+                    playerIconPrefab,
+                    localPlayerContainer
+                );
+
+                localPlayerIcon.Setup(playerRef, i + 1, characters);
+            }
         }
-
-        Debug.Log(
-            $"[CHARACTER PLAYER ICONS] " +
-            $"Created {icons.Count} player icons."
-        );
     }
 
-    private void ClearIcons()
+    // --------------------------------------------------
+    // Cleanup
+    // --------------------------------------------------
+
+    private void ClearAllPlayerIcons()
     {
-        foreach (CharacterPlayerIconUI icon in icons)
+        foreach (CharacterPlayerIconUI icon in allPlayerIcons)
         {
             if (icon != null)
                 Destroy(icon.gameObject);
         }
 
-        icons.Clear();
+        allPlayerIcons.Clear();
+    }
+
+    private void ClearLocalPlayerIcon()
+    {
+        if (localPlayerIcon != null)
+        {
+            Destroy(localPlayerIcon.gameObject);
+            localPlayerIcon = null;
+        }
     }
 }

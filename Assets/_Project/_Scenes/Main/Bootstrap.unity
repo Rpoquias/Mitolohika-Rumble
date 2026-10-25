@@ -786,6 +786,7 @@ MonoBehaviour:
   roundText: {fileID: 117451040}
   resultContainer: {fileID: 882558108}
   resultCardPrefab: {fileID: 7917806252940066776, guid: c9e9d334be7c80f4ca4dafe0ef9b49ac, type: 3}
+  characterDatabase: []
   resultDisplayDuration: 3
 --- !u!4 &269196031
 Transform:
@@ -2943,6 +2944,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0534b0ededd07a749b45138a02facc40, type: 2}
   - {fileID: 11400000, guid: 8346897fc5f45d844ab6887d166f0031, type: 2}
   - {fileID: 11400000, guid: 5ec7c85e35ec38f4e8d6afdb85fc43fd, type: 2}
+  defaultCharacter: {fileID: 11400000, guid: d21645577d7caff4ca7309438efe9a63, type: 2}
 --- !u!114 &2116841955
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,11 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterData
   characterID: 4
   characterName: Nuno
-  characterIcon: {fileID: 0}
+  characterIcon: {fileID: -535294144, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
+  characterPortrait: {fileID: 21300000, guid: 842e46ce4dc53fe4db542541a3d27b85, type: 3}
   lobbyPrefab: {fileID: 5022802914455037833, guid: 90289df9c72789946b2745bfd1b1620e, type: 3}
   gameplayPrefab: {fileID: 5022802914455037833, guid: 90289df9c72789946b2745bfd1b1620e, type: 3}
-  signatureAbility: 
-  abilityDescription: 
+  signatureAbility: Confusion Projectile
+  abilityDescription: Shoot a projectile that when hit it makes other players controls
+    reversed.
   abilityCooldown: 0
   abilityRange: 0
   abilityDuration: 0

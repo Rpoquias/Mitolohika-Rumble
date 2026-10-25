@@ -50,6 +50,34 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.adaptiveperformance": {
+      "version": "6.0.0",
+      "depth": 1,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.modules.adaptiveperformance": "1.0.0"
+      }
+    },
+    "com.unity.adaptiveperformance.google.android": {
+      "version": "6.0.0",
+      "depth": 0,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.modules.adaptiveperformance": "1.0.0",
+        "com.unity.modules.androidjni": "1.0.0"
+      }
+    },
+    "com.unity.adaptiveperformance.samsung.android": {
+      "version": "5.1.0",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.modules.androidjni": "1.0.0",
+        "com.unity.modules.subsystems": "1.0.0",
+        "com.unity.adaptiveperformance": "5.1.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.14",
       "depth": 0,

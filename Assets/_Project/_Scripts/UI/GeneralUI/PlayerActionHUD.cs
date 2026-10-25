@@ -12,6 +12,7 @@ public class PlayerActionHUD : MonoBehaviour
         public TMP_Text cooldownText;
     }
 
+
     [Header("Buttons")]
     [SerializeField] private ActionButton jumpButton;
     [SerializeField] private ActionButton bumpButton;
@@ -54,41 +55,73 @@ public class PlayerActionHUD : MonoBehaviour
         RefreshButtons();
     }
 
-    private void RefreshButtons()
+
+
+public void ClearPlayer()
+{
+    movement = null;
+    bump = null;
+    ability = null;
+
+    RefreshButtons();
+}
+
+  
+private void RefreshButtons()
+{
+    bool movementValid =
+        movement != null &&
+        movement.Object != null &&
+        movement.Object.IsValid &&
+        movement.Object.IsInSimulation;
+
+    bool bumpValid =
+        bump != null &&
+        bump.Object != null &&
+        bump.Object.IsValid &&
+        bump.Object.IsInSimulation;
+
+    bool abilityValid =
+        ability != null &&
+        ability.Object != null &&
+        ability.Object.IsValid &&
+        ability.Object.IsInSimulation;
+
+    bool canJump = false;
+
+    if (movementValid)
     {
-        bool canJump =
-            movement != null &&
+        canJump =
             movement.IsGrounded &&
             movement.CanJump &&
             movement.CanMove &&
             !movement.IsBusy &&
             !movement.IsStunned &&
             !movement.IsSnareRooted;
-
-        bool canBump =
-            bump != null &&
-            bump.IsBumpAvailable;
-
-        bool canUseAbility =
-            ability != null &&
-            ability.IsAbilityAvailable;
-
-        SetButton(jumpButton, canJump, 0f, false);
-
-        SetButton(
-            bumpButton,
-            canBump,
-            bump != null ? bump.CooldownRemaining : 0f,
-            true
-        );
-
-        SetButton(
-            abilityButton,
-            canUseAbility,
-            ability != null ? ability.CooldownRemaining : 0f,
-            true
-        );
     }
+
+    bool canBump =
+        bumpValid && bump.IsBumpAvailable;
+
+    bool canUseAbility =
+        abilityValid && ability.IsAbilityAvailable;
+
+    SetButton(jumpButton, canJump, 0f, false);
+
+    SetButton(
+        bumpButton,
+        canBump,
+        bumpValid ? bump.CooldownRemaining : 0f,
+        true
+    );
+
+    SetButton(
+        abilityButton,
+        canUseAbility,
+        abilityValid ? ability.CooldownRemaining : 0f,
+        true
+    );
+}
 
     private void SetButton(
         ActionButton button,

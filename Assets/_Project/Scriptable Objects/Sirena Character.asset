@@ -14,11 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterData
   characterID: 5
   characterName: Sirena
-  characterIcon: {fileID: 0}
+  characterIcon: {fileID: 117196933, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
+  characterPortrait: {fileID: 21300000, guid: aec9634a5a2d2fd48a584af3e886bd54, type: 3}
   lobbyPrefab: {fileID: 339924765907466690, guid: 890176be1ff1c0844b1414460b349e7a, type: 3}
   gameplayPrefab: {fileID: 339924765907466690, guid: 890176be1ff1c0844b1414460b349e7a, type: 3}
-  signatureAbility: 
-  abilityDescription: 
+  signatureAbility: Utimate Wave
+  abilityDescription: Dives in and be untargetable during the dive, then emerge from
+    the water knocking back players close to her
   abilityCooldown: 0
   abilityRange: 0
   abilityDuration: 0

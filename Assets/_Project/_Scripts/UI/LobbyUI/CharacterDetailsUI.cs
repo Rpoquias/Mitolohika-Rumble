@@ -1,8 +1,13 @@
+
 using TMPro;
 using UnityEngine;
 
 public class CharacterDetailsUI : MonoBehaviour
 {
+    [Header("Default Character")]
+    [SerializeField]
+    private CharacterData defaultCharacter;
+
     [Header("Character")]
     [SerializeField] private TMP_Text characterNameText;
 
@@ -15,57 +20,65 @@ public class CharacterDetailsUI : MonoBehaviour
     [SerializeField] private TMP_Text cooldownText;
     [SerializeField] private TMP_Text durationText;
 
+    private CharacterData currentCharacter;
+
+    private void Start()
+    {
+        // Show the default selection without requiring a button click.
+        ShowCharacter(defaultCharacter);
+    }
+
     public void ShowCharacter(CharacterData character)
     {
         if (character == null)
             return;
 
-        characterNameText.text =
-            character.characterName;
+        currentCharacter = character;
 
-        abilityNameText.text =
-            character.signatureAbility;
+        if (characterNameText != null)
+            characterNameText.text = character.characterName;
 
-        effectText.text =
-            character.abilityDescription;
+        if (abilityNameText != null)
+            abilityNameText.text = character.signatureAbility;
 
-        // Range
-        if (character.abilityRange > 0f)
-        {
-            rangeText.gameObject.SetActive(true);
+        if (effectText != null)
+            effectText.text = character.abilityDescription;
 
-            rangeText.text =
-                $"RANGE  {character.abilityRange:0.#}m";
-        }
-        else
-        {
-            rangeText.gameObject.SetActive(false);
-        }
+        SetStat(
+            rangeText,
+            character.abilityRange,
+            "RANGE",
+            "m"
+        );
 
-        // Cooldown
-        if (character.abilityCooldown > 0f)
-        {
-            cooldownText.gameObject.SetActive(true);
+        SetStat(
+            cooldownText,
+            character.abilityCooldown,
+            "CD",
+            "s"
+        );
 
-            cooldownText.text =
-                $"CD  {character.abilityCooldown:0.#}s";
-        }
-        else
-        {
-            cooldownText.gameObject.SetActive(false);
-        }
+        SetStat(
+            durationText,
+            character.abilityDuration,
+            "DURATION",
+            "s"
+        );
+    }
 
-        // Duration
-        if (character.abilityDuration > 0f)
-        {
-            durationText.gameObject.SetActive(true);
+    private static void SetStat(
+        TMP_Text text,
+        float value,
+        string label,
+        string suffix)
+    {
+        if (text == null)
+            return;
 
-            durationText.text =
-                $"DURATION  {character.abilityDuration:0.#}s";
-        }
-        else
-        {
-            durationText.gameObject.SetActive(false);
-        }
+        bool show = value > 0f;
+        text.gameObject.SetActive(show);
+
+        if (show)
+            text.text = $"{label}  {value:0.#}{suffix}";
     }
 }

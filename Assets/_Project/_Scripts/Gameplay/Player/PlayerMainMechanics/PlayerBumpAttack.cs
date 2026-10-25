@@ -30,6 +30,7 @@ public int BumpAnimationCount { get; private set; }
         private PlayerInputHandler _inputHandler;
         private PlayerElimination _elimination;
         private bool _canBump;
+        private CharacterAbility _ability;
     private bool _objectiveBlocksBump;
         private readonly Collider[] _hitColliders =
             new Collider[16];
@@ -59,6 +60,7 @@ public int BumpAnimationCount { get; private set; }
         _inputHandler = GetComponent<PlayerInputHandler>();
         _elimination = GetComponent<PlayerElimination>();
         _audio = GetComponent<PlayerAudio>();
+        _ability = GetComponent<CharacterAbility>();
 
         if (_audio == null)
         {
@@ -111,17 +113,17 @@ public int BumpAnimationCount { get; private set; }
     private void TryBump()
     {
         if (!_canBump ||
-            _objectiveBlocksBump ||
-            !_movement.CanMove ||
-            _movement.IsBusy ||
-            _movement.IsStunned ||
-            !_movement.IsGrounded ||
-            State != BumpState.None ||
-            !CooldownTimer.ExpiredOrNotRunning(Runner))
-        {
-            return;
-        }
-
+        _objectiveBlocksBump ||
+        !_movement.CanMove ||
+        _movement.IsBusy ||
+        _movement.IsStunned ||
+        !_movement.IsGrounded ||
+        State != BumpState.None ||
+        (_ability != null && _ability.IsBlockingBump) ||
+        !CooldownTimer.ExpiredOrNotRunning(Runner))
+    {
+        return;
+    }
     State = BumpState.Startup;
 BumpAnimationCount++;
 
@@ -187,6 +189,8 @@ OnBumpStarted?.Invoke();
                     break;
             }
         }
+
+
 
         private void PerformBump()
         {
@@ -281,10 +285,11 @@ public bool IsBumpAvailable
                !_movement.IsStunned &&
                _movement.IsGrounded &&
                State == BumpState.None &&
+               (_ability == null || !_ability.IsBlockingBump) &&
                CooldownTimer.ExpiredOrNotRunning(Runner);
     }
 }
-
+public bool IsBumping => State != BumpState.None;
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.yellow;

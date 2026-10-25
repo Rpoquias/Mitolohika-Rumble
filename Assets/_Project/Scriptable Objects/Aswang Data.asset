@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterData
   characterID: 3
   characterName: Aswang
-  characterIcon: {fileID: 0}
+  characterIcon: {fileID: 780872548, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
+  characterPortrait: {fileID: 21300000, guid: ddca4484050d24349a32300247be58a3, type: 3}
   lobbyPrefab: {fileID: 4780327029275695668, guid: 33751a4b341d96a44aee517b8b7eb48b, type: 3}
   gameplayPrefab: {fileID: 4780327029275695668, guid: 33751a4b341d96a44aee517b8b7eb48b, type: 3}
   signatureAbility: Stun

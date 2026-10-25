@@ -19,16 +19,21 @@ public class MatchResultUI : MonoBehaviour
     [SerializeField] private Transform resultContainer;
     [SerializeField] private MatchResultCardUI resultCardPrefab;
 
+    [Header("Character Data")]
+    [SerializeField] private CharacterData[] characterDatabase;
+
     [Header("Timing")]
     [SerializeField, Min(0f)]
     private float resultDisplayDuration = 3f;
 
     private MatchSession matchSession;
     private Coroutine resultCoroutine;
-    private int lastHandledSequence = -1;
     private Coroutine bindCoroutine;
+
+    private int lastHandledSequence = -1;
+
     private GameplayCanvasVisibility gameplayCanvasVisibility;
-private bool gameplayCanvasesHidden;
+    private bool gameplayCanvasesHidden;
 
     private readonly List<MatchResultCardUI> resultCards = new();
 
@@ -43,50 +48,61 @@ private bool gameplayCanvasesHidden;
             roundInfoObject.SetActive(true);
     }
 
-private void OnEnable()
-{
-    if (bindCoroutine != null)
-        StopCoroutine(bindCoroutine);
-
-    bindCoroutine = StartCoroutine(BindMatchSessionWhenAvailable());
-}
-private void OnDisable()
-{
-    if (bindCoroutine != null)
+    private void OnEnable()
     {
-        StopCoroutine(bindCoroutine);
-        bindCoroutine = null;
+        if (bindCoroutine != null)
+            StopCoroutine(bindCoroutine);
+
+        bindCoroutine = StartCoroutine(BindMatchSessionWhenAvailable());
     }
 
-    UnbindMatchSession();
-    StopResultCoroutine();
-    ClearCards();
-
-    if (rootPanel != null)
-        rootPanel.SetActive(false);
-
-
-RestoreGameplayCanvases();
-lastHandledSequence = -1;
-}
-
-    private void BindMatchSession()
+    private void OnDisable()
     {
-        MatchSession candidate = MatchSession.Instance;
-
-        if (candidate == null || !candidate.IsSpawned)
-            return;
-
-        if (matchSession == candidate)
-            return;
+        if (bindCoroutine != null)
+        {
+            StopCoroutine(bindCoroutine);
+            bindCoroutine = null;
+        }
 
         UnbindMatchSession();
+        StopResultCoroutine();
+        ClearCards();
 
-        matchSession = candidate;
-        matchSession.OnRoundResultRequested += HandleRoundResult;
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
 
-        // Recover if the result event fired before subscription.
-        CheckForMissedResult();
+        RestoreGameplayCanvases();
+        lastHandledSequence = -1;
+    }
+
+    private IEnumerator BindMatchSessionWhenAvailable()
+    {
+        while (isActiveAndEnabled)
+        {
+            MatchSession candidate = MatchSession.Instance;
+
+            if (candidate != null && candidate.IsSpawned)
+            {
+                if (matchSession != candidate)
+                {
+                    UnbindMatchSession();
+
+                    matchSession = candidate;
+                    matchSession.OnRoundResultRequested += HandleRoundResult;
+
+                    Debug.Log("[MATCH RESULT UI] Bound to MatchSession.");
+                }
+
+                CheckForMissedResult();
+
+                bindCoroutine = null;
+                yield break;
+            }
+
+            yield return null;
+        }
+
+        bindCoroutine = null;
     }
 
     private void UnbindMatchSession()
@@ -98,69 +114,6 @@ lastHandledSequence = -1;
         matchSession = null;
     }
 
-private IEnumerator BindMatchSessionWhenAvailable()
-{
-    // MatchSession may not exist yet when this UI is enabled.
-    while (isActiveAndEnabled)
-    {
-        MatchSession candidate = MatchSession.Instance;
-
-        if (candidate != null && candidate.IsSpawned)
-        {
-            if (matchSession != candidate)
-            {
-                UnbindMatchSession();
-
-                matchSession = candidate;
-                matchSession.OnRoundResultRequested += HandleRoundResult;
-
-                Debug.Log("[MATCH RESULT UI] Bound to MatchSession.");
-            }
-
-            // Recover a result that was published before subscription.
-            CheckForMissedResult();
-
-            bindCoroutine = null;
-            yield break;
-        }
-
-        yield return null;
-    }
-
-    bindCoroutine = null;
-}
-
-private void HideGameplayCanvases()
-{
-    if (gameplayCanvasVisibility == null)
-    {
-        gameplayCanvasVisibility =
-            FindAnyObjectByType<GameplayCanvasVisibility>();
-    }
-
-    if (gameplayCanvasVisibility == null)
-    {
-        Debug.LogWarning(
-            "[MATCH RESULT UI] GameplayCanvasVisibility not found."
-        );
-        return;
-    }
-
-    gameplayCanvasVisibility.HideGameplayCanvases();
-    gameplayCanvasesHidden = true;
-}
-
-private void RestoreGameplayCanvases()
-{
-    if (!gameplayCanvasesHidden)
-        return;
-
-    if (gameplayCanvasVisibility != null)
-        gameplayCanvasVisibility.RestoreGameplayCanvases();
-
-    gameplayCanvasVisibility = null;
-    gameplayCanvasesHidden = false;
-}
     private void CheckForMissedResult()
     {
         if (matchSession == null || !matchSession.IsSpawned)
@@ -196,10 +149,10 @@ private void RestoreGameplayCanvases()
 
     private IEnumerator ShowResultCoroutine()
     {
-      HideGameplayCanvases();
+        HideGameplayCanvases();
 
-    if (rootPanel != null)
-        rootPanel.SetActive(true);
+        if (rootPanel != null)
+            rootPanel.SetActive(true);
 
         ClearCards();
 
@@ -232,10 +185,14 @@ private void RestoreGameplayCanvases()
                     resultContainer
                 );
 
+                CharacterData characterData =
+                    GetCharacterDataForPlayer(result.player);
+
                 card.Setup(
                     result.placement,
                     result.player,
-                    GetResultDetail(result)
+                    GetResultDetail(result),
+                    characterData
                 );
 
                 resultCards.Add(card);
@@ -256,12 +213,40 @@ private void RestoreGameplayCanvases()
         OnResultCompleted?.Invoke();
     }
 
-    private string GetResultDetail(MatchSession.RoundResultRecord result)
+    private CharacterData GetCharacterDataForPlayer(PlayerRef player)
+    {
+        NetworkManager networkManager = NetworkManager.Instance;
+
+        if (networkManager == null || characterDatabase == null)
+            return null;
+
+        if (!networkManager.TryGetPlayerSelection(
+                player,
+                out CharacterID selectedCharacter))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < characterDatabase.Length; i++)
+        {
+            CharacterData data = characterDatabase[i];
+
+            if (data != null && data.characterID == selectedCharacter)
+                return data;
+        }
+
+        return null;
+    }
+
+    private string GetResultDetail(
+        MatchSession.RoundResultRecord result)
     {
         switch (matchSession.CurrentRoundResultDetailType)
         {
             case RoundResultDetailType.Status:
-                return result.placement == 1 ? "ALIVE" : "ELIMINATED";
+                return result.placement == 1
+                    ? "ALIVE"
+                    : "ELIMINATED";
 
             case RoundResultDetailType.HoldTime:
                 return $"{result.detailValue}s";
@@ -273,6 +258,38 @@ private void RestoreGameplayCanvases()
             default:
                 return "";
         }
+    }
+
+    private void HideGameplayCanvases()
+    {
+        if (gameplayCanvasVisibility == null)
+        {
+            gameplayCanvasVisibility =
+                FindAnyObjectByType<GameplayCanvasVisibility>();
+        }
+
+        if (gameplayCanvasVisibility == null)
+        {
+            Debug.LogWarning(
+                "[MATCH RESULT UI] GameplayCanvasVisibility not found."
+            );
+            return;
+        }
+
+        gameplayCanvasVisibility.HideGameplayCanvases();
+        gameplayCanvasesHidden = true;
+    }
+
+    private void RestoreGameplayCanvases()
+    {
+        if (!gameplayCanvasesHidden)
+            return;
+
+        if (gameplayCanvasVisibility != null)
+            gameplayCanvasVisibility.RestoreGameplayCanvases();
+
+        gameplayCanvasVisibility = null;
+        gameplayCanvasesHidden = false;
     }
 
     private void StopResultCoroutine()
@@ -295,16 +312,17 @@ private void RestoreGameplayCanvases()
         resultCards.Clear();
     }
 
-public void HideImmediately()
-{
-    StopResultCoroutine();
+    public void HideImmediately()
+    {
+        StopResultCoroutine();
 
-    if (rootPanel != null)
-        rootPanel.SetActive(false);
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
 
-    ClearCards();
-    RestoreGameplayCanvases();
-}
+        ClearCards();
+        RestoreGameplayCanvases();
+    }
+
     private void OnDestroy()
     {
         UnbindMatchSession();

@@ -88,7 +88,8 @@ public class PlayerMovement : NetworkBehaviour
     [Networked] private float BlackHoleAcceleration { get; set; }
     [Networked] private float BlackHoleMaxSpeed { get; set; }
 
-    [Networked] private float CollectibleSpeedBoostMultiplier { get; set; } = 1f;
+[Networked, OnChangedRender(nameof(OnCollectibleSpeedBoostMultiplierChanged))]
+private float CollectibleSpeedBoostMultiplier { get; set; } = 1f;
     [Networked] private float MovementSpeedMultiplier { get; set; } = 1f;
     [Networked] private float CarrierSpeedMultiplier { get; set; } = 1f;
 
@@ -109,6 +110,7 @@ public class PlayerMovement : NetworkBehaviour
     private bool _wasGrounded;
     private bool _hasInitializedGroundState;
     private float _airTime;
+    private PlayerStatusEffects _statusEffects;
 
     private readonly Collider[] _groundHits = new Collider[8];
 
@@ -143,6 +145,7 @@ public class PlayerMovement : NetworkBehaviour
         _inputHandler = GetComponent<PlayerInputHandler>();
         _controlEffects = GetComponent<PlayerControlEffects>();
         _audio = GetComponent<PlayerAudio>();
+        _statusEffects = GetComponent<PlayerStatusEffects>();
 
         if (_inputHandler == null)
         {
@@ -161,6 +164,8 @@ public class PlayerMovement : NetworkBehaviour
             LastJumpTick = -10000;
         }
     }
+
+
 
     public override void FixedUpdateNetwork()
     {
@@ -460,12 +465,18 @@ public class PlayerMovement : NetworkBehaviour
         {
             Vector3 movement = Vector3.ClampMagnitude(_moveDirection, 1f);
 
-            float finalSpeedMultiplier =
-                MovementSpeedMultiplier *
-                CarrierSpeedMultiplier *
-                CollectibleSpeedBoostMultiplier *
-                GlobalEventSpeedMultiplier;
+  float smokeMultiplier =
+    _statusEffects != null && _statusEffects.IsInSmoke
+        ? _statusEffects.SmokeSpeedMultiplier
+        : 1f;
 
+float finalSpeedMultiplier =
+    MovementSpeedMultiplier *
+    CarrierSpeedMultiplier *
+    CollectibleSpeedBoostMultiplier *
+    GlobalEventSpeedMultiplier *
+    smokeMultiplier;
+    
             Vector3 targetVelocity =
                 movement * _moveSpeed * finalSpeedMultiplier;
 
@@ -547,6 +558,21 @@ public class PlayerMovement : NetworkBehaviour
     {
         return CollectibleSpeedBoostStacks;
     }
+    private void OnCollectibleSpeedBoostMultiplierChanged()
+{
+    // Only display the bonus on this player's own HUD.
+    if (!HasInputAuthority)
+        return;
+
+    if (RelicSpeedBoostUI.Instance == null)
+        return;
+
+    int bonusPercent = Mathf.RoundToInt(
+        (CollectibleSpeedBoostMultiplier - 1f) * 100f
+    );
+
+    RelicSpeedBoostUI.Instance.ShowBonus(bonusPercent);
+}
 
     public bool TryAddCollectibleSpeedBoostStack()
     {

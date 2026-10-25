@@ -15,6 +15,9 @@ EditorBuildSettings:
     path: Assets/_Project/_Scenes/Main/Lobby.unity
     guid: 972ff293f8a89bd46a4f14745cf55c9a
   - enabled: 1
+    path: Assets/_Project/_Scenes/Testing/Sison/BakeLight/pp.unity
+    guid: edfb6a249d0b4c84f89ae5a075e1c86e
+  - enabled: 1
     path: Assets/_Project/_Scenes/Main/MatiraMatibay.unity
     guid: c5b074637dc5f3d4296d06ce82972321
   - enabled: 1
@@ -26,8 +29,10 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/_Scenes/Main/Celebration.unity
     guid: b354632d3ebc7f04f9a37803aa5f9645
-  - enabled: 0
-    path: Assets/_Project/_Scenes/Testing/Sison/PPARK.unity
-    guid: 9d43d172d7e5848479a106d25debe6f7
   m_configObjects:
+    com.unity.adaptivePerformance.basic.provider_settings: {fileID: 11400000, guid: 8ef13ca9e14fd0f479f6868d39cdb7c4, type: 2}
+    com.unity.adaptiveperformance.google.android.provider_settings: {fileID: 11400000, guid: aaa1fde82f4cb4e4c818323c5d64ccba, type: 2}
+    com.unity.adaptiveperformance.loader_settings: {fileID: 11400000, guid: 662a0ba300ad37e43a112b64a7c2b48e, type: 2}
+    com.unity.adaptiveperformance.samsung.android.provider_settings: {fileID: 11400000, guid: f8d4524591bf09d4e8589a5d1d1f35e7, type: 2}
+    com.unity.adaptiveperformance.simulator.provider_settings: {fileID: 11400000, guid: 89f140c0e5ae42949a994a5d32050c63, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

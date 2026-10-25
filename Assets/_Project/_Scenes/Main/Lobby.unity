@@ -682,7 +682,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a9aea0da8dd06d64284467b7782ee701, type: 3}
+  m_Sprite: {fileID: -1351564389, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -815,6 +815,7 @@ GameObject:
   - component: {fileID: 225930432}
   - component: {fileID: 225930431}
   - component: {fileID: 225930435}
+  - component: {fileID: 225930436}
   m_Layer: 5
   m_Name: LOBBYCANVASS
   m_TagString: Untagged
@@ -930,6 +931,28 @@ MonoBehaviour:
   readyButton: {fileID: 428110297}
   settingsButton: {fileID: 35438664}
   mobileControls: {fileID: 1641848938}
+--- !u!114 &225930436
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 225930430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bf57d509eb23d54e82a15fa0c165272, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterPlayerIconListUI
+  allPlayersContainer: {fileID: 1684206080}
+  localPlayerContainer: {fileID: 1882616671}
+  playerIconPrefab: {fileID: 4501251988000626820, guid: 5c38efe431a9acf47a53772029a00cbf, type: 3}
+  characters:
+  - {fileID: 11400000, guid: 9cb1be1be0f558f4ca1deaa4c8ab823c, type: 2}
+  - {fileID: 11400000, guid: 884bc52c744ac4743842b81d4dd6e03f, type: 2}
+  - {fileID: 11400000, guid: d21645577d7caff4ca7309438efe9a63, type: 2}
+  - {fileID: 11400000, guid: 0534b0ededd07a749b45138a02facc40, type: 2}
+  - {fileID: 11400000, guid: 8346897fc5f45d844ab6887d166f0031, type: 2}
+  - {fileID: 11400000, guid: 5ec7c85e35ec38f4e8d6afdb85fc43fd, type: 2}
 --- !u!1 &278408648
 GameObject:
   m_ObjectHideFlags: 0
@@ -2596,7 +2619,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 9562645221dd9234a945412cbc00e93d, type: 3}
+  m_Sprite: {fileID: 1188282375, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3619,7 +3642,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a9aea0da8dd06d64284467b7782ee701, type: 3}
+  m_Sprite: {fileID: -535294144, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -5248,7 +5271,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1684206080}
-  - component: {fileID: 1684206079}
   - component: {fileID: 1684206077}
   - component: {fileID: 1684206076}
   - component: {fileID: 1684206075}
@@ -5354,25 +5376,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &1684206079
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1684206074}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7bf57d509eb23d54e82a15fa0c165272, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterPlayerIconListUI
-  container: {fileID: 1684206080}
-  playerIconPrefab: {fileID: 4501251988000626820, guid: 5c38efe431a9acf47a53772029a00cbf, type: 3}
-  characters:
-  - {fileID: 11400000, guid: 9cb1be1be0f558f4ca1deaa4c8ab823c, type: 2}
-  - {fileID: 11400000, guid: 884bc52c744ac4743842b81d4dd6e03f, type: 2}
-  - {fileID: 11400000, guid: d21645577d7caff4ca7309438efe9a63, type: 2}
-  - {fileID: 11400000, guid: 0534b0ededd07a749b45138a02facc40, type: 2}
 --- !u!224 &1684206080
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5532,7 +5535,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 68546a82321fa1749be5ebf7b44e0cfa, type: 3}
+  m_Sprite: {fileID: -1330012647, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -5609,6 +5612,7 @@ MonoBehaviour:
   detailsUI: {fileID: 1743241385}
   thirdPersonCamera: {fileID: 1836448604}
   playerControlController: {fileID: 979656926}
+  defaultCharacter: {fileID: 11400000, guid: d21645577d7caff4ca7309438efe9a63, type: 2}
 --- !u!114 &1743241385
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5621,6 +5625,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1df485e6017f5a04585a5a60301347fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterDetailsUI
+  defaultCharacter: {fileID: 11400000, guid: d21645577d7caff4ca7309438efe9a63, type: 2}
   characterNameText: {fileID: 1420476253}
   abilityNameText: {fileID: 93135953}
   effectText: {fileID: 1482724914}
@@ -5846,7 +5851,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a9aea0da8dd06d64284467b7782ee701, type: 3}
+  m_Sprite: {fileID: 1035120554, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -5977,7 +5982,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1882616671}
-  - component: {fileID: 1882616673}
   - component: {fileID: 1882616674}
   m_Layer: 5
   m_Name: PlayerListContainer
@@ -6005,25 +6009,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 94.175354}
   m_SizeDelta: {x: 0, y: -188.35071}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1882616673
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1882616670}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7bf57d509eb23d54e82a15fa0c165272, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterPlayerIconListUI
-  container: {fileID: 1882616671}
-  playerIconPrefab: {fileID: 4501251988000626820, guid: 5c38efe431a9acf47a53772029a00cbf, type: 3}
-  characters:
-  - {fileID: 11400000, guid: 9cb1be1be0f558f4ca1deaa4c8ab823c, type: 2}
-  - {fileID: 11400000, guid: 884bc52c744ac4743842b81d4dd6e03f, type: 2}
-  - {fileID: 11400000, guid: d21645577d7caff4ca7309438efe9a63, type: 2}
-  - {fileID: 11400000, guid: 0534b0ededd07a749b45138a02facc40, type: 2}
 --- !u!114 &1882616674
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6239,7 +6224,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 742b2f62d3ccacf44b363b617a1b500d, type: 3}
+  m_Sprite: {fileID: 1778666832, guid: 1dc0046b17f7586499aed460a6fffb78, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
