@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-8542459826909883517
+--- !u!114 &-8407566647175394060
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
@@ -188,7 +188,7 @@ MonoBehaviour:
       m_MinBound: 0.01
       m_MaxBound: 1
   m_AddedScalerViaScan:
-  - {fileID: -8542459826909883517}
+  - {fileID: -8407566647175394060}
   m_ActiveScalerProfile:
     rid: -2
   m_scalerProfileList:
